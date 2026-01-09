@@ -5,22 +5,23 @@ export default {
     extend: {
       colors: {
         primary: {
-          DEFAULT: "#F2A20C",
-          light: "#F2B705",
-          dark: "#0D0D0D",
+          DEFAULT: "#2457B1", // Azul Clube Kids
+          light: "#66C24D", // Verde Clube Kids
+          dark: "#ED3136", // Vermelho Clube Kids
         },
         secondary: {
-          DEFAULT: "#F2DC99",
-          light: "#F2F2F2",
+          DEFAULT: "#FFFDFF", // Branco Clube Kids
+          light: "#FFFDFF", // Branco Clube Kids
         },
         background: {
-          dark: "#0D0D0D",
-          light: "#F2F2F2",
+          dark: "#2457B1", // Azul Clube Kids
+          light: "#FFFDFF", // Branco Clube Kids
         },
         accent: {
-          orange: "#F2A20C",
-          yellow: "#F2B705",
-          cream: "#F2DC99",
+          blue: "#2457B1",
+          red: "#ED3136",
+          green: "#66C24D",
+          white: "#FFFDFF",
         },
       },
       fontFamily: {
