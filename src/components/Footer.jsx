@@ -1,22 +1,18 @@
 export function Footer() {
   return (
-    <footer className="bg-gradient-to-r from-black via-gray-800 to-gray-900 text-white mt-12 border-t-4 border-primary">
+    <footer className="mt-12 border-t-4 border-yellow-400" style={{ background: 'linear-gradient(to right, #C91F24, #2457B1)', textShadow: '0 2px 4px rgba(0,0,0,0.5)', color: '#FFFFFF' }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Branding */}
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <div className="bg-gradient-to-br from-primary to-accent-yellow p-2 rounded-lg">
-                <svg
-                  className="w-6 h-6 text-white"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" />
-                </svg>
-              </div>
-              <span className="text-xl font-bold text-gradient bg-gradient-to-r from-primary via-accent-yellow to-primary bg-clip-text">
-                Agarra Mais
+              <img
+                src="/ClubeKidsLogo (1).png"
+                alt="Clube Kids"
+                className="w-20 h-20 object-contain"
+              />
+              <span className="text-xl font-bold text-gradient bg-gradient-to-r from-primary via-accent-yellow to-primary bg-clip-text" style={{ textShadow: 'none' }}>
+                Clube Kids
               </span>
             </div>
             <p className="text-gray-400 text-sm">
@@ -109,12 +105,12 @@ export function Footer() {
         {/* Bottom Bar */}
         <div className="mt-8 pt-6 border-t border-gray-800">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-gray-500 text-sm">
-              © 2026 Agarra Mais. Todos os direitos reservados. 🧸
+            <p className="text-gray-200 text-sm" style={{ textShadow: 'none' }}>
+              © 2026 Clube Kids. Todos os direitos reservados. 🧸
             </p>
-            <div className="flex items-center gap-4 text-sm text-gray-500">
+            <div className="flex items-center gap-4 text-sm text-gray-200">
               <span>Versão 1.0.0</span>
-              <span className="w-1 h-1 bg-gray-600 rounded-full"></span>
+              <span className="w-1 h-1 bg-gray-200 rounded-full"></span>
               <span>Made by SelfMAchine developers</span>
             </div>
           </div>

@@ -20,7 +20,7 @@ export function Navbar() {
   const closeMenu = () => setIsMenuOpen(false);
 
   return (
-    <nav className="bg-gradient-to-r from-black via-gray-800 to-gray-900 text-white shadow-2xl border-b-4 border-primary">
+    <nav className="shadow-2xl border-b-4 border-yellow-400" style={{ background: 'linear-gradient(to right, #C91F24, #2457B1)', textShadow: '0 2px 4px rgba(0,0,0,0.5)', color: '#FFFFFF' }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           <div className="flex items-center">
@@ -29,16 +29,14 @@ export function Navbar() {
               className="flex items-center space-x-2 sm:space-x-3 group"
             >
               <img
-                src="/src/assets/logo-clube-kids.png"
+                src="/ClubeKidsLogo (1).png"
                 alt="Clube Kids"
-                className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 object-contain transition-transform duration-300 group-hover:scale-110"
+                className="w-20 h-25 sm:w-25 sm:h-20 lg:w-28 lg:h-28 object-contain transition-transform duration-300 group-hover:scale-110"
                 onError={(e) => {
                   e.target.style.display = "none";
                 }}
               />
-              <span className="hidden sm:block text-xl sm:text-2xl lg:text-3xl font-bold bg-linear-to-r from-primary via-accent-yellow to-primary bg-clip-text text-transparent">
-                Clube Kids
-              </span>
+            
             </Link>
 
             {/* Menu Desktop */}

@@ -814,7 +814,7 @@ export function Dashboard() {
           }
 
           <div class="footer">
-            <p>Relatório gerado automaticamente pelo Sistema AgarraMais</p>
+            <p>Relatório gerado automaticamente pelo Sistema ClubeKids</p>
           </div>
         </body>
       </html>
@@ -1037,7 +1037,7 @@ export function Dashboard() {
           }
 
           <div class="footer">
-            <p>Relatório gerado automaticamente pelo Sistema AgarraMais</p>
+            <p>Relatório gerado automaticamente pelo Sistema ClubeKids</p>
           </div>
         </body>
       </html>
