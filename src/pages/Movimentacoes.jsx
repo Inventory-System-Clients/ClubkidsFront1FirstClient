@@ -148,6 +148,18 @@ export function Movimentacoes() {
     setSuccess("");
 
     try {
+      // Validar campos obrigatórios
+      if (!formData.maquina_id) {
+        setError("❌ Selecione uma máquina");
+        setSalvandoMovimentacao(false);
+        return;
+      }
+      if (!formData.produto_id) {
+        setError("❌ Selecione um produto");
+        setSalvandoMovimentacao(false);
+        return;
+      }
+
       // Converter valores do formulário
       const totalPre = parseInt(formData.quantidadeAtualMaquina) || 0; // valor digitado pelo usuário
       const quantidadeAdicionada = parseInt(formData.quantidadeAdicionada) || 0;
@@ -238,6 +250,11 @@ export function Movimentacoes() {
         "📤 [handleSubmit] Dados enviados:",
         JSON.stringify(data, null, 2)
       );
+      console.log("🔍 [VALIDAÇÃO] Campos obrigatórios:");
+      console.log("   maquinaId:", data.maquinaId, "- Tipo:", typeof data.maquinaId);
+      console.log("   totalPre:", data.totalPre, "- Tipo:", typeof data.totalPre);
+      console.log("   sairam:", data.sairam, "- Tipo:", typeof data.sairam);
+      console.log("   abastecidas:", data.abastecidas, "- Tipo:", typeof data.abastecidas);
 
       const response = await api.post("/movimentacoes", data);
 
