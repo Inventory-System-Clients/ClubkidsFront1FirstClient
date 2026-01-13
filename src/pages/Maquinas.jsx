@@ -129,12 +129,26 @@ export function Maquinas() {
     {
       key: "codigo",
       label: "Código",
-      render: (maquina) => maquina.codigo || "-",
+      render: (maquina) => (
+        <button
+          onClick={() => navigate(`/maquinas/${maquina.id}`)}
+          className="text-blue-600 hover:text-blue-800 font-semibold hover:underline"
+        >
+          {maquina.codigo || "-"}
+        </button>
+      ),
     },
     {
       key: "nome",
       label: "Nome",
-      render: (maquina) => maquina.nome || "-",
+      render: (maquina) => (
+        <button
+          onClick={() => navigate(`/maquinas/${maquina.id}`)}
+          className="text-blue-600 hover:text-blue-800 font-semibold hover:underline text-left"
+        >
+          {maquina.nome || "-"}
+        </button>
+      ),
     },
     {
       key: "loja",

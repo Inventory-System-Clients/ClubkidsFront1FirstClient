@@ -11,9 +11,13 @@ import { LojaForm } from "./pages/LojaForm";
 import { LojaDetalhes } from "./pages/LojaDetalhes";
 import { Maquinas } from "./pages/Maquinas";
 import { MaquinaForm } from "./pages/MaquinaForm";
+import { MaquinaDetalhes } from "./pages/MaquinaDetalhes";
 import { Produtos } from "./pages/Produtos";
 import { ProdutoForm } from "./pages/ProdutoForm";
 import { Movimentacoes } from "./pages/Movimentacoes";
+import { SelecionarRoteiro } from "./pages/SelecionarRoteiro";
+import { LojasRoteiro } from "./pages/LojasRoteiro";
+import { MovimentacoesLoja } from "./pages/MovimentacoesLoja";
 import { Graficos } from "./pages/Graficos";
 import { Relatorios } from "./pages/Relatorios";
 import { StyleGuide } from "./pages/StyleGuide";
@@ -116,6 +120,14 @@ function App() {
             }
           />
           <Route
+            path="/maquinas/:id"
+            element={
+              <PrivateRoute>
+                <MaquinaDetalhes />
+              </PrivateRoute>
+            }
+          />
+          <Route
             path="/produtos"
             element={
               <PrivateRoute>
@@ -143,7 +155,23 @@ function App() {
             path="/movimentacoes"
             element={
               <PrivateRoute>
-                <Movimentacoes />
+                <SelecionarRoteiro />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/movimentacoes/roteiro/:roteiroId"
+            element={
+              <PrivateRoute>
+                <LojasRoteiro />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/movimentacoes/roteiro/:roteiroId/loja/:lojaId"
+            element={
+              <PrivateRoute>
+                <MovimentacoesLoja />
               </PrivateRoute>
             }
           />
@@ -163,6 +191,7 @@ function App() {
               </PrivateRoute>
             }
           />
+
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </BrowserRouter>

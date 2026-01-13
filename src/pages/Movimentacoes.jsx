@@ -53,6 +53,9 @@ export function Movimentacoes() {
     abastecidas: "",
     quantidade_notas_entrada: "",
     valor_entrada_maquininha_pix: "",
+    valorEntradaFichas: "",
+    valorEntradaNotas: "",
+    valorEntradaCartao: "",
   });
 
   // Formulário Nova Movimentação
@@ -66,6 +69,9 @@ export function Movimentacoes() {
     contadorOut: "",
     quantidade_notas_entrada: "",
     valor_entrada_maquininha_pix: "",
+    valorEntradaFichas: "",
+    valorEntradaNotas: "",
+    valorEntradaCartao: "",
     observacao: "",
     retiradaEstoque: false,
   });
@@ -207,6 +213,15 @@ export function Movimentacoes() {
         valor_entrada_maquininha_pix: formData.valor_entrada_maquininha_pix
           ? parseFloat(formData.valor_entrada_maquininha_pix)
           : null,
+        valorEntradaFichas: formData.valorEntradaFichas
+          ? parseFloat(formData.valorEntradaFichas)
+          : null,
+        valorEntradaNotas: formData.valorEntradaNotas
+          ? parseFloat(formData.valorEntradaNotas)
+          : null,
+        valorEntradaCartao: formData.valorEntradaCartao
+          ? parseFloat(formData.valorEntradaCartao)
+          : null,
         retiradaEstoque: formData.retiradaEstoque,
         contadorMaquina: null,
         observacoes: observacaoFinal || null,
@@ -241,6 +256,9 @@ export function Movimentacoes() {
         contadorOut: "",
         quantidade_notas_entrada: "",
         valor_entrada_maquininha_pix: "",
+        valorEntradaFichas: "",
+        valorEntradaNotas: "",
+        valorEntradaCartao: "",
         observacao: "",
         retiradaEstoque: false,
       });
@@ -270,6 +288,9 @@ export function Movimentacoes() {
       quantidade_notas_entrada: movimentacao.quantidade_notas_entrada || "",
       valor_entrada_maquininha_pix:
         movimentacao.valor_entrada_maquininha_pix || "",
+      valorEntradaFichas: movimentacao.valorEntradaFichas || "",
+      valorEntradaNotas: movimentacao.valorEntradaNotas || "",
+      valorEntradaCartao: movimentacao.valorEntradaCartao || "",
     });
   };
 
@@ -280,6 +301,9 @@ export function Movimentacoes() {
       abastecidas: "",
       quantidade_notas_entrada: "",
       valor_entrada_maquininha_pix: "",
+      valorEntradaFichas: "",
+      valorEntradaNotas: "",
+      valorEntradaCartao: "",
     });
   };
 
@@ -295,6 +319,18 @@ export function Movimentacoes() {
         valor_entrada_maquininha_pix:
           formEdicao.valor_entrada_maquininha_pix !== ""
             ? parseFloat(formEdicao.valor_entrada_maquininha_pix)
+            : null,
+        valorEntradaFichas:
+          formEdicao.valorEntradaFichas !== ""
+            ? parseFloat(formEdicao.valorEntradaFichas)
+            : null,
+        valorEntradaNotas:
+          formEdicao.valorEntradaNotas !== ""
+            ? parseFloat(formEdicao.valorEntradaNotas)
+            : null,
+        valorEntradaCartao:
+          formEdicao.valorEntradaCartao !== ""
+            ? parseFloat(formEdicao.valorEntradaCartao)
             : null,
       });
       setSuccess("Movimentação atualizada com sucesso!");
@@ -728,45 +764,109 @@ export function Movimentacoes() {
                     Fichas coletadas da máquina
                   </p>
                 </div>
+              </div>
+
+              {/* Valores de Entrada */}
+              <h3 className="text-lg font-bold text-gray-800 mb-3 mt-6">
+                💰 Valores de Entrada (Arrecadação)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    💵 Valor em Notas (R$)
+                    💰 Valor Entrada Fichas (R$)
+                  </label>
+                  <input
+                    type="number"
+                    name="valorEntradaFichas"
+                    value={formData.valorEntradaFichas}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Valor total arrecadado em fichas
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    💵 Valor Entrada Notas (R$)
+                  </label>
+                  <input
+                    type="number"
+                    name="valorEntradaNotas"
+                    value={formData.valorEntradaNotas}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Valor total em notas coletadas
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    💳 Valor Entrada Cartão/PIX (R$)
+                  </label>
+                  <input
+                    type="number"
+                    name="valorEntradaCartao"
+                    value={formData.valorEntradaCartao}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Valor total recebido via pagamento digital
+                  </p>
+                </div>
+              </div>
+
+              {/* Campos Antigos - Deprecated */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-400 mb-2">
+                    ⚠️ Qtd Notas (Campo Antigo - Não usar)
                   </label>
                   <input
                     type="number"
                     name="quantidade_notas_entrada"
                     value={formData.quantidade_notas_entrada}
                     onChange={handleChange}
-                    className="input-field"
+                    className="input-field bg-gray-100"
                     placeholder="0.00"
                     min="0"
                     step="0.01"
+                    disabled
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Valor total em dinheiro (notas) inserido na máquina
-                  </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    💳 Valor Digital (Pix/Maquininha) (R$)
+                  <label className="block text-sm font-semibold text-gray-400 mb-2">
+                    ⚠️ Valor Digital (Campo Antigo - Não usar)
                   </label>
                   <input
                     type="number"
                     name="valor_entrada_maquininha_pix"
                     value={formData.valor_entrada_maquininha_pix}
                     onChange={handleChange}
-                    className="input-field"
+                    className="input-field bg-gray-100"
                     placeholder="0.00"
                     min="0"
                     step="0.01"
+                    disabled
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Valor total recebido via pagamento digital (Pix/Maquininha)
-                  </p>
                 </div>
               </div>
 
               {/* Contadores da Máquina */}
+              <h3 className="text-lg font-bold text-gray-800 mb-3 mt-6">
+                📊 Contadores da Máquina
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -1151,9 +1251,77 @@ export function Movimentacoes() {
                   />
                 </div>
 
+                <h4 className="text-md font-semibold text-gray-800 mt-4">
+                  💰 Valores de Entrada
+                </h4>
+
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    💵 Quantidade de Notas
+                    💰 Valor Entrada Fichas (R$)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formEdicao.valorEntradaFichas}
+                    onChange={(e) =>
+                      setFormEdicao({
+                        ...formEdicao,
+                        valorEntradaFichas: e.target.value,
+                      })
+                    }
+                    className="input-field"
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    💵 Valor Entrada Notas (R$)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formEdicao.valorEntradaNotas}
+                    onChange={(e) =>
+                      setFormEdicao({
+                        ...formEdicao,
+                        valorEntradaNotas: e.target.value,
+                      })
+                    }
+                    className="input-field"
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    💳 Valor Entrada Cartão/PIX (R$)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formEdicao.valorEntradaCartao}
+                    onChange={(e) =>
+                      setFormEdicao({
+                        ...formEdicao,
+                        valorEntradaCartao: e.target.value,
+                      })
+                    }
+                    className="input-field"
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <h4 className="text-md font-semibold text-gray-400 mt-4">
+                  ⚠️ Campos Antigos (Não usar)
+                </h4>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-400 mb-2">
+                    💵 Quantidade de Notas (Deprecated)
                   </label>
                   <input
                     type="number"
@@ -1165,13 +1333,14 @@ export function Movimentacoes() {
                         quantidade_notas_entrada: e.target.value,
                       })
                     }
-                    className="input-field"
+                    className="input-field bg-gray-100"
                     placeholder="0"
+                    disabled
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    💳 Valor Digital (Pix/Maquininha) (R$)
+                  <label className="block text-sm font-semibold text-gray-400 mb-2">
+                    💳 Valor Digital (Deprecated)
                   </label>
                   <input
                     type="number"
@@ -1184,8 +1353,9 @@ export function Movimentacoes() {
                         valor_entrada_maquininha_pix: e.target.value,
                       })
                     }
-                    className="input-field"
+                    className="input-field bg-gray-100"
                     placeholder="0.00"
+                    disabled
                   />
                 </div>
                 <div className="flex gap-3 pt-4">

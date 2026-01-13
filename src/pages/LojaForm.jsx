@@ -16,6 +16,7 @@ export function LojaForm() {
     endereco: "",
     cidade: "",
     estado: "",
+    zona: "",
     cep: "",
     telefone: "",
     responsavel: "",
@@ -443,6 +444,25 @@ export function LojaForm() {
                     className="input-field"
                     placeholder="00000-000"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Zona
+                  </label>
+                  <select
+                    name="zona"
+                    value={formData.zona}
+                    onChange={handleChange}
+                    className="select-field"
+                  >
+                    <option value="">Selecione...</option>
+                    <option value="Norte">Norte</option>
+                    <option value="Sul">Sul</option>
+                    <option value="Leste">Leste</option>
+                    <option value="Oeste">Oeste</option>
+                    <option value="Centro">Centro</option>
+                  </select>
                 </div>
               </div>
             </div>
