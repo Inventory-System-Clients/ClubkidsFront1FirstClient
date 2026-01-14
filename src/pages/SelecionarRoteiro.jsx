@@ -18,6 +18,7 @@ export function SelecionarRoteiro() {
   const [draggedLoja, setDraggedLoja] = useState(null);
   const [draggedFromRoteiro, setDraggedFromRoteiro] = useState(null);
   const [funcionarios, setFuncionarios] = useState([]);
+  const [gerandoRoteiros, setGerandoRoteiros] = useState(false);
 
   useEffect(() => {
     carregarRoteiros();
@@ -42,6 +43,20 @@ export function SelecionarRoteiro() {
       setFuncionarios(response.data || []);
     } catch (error) {
       console.error("Erro ao carregar funcionários:", error);
+    }
+  };
+
+  const gerarRoteiros = async () => {
+    try {
+      setGerandoRoteiros(true);
+      setError("");
+      await api.post("/roteiros/gerar");
+      setSuccess("Roteiros diários gerados com sucesso!");
+      await carregarRoteiros();
+    } catch (error) {
+      setError("Erro ao gerar roteiros: " + (error.response?.data?.error || error.message));
+    } finally {
+      setGerandoRoteiros(false);
     }
   };
 
