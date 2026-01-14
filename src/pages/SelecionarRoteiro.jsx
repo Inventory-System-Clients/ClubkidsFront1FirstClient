@@ -122,13 +122,14 @@ export function SelecionarRoteiro() {
   };
 
   const deletarRoteiro = async (roteiroId, zona) => {
-    if (!window.confirm(`Tem certeza que deseja excluir o roteiro ${zona}?\n\nEsta ação não pode ser desfeita.`)) {
+    if (!window.confirm(`Tem certeza que deseja excluir o roteiro ${zona}?\n\n⚠️ ATENÇÃO: Se este roteiro estiver em andamento, será excluído mesmo assim.\n\nEsta ação não pode ser desfeita.`)) {
       return;
     }
 
     try {
       setError("");
-      await api.delete(`/roteiros/${roteiroId}`);
+      // Adicionar force=true para permitir deletar roteiros em andamento
+      await api.delete(`/roteiros/${roteiroId}?force=true`);
       setSuccess("Roteiro excluído com sucesso!");
       await carregarRoteiros();
     } catch (error) {

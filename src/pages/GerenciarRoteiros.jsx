@@ -161,13 +161,14 @@ export function GerenciarRoteiros() {
   };
 
   const deletarRoteiro = async (roteiroId) => {
-    if (!window.confirm("Tem certeza que deseja deletar este roteiro? Esta ação não pode ser desfeita.")) {
+    if (!window.confirm("Tem certeza que deseja deletar este roteiro?\n\n⚠️ ATENÇÃO: Se este roteiro estiver em andamento, será excluído mesmo assim.\n\nEsta ação não pode ser desfeita.")) {
       return;
     }
 
     try {
       setError("");
-      await api.delete(`/roteiros/${roteiroId}`);
+      // Adicionar force=true para permitir deletar roteiros em andamento
+      await api.delete(`/roteiros/${roteiroId}?force=true`);
       setSuccess("Roteiro deletado com sucesso!");
       await carregarDados();
     } catch (error) {
