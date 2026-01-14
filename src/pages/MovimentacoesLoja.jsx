@@ -31,6 +31,7 @@ export function MovimentacoesLoja() {
     contadorOut: "",
     quantidade_notas_entrada: "",
     valor_entrada_maquininha_pix: "",
+    numeroBag: "",
     valorEntradaFichas: "",
     valorEntradaNotas: "",
     valorEntradaCartao: "",
@@ -97,6 +98,7 @@ export function MovimentacoesLoja() {
         contadorOut: "",
         quantidade_notas_entrada: "",
         valor_entrada_maquininha_pix: "",
+        numeroBag: "",
         valorEntradaFichas: "",
         valorEntradaNotas: "",
         valorEntradaCartao: "",
@@ -373,9 +375,33 @@ export function MovimentacoesLoja() {
                     />
                   </div>
 
+                  {/* Número da Bag */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      🎒 Número da Bag (opcional)
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.numeroBag}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          numeroBag: e.target.value,
+                        })
+                      }
+                      className="input-field"
+                      placeholder="Preencha se levar dinheiro na bag para contar depois"
+                    />
+                    {formData.numeroBag && (
+                      <p className="text-sm text-amber-600 mt-1">
+                        ⚠️ Os valores financeiros abaixo são opcionais quando há número de bag
+                      </p>
+                    )}
+                  </div>
+
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      💰 Valor Entrada Fichas (R$)
+                      💰 Valor Entrada Fichas (R$){!formData.numeroBag && " *"}
                     </label>
                     <input
                       type="number"
@@ -395,7 +421,7 @@ export function MovimentacoesLoja() {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      💵 Valor Entrada Notas (R$)
+                      💵 Valor Entrada Notas (R$){!formData.numeroBag && " *"}
                     </label>
                     <input
                       type="number"
@@ -415,7 +441,7 @@ export function MovimentacoesLoja() {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      💳 Valor Entrada Cartão/PIX (R$)
+                      💳 Valor Entrada Cartão/PIX (R$){!formData.numeroBag && " *"}
                     </label>
                     <input
                       type="number"
