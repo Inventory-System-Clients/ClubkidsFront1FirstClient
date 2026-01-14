@@ -121,6 +121,21 @@ export function SelecionarRoteiro() {
     }
   };
 
+  const deletarRoteiro = async (roteiroId, zona) => {
+    if (!window.confirm(`Tem certeza que deseja excluir o roteiro ${zona}?\n\nEsta ação não pode ser desfeita.`)) {
+      return;
+    }
+
+    try {
+      setError("");
+      await api.delete(`/roteiros/${roteiroId}`);
+      setSuccess("Roteiro excluído com sucesso!");
+      await carregarRoteiros();
+    } catch (error) {
+      setError("Erro ao excluir roteiro: " + (error.response?.data?.error || error.message));
+    }
+  };
+
   // Filtrar roteiros do dia atual
   const hoje = new Date().toISOString().split('T')[0];
   const roteirosHoje = roteiros.filter(r => r.data?.startsWith(hoje));
@@ -328,7 +343,7 @@ export function SelecionarRoteiro() {
                     )}
                   </div>
 
-                  <div className="mt-6 text-center">
+                  <div className="mt-6 space-y-2">
                     <button 
                       className="btn-primary w-full"
                       onClick={(e) => {
@@ -338,6 +353,21 @@ export function SelecionarRoteiro() {
                     >
                       {roteiro.status === 'em_andamento' ? 'Continuar Roteiro' : 'Iniciar Roteiro'}
                     </button>
+                    
+                    {isAdmin && (
+                      <button 
+                        className="w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-semibold flex items-center justify-center gap-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deletarRoteiro(roteiro.id, roteiro.zona);
+                        }}
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Excluir Roteiro
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -384,6 +414,23 @@ export function SelecionarRoteiro() {
                       <div>👤 {roteiro.funcionarioNome}</div>
                     )}
                   </div>
+
+                  {isAdmin && (
+                    <div className="mt-4">
+                      <button 
+                        className="w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-semibold flex items-center justify-center gap-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deletarRoteiro(roteiro.id, roteiro.zona);
+                        }}
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Excluir
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
