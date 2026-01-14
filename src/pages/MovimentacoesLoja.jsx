@@ -77,10 +77,26 @@ export function MovimentacoesLoja() {
       setSalvando(true);
       
       const movimentacao = {
-        maquina_id: maquinaSelecionada,
-        loja_id: lojaId,
-        roteiro_id: roteiroId,
-        ...formData,
+        maquinaId: maquinaSelecionada,
+        roteiroId: roteiroId,
+        totalPre: parseInt(formData.quantidadeAtualMaquina) || 0,
+        sairam: 0, // Calculado no backend baseado no produto
+        abastecidas: parseInt(formData.quantidadeAdicionada) || 0,
+        fichas: parseInt(formData.fichas) || 0,
+        contadorIn: parseInt(formData.contadorIn) || 0,
+        contadorOut: parseInt(formData.contadorOut) || 0,
+        quantidade_notas_entrada: parseInt(formData.quantidade_notas_entrada) || 0,
+        valor_entrada_maquininha_pix: parseFloat(formData.valor_entrada_maquininha_pix) || 0,
+        numeroBag: formData.numeroBag || null,
+        valorEntradaFichas: formData.valorEntradaFichas ? parseFloat(formData.valorEntradaFichas) : null,
+        valorEntradaNotas: formData.valorEntradaNotas ? parseFloat(formData.valorEntradaNotas) : null,
+        valorEntradaCartao: formData.valorEntradaCartao ? parseFloat(formData.valorEntradaCartao) : null,
+        observacoes: formData.observacao || "",
+        produtos: formData.produto_id ? [{
+          produtoId: formData.produto_id,
+          quantidadeSaiu: 0,
+          quantidadeAbastecida: parseInt(formData.quantidadeAdicionada) || 0,
+        }] : [],
       };
 
       await api.post("/movimentacoes", movimentacao);
