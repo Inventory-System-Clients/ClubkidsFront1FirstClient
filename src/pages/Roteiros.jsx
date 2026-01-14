@@ -28,6 +28,8 @@ export function Roteiros() {
       setLoading(true);
       const response = await api.get("/roteiros");
       console.log("Roteiros carregados:", response.data);
+      console.log("Usuário atual:", usuario);
+      console.log("É admin?", usuario?.role === "ADMIN");
       setRoteiros(response.data || []);
     } catch (error) {
       setError("Erro ao carregar roteiros: " + (error.response?.data?.error || error.message));
