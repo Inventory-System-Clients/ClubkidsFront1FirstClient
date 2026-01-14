@@ -90,13 +90,19 @@ export function Roteiros() {
 
         {/* Botão para gerar roteiros (apenas admin) */}
         {usuario?.role === "ADMIN" && (
-          <div className="mb-6">
+          <div className="mb-6 flex gap-4">
             <button
               onClick={gerarRoteiros}
               disabled={gerandoRoteiros}
               className="btn-primary"
             >
               {gerandoRoteiros ? "Gerando..." : "🔄 Gerar Roteiros do Dia"}
+            </button>
+            <button
+              onClick={() => navigate("/roteiros/gerenciar")}
+              className="btn-secondary"
+            >
+              ⚙️ Gerenciar Roteiros
             </button>
           </div>
         )}

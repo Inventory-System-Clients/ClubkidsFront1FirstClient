@@ -18,6 +18,7 @@ import { Movimentacoes } from "./pages/Movimentacoes";
 import { SelecionarRoteiro } from "./pages/SelecionarRoteiro";
 import { LojasRoteiro } from "./pages/LojasRoteiro";
 import { MovimentacoesLoja } from "./pages/MovimentacoesLoja";
+import { GerenciarRoteiros } from "./pages/GerenciarRoteiros";
 import { Graficos } from "./pages/Graficos";
 import { Relatorios } from "./pages/Relatorios";
 import { StyleGuide } from "./pages/StyleGuide";
@@ -172,6 +173,14 @@ function App() {
             element={
               <PrivateRoute>
                 <MovimentacoesLoja />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/roteiros/gerenciar"
+            element={
+              <PrivateRoute adminOnly={true}>
+                <GerenciarRoteiros />
               </PrivateRoute>
             }
           />
