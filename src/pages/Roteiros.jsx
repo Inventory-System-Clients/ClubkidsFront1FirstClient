@@ -36,11 +36,26 @@ export function Roteiros() {
   };
 
   const gerarRoteiros = async () => {
+    // Confirmar com o usuário que os roteiros antigos serão removidos
+    if (roteiros.length > 0) {
+      const confirmacao = window.confirm(
+        "Atenção: Todos os roteiros existentes serão removidos antes de gerar novos roteiros. Deseja continuar?"
+      );
+      if (!confirmacao) return;
+    }
+
     try {
       setGerandoRoteiros(true);
       setError("");
+      
+      // Deletar todos os roteiros existentes
+      if (roteiros.length > 0) {
+        await api.delete("/roteiros/todos");
+      }
+      
+      // Gerar novos roteiros
       await api.post("/roteiros/gerar");
-      setSuccess("Roteiros gerados com sucesso!");
+      setSuccess("Roteiros anteriores removidos e novos roteiros gerados com sucesso!");
       await carregarRoteiros();
     } catch (error) {
       setError("Erro ao gerar roteiros: " + (error.response?.data?.error || error.message));
@@ -181,6 +196,22 @@ export function Roteiros() {
                     <strong>Lojas:</strong> {meuRoteiro.lojas?.length || 0} | 
                     <strong> Máquinas:</strong> {meuRoteiro.totalMaquinas || 0}
                   </p>
+                  
+                  {/* Lista de lojas */}
+                  {meuRoteiro.lojas && meuRoteiro.lojas.length > 0 && (
+                    <div className="mb-3 space-y-1 max-h-32 overflow-y-auto bg-white bg-opacity-50 p-2 rounded">
+                      <p className="text-xs font-semibold text-gray-700 mb-1">Lojas neste roteiro:</p>
+                      {meuRoteiro.lojas.map((loja) => (
+                        <div
+                          key={loja.id}
+                          className="text-xs p-2 bg-white rounded border border-gray-300"
+                        >
+                          🏪 {loja.nome}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
                   <div className="flex items-center gap-2 mt-2">
                     <Badge type="info">
                       Concluídas: {meuRoteiro.maquinasConcluidas || 0}/{meuRoteiro.totalMaquinas || 0}
@@ -212,7 +243,11 @@ export function Roteiros() {
               {roteirosDisponiveis.map((roteiro) => (
                 <div 
                   key={roteiro.id} 
-                  className="card hover:shadow-xl transition-shadow"
+                  className={`card hover:shadow-xl transition-all ${
+                    isAdmin && draggedLoja && draggedFromRoteiro !== roteiro.id
+                      ? 'ring-2 ring-blue-400 ring-offset-2 bg-blue-50'
+                      : ''
+                  }`}
                   onDragOver={isAdmin ? handleDragOver : undefined}
                   onDrop={isAdmin ? (e) => handleDrop(e, roteiro.id) : undefined}
                 >
@@ -247,28 +282,34 @@ export function Roteiros() {
                       <strong> Máquinas:</strong> {roteiro.totalMaquinas || 0}
                     </p>
                     
-                    {/* Lista de lojas (visível para admin) */}
-                    {isAdmin && roteiro.lojas && roteiro.lojas.length > 0 && (
-                      <div className="mb-3 space-y-1">
-                        {roteiro.lojas.slice(0, 3).map((loja) => (
+                    {/* Lista de lojas */}
+                    {roteiro.lojas && roteiro.lojas.length > 0 ? (
+                      <div className="mb-3 space-y-1 max-h-40 overflow-y-auto">
+                        <p className="text-xs font-semibold text-gray-700 mb-1">Lojas neste roteiro:</p>
+                        {roteiro.lojas.map((loja) => (
                           <div
                             key={loja.id}
-                            draggable={true}
-                            onDragStart={() => handleDragStart(loja, roteiro.id)}
-                            className={`text-xs p-2 bg-gray-50 rounded border ${
+                            draggable={isAdmin}
+                            onDragStart={isAdmin ? () => handleDragStart(loja, roteiro.id) : undefined}
+                            className={`text-xs p-2 bg-white rounded border transition-all ${
                               draggedLoja?.id === loja.id 
-                                ? 'border-blue-500 opacity-50' 
-                                : 'border-gray-200'
-                            } cursor-move hover:border-blue-400 hover:bg-blue-50`}
+                                ? 'border-blue-500 opacity-50 shadow-lg' 
+                                : 'border-gray-300'
+                            } ${
+                              isAdmin 
+                                ? 'cursor-move hover:border-blue-400 hover:bg-blue-50 hover:shadow-md' 
+                                : ''
+                            }`}
                           >
                             🏪 {loja.nome}
                           </div>
                         ))}
-                        {roteiro.lojas.length > 3 && (
-                          <p className="text-xs text-gray-500 text-center">
-                            +{roteiro.lojas.length - 3} lojas
-                          </p>
-                        )}
+                      </div>
+                    ) : (
+                      <div className="mb-3 p-3 bg-gray-50 rounded border-2 border-dashed border-gray-300">
+                        <p className="text-xs text-gray-500 text-center">
+                          {isAdmin ? '📦 Roteiro vazio - Arraste lojas aqui' : '📦 Sem lojas'}
+                        </p>
                       </div>
                     )}
                     
@@ -303,6 +344,26 @@ export function Roteiros() {
                   <p className="text-sm text-gray-600 mb-2">
                     <strong>Zona:</strong> {roteiro.zona} | <strong>Estado:</strong> {roteiro.estado}
                   </p>
+                  <p className="text-sm text-gray-600 mb-2">
+                    <strong>Lojas:</strong> {roteiro.lojas?.length || 0} | 
+                    <strong> Máquinas:</strong> {roteiro.totalMaquinas || 0}
+                  </p>
+                  
+                  {/* Lista de lojas */}
+                  {roteiro.lojas && roteiro.lojas.length > 0 && (
+                    <div className="mb-3 space-y-1 max-h-32 overflow-y-auto">
+                      <p className="text-xs font-semibold text-gray-700 mb-1">Lojas:</p>
+                      {roteiro.lojas.map((loja) => (
+                        <div
+                          key={loja.id}
+                          className="text-xs p-2 bg-white rounded border border-gray-300"
+                        >
+                          🏪 {loja.nome}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
                   <Badge type="warning">Em Andamento</Badge>
                 </div>
               ))}
@@ -324,8 +385,25 @@ export function Roteiros() {
                     <strong>Funcionário:</strong> {roteiro.funcionarioNome}
                   </p>
                   <p className="text-sm text-gray-600 mb-2">
-                    <strong>Máquinas:</strong> {roteiro.maquinasConcluidas}/{roteiro.totalMaquinas}
+                    <strong>Lojas:</strong> {roteiro.lojas?.length || 0} | 
+                    <strong> Máquinas:</strong> {roteiro.maquinasConcluidas}/{roteiro.totalMaquinas}
                   </p>
+                  
+                  {/* Lista de lojas */}
+                  {roteiro.lojas && roteiro.lojas.length > 0 && (
+                    <div className="mb-3 space-y-1 max-h-32 overflow-y-auto">
+                      <p className="text-xs font-semibold text-gray-700 mb-1">Lojas:</p>
+                      {roteiro.lojas.map((loja) => (
+                        <div
+                          key={loja.id}
+                          className="text-xs p-2 bg-white rounded border border-gray-300"
+                        >
+                          🏪 {loja.nome}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
                   <Badge type="success">✓ Concluído</Badge>
                 </div>
               ))}

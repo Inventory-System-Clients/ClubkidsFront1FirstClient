@@ -34,11 +34,26 @@ export function SelecionarRoteiro() {
   };
 
   const gerarRoteiros = async () => {
+    // Confirmar com o usuário que os roteiros antigos serão removidos
+    if (roteiros.length > 0) {
+      const confirmacao = window.confirm(
+        "Atenção: Todos os roteiros existentes serão removidos antes de gerar novos roteiros. Deseja continuar?"
+      );
+      if (!confirmacao) return;
+    }
+
     try {
       setGerandoRoteiros(true);
       setError("");
+      
+      // Deletar todos os roteiros existentes
+      if (roteiros.length > 0) {
+        await api.delete("/roteiros/todos");
+      }
+      
+      // Gerar novos roteiros
       await api.post("/roteiros/gerar");
-      setSuccess("6 roteiros diários gerados com sucesso!");
+      setSuccess("Roteiros anteriores removidos e 6 roteiros diários gerados com sucesso!");
       await carregarRoteiros();
     } catch (error) {
       setError("Erro ao gerar roteiros: " + (error.response?.data?.error || error.message));
