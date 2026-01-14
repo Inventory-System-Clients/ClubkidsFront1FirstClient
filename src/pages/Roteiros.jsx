@@ -174,6 +174,25 @@ export function Roteiros() {
         {error && <AlertBox type="error" message={error} onClose={() => setError("")} />}
         {success && <AlertBox type="success" message={success} onClose={() => setSuccess("")} />}
 
+        {/* DEBUG INFO - REMOVER DEPOIS */}
+        {isAdmin && (
+          <div className="mb-6 p-4 bg-yellow-100 border-2 border-yellow-400 rounded">
+            <p className="font-bold text-yellow-900">🔍 DEBUG (apenas para você, admin):</p>
+            <p className="text-sm">Seu role: {usuario?.role}</p>
+            <p className="text-sm">É admin: {isAdmin ? "SIM ✓" : "NÃO ✗"}</p>
+            <p className="text-sm">Total de roteiros hoje: {roteirosHoje.length}</p>
+            <p className="text-sm">Roteiros pendentes: {roteirosDisponiveis.length}</p>
+            {roteirosDisponiveis.length > 0 && (
+              <details className="mt-2">
+                <summary className="cursor-pointer text-sm font-semibold">Ver estrutura dos roteiros</summary>
+                <pre className="text-xs mt-2 bg-white p-2 rounded overflow-auto max-h-64">
+                  {JSON.stringify(roteirosDisponiveis, null, 2)}
+                </pre>
+              </details>
+            )}
+          </div>
+        )}
+
         {/* Botão para gerar roteiros (apenas admin) */}
         {usuario?.role === "ADMIN" && (
           <div className="mb-6 flex gap-4">
