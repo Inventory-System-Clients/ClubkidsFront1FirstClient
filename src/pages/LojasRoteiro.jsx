@@ -241,53 +241,23 @@ export function LojasRoteiro() {
           </div>
         )}
 
-        {/* Lojas Concluídas */}
-        {lojasConcluidas.length > 0 && (
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">
-              ✅ Lojas Concluídas
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {lojasConcluidas.map((loja) => (
-                <div
-                  key={loja.id}
-                  className="card-gradient bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-500"
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-bold text-green-700">
-                      {loja.nome}
-                    </h3>
-                    <Badge variant="success">✓ Concluída</Badge>
-                  </div>
-
-                  <div className="space-y-2 text-gray-600">
-                    <div className="flex items-center">
-                      <span className="text-xl mr-2">📍</span>
-                      <span className="text-sm">
-                        {loja.endereco || 'N/A'}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center">
-                      <span className="text-xl mr-2">🏙️</span>
-                      <span className="text-sm">
-                        {loja.cidade || 'N/A'} - {loja.estado || 'N/A'}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center">
-                      <span className="text-xl mr-2">🎰</span>
-                      <span className="text-sm">
-                        {loja.maquinas?.length || 0} máquinas processadas
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 text-center text-green-700 font-semibold">
-                    ✓ Todas as movimentações concluídas
-                  </div>
-                </div>
-              ))}
+        {/* Mensagem quando não há lojas pendentes */}
+        {lojasPendentes.length === 0 && lojasConcluidas.length > 0 && (
+          <div className="card-gradient bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-500">
+            <div className="text-center py-8">
+              <div className="text-6xl mb-4">🎉</div>
+              <h3 className="text-2xl font-bold text-green-700 mb-2">
+                Todas as lojas foram finalizadas!
+              </h3>
+              <p className="text-gray-600 mb-4">
+                {lojasConcluidas.length} {lojasConcluidas.length === 1 ? 'loja foi concluída' : 'lojas foram concluídas'} neste roteiro.
+              </p>
+              <button
+                onClick={concluirRoteiro}
+                className="btn-primary text-lg py-3 px-6"
+              >
+                ✅ Concluir Roteiro Completo
+              </button>
             </div>
           </div>
         )}
