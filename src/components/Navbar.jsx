@@ -31,7 +31,7 @@ export function Navbar() {
               <img
                 src="/ClubeKidsLogo (1).png"
                 alt="Clube Kids"
-                className="w-20 h-25 sm:w-25 sm:h-20 lg:w-28 lg:h-28 object-contain transition-transform duration-300 group-hover:scale-110"
+                className="w-20 h-25 sm:w-20 sm:h-20 lg:w-28 lg:h-28 object-contain transition-transform duration-300 group-hover:scale-110"
                 onError={(e) => {
                   e.target.style.display = "none";
                 }}
@@ -40,11 +40,11 @@ export function Navbar() {
             </Link>
 
             {/* Menu Desktop */}
-            <div className="hidden lg:block ml-12">
-              <div className="flex items-center space-x-2">
+            <div className="hidden lg:block ml-8">
+              <div className="flex items-center space-x-1.5">
                 <Link
                   to="/"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                     isActive("/")
                       ? "bg-gradient-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
                       : "text-gray-300 hover:bg-white/10 hover:text-white"
@@ -54,7 +54,7 @@ export function Navbar() {
                 </Link>
                 <Link
                   to="/movimentacoes"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                     isActive("/movimentacoes")
                       ? "bg-gradient-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
                       : "text-gray-300 hover:bg-white/10 hover:text-white"
@@ -64,7 +64,7 @@ export function Navbar() {
                 </Link>
                 <Link
                   to="/maquinas"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                     isActive("/maquinas")
                       ? "bg-gradient-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
                       : "text-gray-300 hover:bg-white/10 hover:text-white"
@@ -74,7 +74,7 @@ export function Navbar() {
                 </Link>
                 <Link
                   to="/lojas"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                     isActive("/lojas")
                       ? "bg-gradient-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
                       : "text-gray-300 hover:bg-white/10 hover:text-white"
@@ -84,7 +84,7 @@ export function Navbar() {
                 </Link>
                 <Link
                   to="/produtos"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                     isActive("/produtos")
                       ? "bg-gradient-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
                       : "text-gray-300 hover:bg-white/10 hover:text-white"
@@ -95,7 +95,7 @@ export function Navbar() {
                 {(usuario?.role === "ADMIN" || usuario?.role === "FINANCEIRO") && (
                   <Link
                     to="/financeiro"
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                       isActive("/financeiro")
                         ? "bg-gradient-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
                         : "text-gray-300 hover:bg-white/10 hover:text-white"
@@ -108,7 +108,7 @@ export function Navbar() {
                   <>
                     <Link
                       to="/graficos"
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                         isActive("/graficos")
                           ? "bg-gradient-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
                           : "text-gray-300 hover:bg-white/10 hover:text-white"
@@ -118,7 +118,7 @@ export function Navbar() {
                     </Link>
                     <Link
                       to="/relatorios"
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                         isActive("/relatorios")
                           ? "bg-gradient-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
                           : "text-gray-300 hover:bg-white/10 hover:text-white"
@@ -128,7 +128,7 @@ export function Navbar() {
                     </Link>
                     <Link
                       to="/usuarios"
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                         isActive("/usuarios")
                           ? "bg-gradient-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
                           : "text-gray-300 hover:bg-white/10 hover:text-white"
