@@ -15,7 +15,6 @@ export function SelecionarRoteiro() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [gerandoRoteiros, setGerandoRoteiros] = useState(false);
   const [draggedLoja, setDraggedLoja] = useState(null);
   const [draggedFromRoteiro, setDraggedFromRoteiro] = useState(null);
   const [funcionarios, setFuncionarios] = useState([]);
@@ -43,31 +42,6 @@ export function SelecionarRoteiro() {
       setFuncionarios(response.data || []);
     } catch (error) {
       console.error("Erro ao carregar funcionários:", error);
-    }
-  };
-
-  const gerarRoteiros = async () => {
-    // Confirmar com o usuário que TODOS os roteiros serão removidos
-    const confirmacao = window.confirm(
-      "⚠️ ATENÇÃO: Todos os roteiros existentes (pendentes, em andamento e concluídos) serão completamente REMOVIDOS e novos roteiros serão gerados usando a última configuração salva. Deseja continuar?"
-    );
-    if (!confirmacao) return;
-
-    try {
-      setGerandoRoteiros(true);
-      setError("");
-      
-      // Deletar TODOS os roteiros existentes (incluindo em andamento)
-      await api.delete("/roteiros/todos?force=true");
-      
-      // Gerar novos roteiros usando o template salvo (configuração do último dia)
-      await api.post("/roteiros/gerar", { usarTemplate: true });
-      setSuccess("✅ Todos os roteiros anteriores foram removidos e 6 roteiros diários foram gerados usando a configuração salva!");
-      await carregarRoteiros();
-    } catch (error) {
-      setError("Erro ao gerar roteiros: " + (error.response?.data?.error || error.message));
-    } finally {
-      setGerandoRoteiros(false);
     }
   };
 
