@@ -3,7 +3,7 @@ import { Suspense, lazy } from "react";
 import { AuthProvider } from "./contexts/AuthContext";
 import { PrivateRoute } from "./components/PrivateRoute";
 import { PageLoader } from "./components/Loading";
-import "./App.css";
+import { AlertaFinanceiro } from "./components/AlertaFinanceiro";
 
 // Lazy load das páginas para reduzir bundle inicial
 const Login = lazy(() => import("./pages/Login").then(m => ({ default: m.Login })));
@@ -34,6 +34,7 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Suspense fallback={<PageLoader />}>
+          <AlertaFinanceiro />
           <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/registrar" element={<Registrar />} />
