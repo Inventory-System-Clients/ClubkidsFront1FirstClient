@@ -1,8 +1,8 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
-export function PrivateRoute({ children, adminOnly = false }) {
-  const { signed, loading, isAdmin } = useAuth();
+export function PrivateRoute({ children, adminOnly = false, allowedRoles = null }) {
+  const { signed, loading, isAdmin, usuario } = useAuth();
 
   if (loading) {
     return (
@@ -17,6 +17,11 @@ export function PrivateRoute({ children, adminOnly = false }) {
   }
 
   if (adminOnly && !isAdmin()) {
+    return <Navigate to="/" />;
+  }
+
+  // Se allowedRoles foi especificado, verificar se o usuário tem uma das roles permitidas
+  if (allowedRoles && !allowedRoles.includes(usuario?.role)) {
     return <Navigate to="/" />;
   }
 

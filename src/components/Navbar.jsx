@@ -92,6 +92,18 @@ export function Navbar() {
                 >
                   🧸 Produtos
                 </Link>
+                {(usuario?.role === "ADMIN" || usuario?.role === "FINANCEIRO") && (
+                  <Link
+                    to="/financeiro"
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      isActive("/financeiro")
+                        ? "bg-gradient-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
+                        : "text-gray-300 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    💰 Financeiro
+                  </Link>
+                )}
                 {usuario?.role === "ADMIN" && (
                   <>
                     <Link
@@ -268,6 +280,19 @@ export function Navbar() {
             >
               🧸 Produtos
             </Link>
+            {(usuario?.role === "ADMIN" || usuario?.role === "FINANCEIRO") && (
+              <Link
+                to="/financeiro"
+                onClick={closeMenu}
+                className={`block px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                  isActive("/financeiro")
+                    ? "bg-gradient-to-r from-primary to-accent-yellow text-white shadow-lg"
+                    : "text-gray-300 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                💰 Financeiro
+              </Link>
+            )}
             {usuario?.role === "ADMIN" && (
               <>
                 <Link
