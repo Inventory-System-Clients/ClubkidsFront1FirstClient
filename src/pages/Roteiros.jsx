@@ -18,9 +18,11 @@ export function Roteiros() {
   const [gerandoRoteiros, setGerandoRoteiros] = useState(false);
   const [draggedLoja, setDraggedLoja] = useState(null);
   const [draggedFromRoteiro, setDraggedFromRoteiro] = useState(null);
+  const [funcionarios, setFuncionarios] = useState([]);
 
   useEffect(() => {
     carregarRoteiros();
+    carregarFuncionarios();
   }, []);
 
   const carregarRoteiros = async () => {
@@ -35,6 +37,15 @@ export function Roteiros() {
       setError("Erro ao carregar roteiros: " + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const carregarFuncionarios = async () => {
+    try {
+      const response = await api.get("/usuarios/funcionarios");
+      setFuncionarios(response.data || []);
+    } catch (error) {
+      console.error("Erro ao carregar funcionários:", error);
     }
   };
 
@@ -141,12 +152,12 @@ export function Roteiros() {
     }
   };
 
-  const atualizarNomeRoteiro = async (roteiroId, novoNome) => {
+  const atribuirFuncionario = async (roteiroId, funcionarioId) => {
     try {
       setError("");
-      await api.put(`/roteiros/${roteiroId}`, { zona: novoNome });
+      await api.put(`/roteiros/${roteiroId}`, { funcionarioId });
       
-      // Salvar template automaticamente após atualizar nome
+      // Salvar template automaticamente após atribuir funcionário
       try {
         await api.post("/roteiros/salvar-template");
         console.log("Template salvo automaticamente");
@@ -154,10 +165,10 @@ export function Roteiros() {
         console.warn("Erro ao salvar template:", templateError);
       }
       
-      setSuccess("Nome do roteiro atualizado e configuração salva!");
+      setSuccess("Funcionário atribuído com sucesso e configuração salva!");
       await carregarRoteiros();
     } catch (error) {
-      setError("Erro ao atualizar roteiro: " + (error.response?.data?.error || error.message));
+      setError("Erro ao atribuir funcionário: " + (error.response?.data?.error || error.message));
     }
   };
 
@@ -304,27 +315,30 @@ export function Roteiros() {
                   } : undefined}
                 >
                   <div className="flex flex-col h-full">
-                    {isAdmin ? (
-                      <input
-                        type="text"
-                        defaultValue={roteiro.zona}
-                        onBlur={(e) => {
-                          if (e.target.value !== roteiro.zona && e.target.value.trim()) {
-                            atualizarNomeRoteiro(roteiro.id, e.target.value);
-                          }
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.target.blur();
-                          }
-                        }}
-                        placeholder="Nome do roteiro (ex: João Silva)"
-                        className="text-lg font-bold text-gray-900 mb-2 px-2 py-1 border-2 border-transparent hover:border-blue-400 focus:border-blue-500 rounded outline-none bg-transparent"
-                      />
-                    ) : (
-                      <h3 className="text-lg font-bold text-gray-900 mb-2">
-                        {roteiro.zona}
-                      </h3>
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">
+                      {roteiro.zona}
+                    </h3>
+                    {isAdmin && (
+                      <div className="mb-2">
+                        <label className="text-xs text-gray-600 block mb-1">Funcionário:</label>
+                        <select
+                          value={roteiro.funcionarioId || ""}
+                          onChange={(e) => atribuirFuncionario(roteiro.id, e.target.value || null)}
+                          className="w-full text-sm px-2 py-1 border-2 border-gray-300 hover:border-blue-400 focus:border-blue-500 rounded outline-none"
+                        >
+                          <option value="">-- Não atribuído --</option>
+                          {funcionarios.map((func) => (
+                            <option key={func.id} value={func.id}>
+                              {func.nome}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    {!isAdmin && roteiro.funcionarioNome && (
+                      <p className="text-sm text-gray-600 mb-2">
+                        <strong>Funcionário:</strong> {roteiro.funcionarioNome}
+                      </p>
                     )}
                     <p className="text-sm text-gray-600 mb-2">
                       <strong>Estado:</strong> {roteiro.estado || "N/A"}
