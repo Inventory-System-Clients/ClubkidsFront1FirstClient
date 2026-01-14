@@ -18,7 +18,6 @@ export function SelecionarRoteiro() {
   const [draggedLoja, setDraggedLoja] = useState(null);
   const [draggedFromRoteiro, setDraggedFromRoteiro] = useState(null);
   const [funcionarios, setFuncionarios] = useState([]);
-  const [gerandoRoteiros, setGerandoRoteiros] = useState(false);
 
   useEffect(() => {
     carregarRoteiros();
@@ -43,20 +42,6 @@ export function SelecionarRoteiro() {
       setFuncionarios(response.data || []);
     } catch (error) {
       console.error("Erro ao carregar funcionários:", error);
-    }
-  };
-
-  const gerarRoteiros = async () => {
-    try {
-      setGerandoRoteiros(true);
-      setError("");
-      await api.post("/roteiros/gerar");
-      setSuccess("Roteiros diários gerados com sucesso!");
-      await carregarRoteiros();
-    } catch (error) {
-      setError("Erro ao gerar roteiros: " + (error.response?.data?.error || error.message));
-    } finally {
-      setGerandoRoteiros(false);
     }
   };
 
@@ -156,15 +141,6 @@ export function SelecionarRoteiro() {
           title="Selecionar Roteiro"
           subtitle="Escolha um roteiro para iniciar as movimentações"
           icon="🗺️"
-          action={
-            usuario?.role === "ADMIN"
-              ? {
-                  label: gerandoRoteiros ? "Gerando..." : "Gerar 6 Roteiros Diários",
-                  onClick: gerarRoteiros,
-                  disabled: gerandoRoteiros,
-                }
-              : undefined
-          }
         />
 
         {error && (
