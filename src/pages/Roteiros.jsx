@@ -41,7 +41,7 @@ export function Roteiros() {
   const gerarRoteiros = async () => {
     // Confirmar com o usuário que TODOS os roteiros serão removidos
     const confirmacao = window.confirm(
-      "⚠️ ATENÇÃO: Todos os roteiros existentes (pendentes, em andamento e concluídos) serão completamente REMOVIDOS e novos roteiros serão gerados do zero. Deseja continuar?"
+      "⚠️ ATENÇÃO: Todos os roteiros existentes (pendentes, em andamento e concluídos) serão completamente REMOVIDOS e novos roteiros serão gerados usando a última configuração salva. Deseja continuar?"
     );
     if (!confirmacao) return;
 
@@ -52,9 +52,9 @@ export function Roteiros() {
       // Deletar TODOS os roteiros existentes (incluindo em andamento)
       await api.delete("/roteiros/todos?force=true");
       
-      // Gerar novos roteiros
-      await api.post("/roteiros/gerar");
-      setSuccess("✅ Todos os roteiros anteriores foram removidos e novos roteiros foram gerados com sucesso!");
+      // Gerar novos roteiros usando o template salvo (configuração do último dia)
+      await api.post("/roteiros/gerar", { usarTemplate: true });
+      setSuccess("✅ Todos os roteiros anteriores foram removidos e novos roteiros foram gerados usando a configuração salva!");
       await carregarRoteiros();
     } catch (error) {
       setError("Erro ao gerar roteiros: " + (error.response?.data?.error || error.message));
@@ -122,7 +122,15 @@ export function Roteiros() {
         roteiroDestinoId: roteiroDestinoId,
       });
 
-      setSuccess(`Loja "${draggedLoja.nome}" movida com sucesso!`);
+      // Salvar template automaticamente após mover loja
+      try {
+        await api.post("/roteiros/salvar-template");
+        console.log("Template salvo automaticamente");
+      } catch (templateError) {
+        console.warn("Erro ao salvar template:", templateError);
+      }
+
+      setSuccess(`Loja "${draggedLoja.nome}" movida com sucesso! Configuração salva para próximos dias.`);
       await carregarRoteiros();
     } catch (error) {
       console.error("Erro ao mover loja:", error);
@@ -137,7 +145,16 @@ export function Roteiros() {
     try {
       setError("");
       await api.put(`/roteiros/${roteiroId}`, { zona: novoNome });
-      setSuccess("Nome do roteiro atualizado!");
+      
+      // Salvar template automaticamente após atualizar nome
+      try {
+        await api.post("/roteiros/salvar-template");
+        console.log("Template salvo automaticamente");
+      } catch (templateError) {
+        console.warn("Erro ao salvar template:", templateError);
+      }
+      
+      setSuccess("Nome do roteiro atualizado e configuração salva!");
       await carregarRoteiros();
     } catch (error) {
       setError("Erro ao atualizar roteiro: " + (error.response?.data?.error || error.message));
