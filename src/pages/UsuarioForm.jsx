@@ -288,11 +288,14 @@ export function UsuarioForm() {
                   required
                 >
                   <option value="FUNCIONARIO">Funcionário</option>
+                  <option value="FINANCEIRO">Financeiro</option>
                   <option value="ADMIN">Administrador</option>
                 </select>
                 <p className="mt-2 text-sm text-gray-500">
                   {formData.role === "ADMIN"
                     ? "Administradores têm acesso total ao sistema"
+                    : formData.role === "FINANCEIRO"
+                    ? "Financeiro tem acesso apenas à aba de gestão financeira"
                     : "Funcionários têm acesso limitado às lojas autorizadas"}
                 </p>
               </div>
