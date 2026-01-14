@@ -16,6 +16,8 @@ export function Roteiros() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [gerandoRoteiros, setGerandoRoteiros] = useState(false);
+  const [draggedLoja, setDraggedLoja] = useState(null);
+  const [draggedFromRoteiro, setDraggedFromRoteiro] = useState(null);
 
   useEffect(() => {
     carregarRoteiros();
@@ -65,15 +67,70 @@ export function Roteiros() {
     navigate(`/roteiros/${roteiroId}/executar`);
   };
 
+  const handleDragStart = (loja, roteiroId) => {
+    setDraggedLoja(loja);
+    setDraggedFromRoteiro(roteiroId);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = async (e, roteiroDestinoId) => {
+    e.preventDefault();
+    
+    if (!draggedLoja || !draggedFromRoteiro) return;
+
+    // Se é o mesmo roteiro, não fazer nada
+    if (draggedFromRoteiro === roteiroDestinoId) {
+      setDraggedLoja(null);
+      setDraggedFromRoteiro(null);
+      return;
+    }
+
+    try {
+      setError("");
+      
+      // Mover loja entre roteiros
+      await api.post("/roteiros/mover-loja", {
+        lojaId: draggedLoja.id,
+        roteiroOrigemId: draggedFromRoteiro,
+        roteiroDestinoId: roteiroDestinoId,
+      });
+
+      setSuccess(`Loja "${draggedLoja.nome}" movida com sucesso!`);
+      await carregarRoteiros();
+    } catch (error) {
+      setError("Erro ao mover loja: " + (error.response?.data?.error || error.message));
+    } finally {
+      setDraggedLoja(null);
+      setDraggedFromRoteiro(null);
+    }
+  };
+
+  const atualizarNomeRoteiro = async (roteiroId, novoNome) => {
+    try {
+      setError("");
+      await api.put(`/roteiros/${roteiroId}`, { zona: novoNome });
+      setSuccess("Nome do roteiro atualizado!");
+      await carregarRoteiros();
+    } catch (error) {
+      setError("Erro ao atualizar roteiro: " + (error.response?.data?.error || error.message));
+    }
+  };
+
   if (loading) return <PageLoader />;
 
   // Filtrar roteiros do dia atual
   const hoje = new Date().toISOString().split("T")[0];
   const roteirosHoje = roteiros.filter(r => r.data?.split("T")[0] === hoje);
   const meuRoteiro = roteirosHoje.find(r => r.funcionarioId === usuario.id && r.status === "em_andamento");
-  const roteirosDisponiveis = roteirosHoje.filter(r => r.status === "disponivel");
+  const roteirosDisponiveis = roteirosHoje.filter(r => r.status === "pendente");
   const roteirosEmAndamento = roteirosHoje.filter(r => r.status === "em_andamento" && r.funcionarioId !== usuario.id);
   const roteirosConcluidos = roteirosHoje.filter(r => r.status === "concluido");
+  
+  // Verificar se usuário é admin
+  const isAdmin = usuario?.role === "ADMIN";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -147,24 +204,74 @@ export function Roteiros() {
         {/* Roteiros Disponíveis */}
         {!meuRoteiro && roteirosDisponiveis.length > 0 && (
           <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Roteiros Disponíveis</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              Roteiros Disponíveis
+              {isAdmin && <span className="text-sm text-gray-600 ml-2">(Arraste lojas para reorganizar)</span>}
+            </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {roteirosDisponiveis.map((roteiro) => (
-                <div key={roteiro.id} className="card hover:shadow-xl transition-shadow">
+                <div 
+                  key={roteiro.id} 
+                  className="card hover:shadow-xl transition-shadow"
+                  onDragOver={isAdmin ? handleDragOver : undefined}
+                  onDrop={isAdmin ? (e) => handleDrop(e, roteiro.id) : undefined}
+                >
                   <div className="flex flex-col h-full">
-                    <h3 className="text-lg font-bold text-gray-900 mb-2">
-                      {roteiro.nome}
-                    </h3>
+                    {isAdmin ? (
+                      <input
+                        type="text"
+                        defaultValue={roteiro.zona}
+                        onBlur={(e) => {
+                          if (e.target.value !== roteiro.zona && e.target.value.trim()) {
+                            atualizarNomeRoteiro(roteiro.id, e.target.value);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.target.blur();
+                          }
+                        }}
+                        placeholder="Nome do roteiro (ex: João Silva)"
+                        className="text-lg font-bold text-gray-900 mb-2 px-2 py-1 border-2 border-transparent hover:border-blue-400 focus:border-blue-500 rounded outline-none bg-transparent"
+                      />
+                    ) : (
+                      <h3 className="text-lg font-bold text-gray-900 mb-2">
+                        {roteiro.zona}
+                      </h3>
+                    )}
                     <p className="text-sm text-gray-600 mb-2">
-                      <strong>Zona:</strong> {roteiro.zona}
+                      <strong>Estado:</strong> {roteiro.estado || "N/A"}
                     </p>
                     <p className="text-sm text-gray-600 mb-2">
-                      <strong>Estado:</strong> {roteiro.estado}
-                    </p>
-                    <p className="text-sm text-gray-600 mb-4">
                       <strong>Lojas:</strong> {roteiro.lojas?.length || 0} | 
                       <strong> Máquinas:</strong> {roteiro.totalMaquinas || 0}
                     </p>
+                    
+                    {/* Lista de lojas (visível para admin) */}
+                    {isAdmin && roteiro.lojas && roteiro.lojas.length > 0 && (
+                      <div className="mb-3 space-y-1">
+                        {roteiro.lojas.slice(0, 3).map((loja) => (
+                          <div
+                            key={loja.id}
+                            draggable={true}
+                            onDragStart={() => handleDragStart(loja, roteiro.id)}
+                            className={`text-xs p-2 bg-gray-50 rounded border ${
+                              draggedLoja?.id === loja.id 
+                                ? 'border-blue-500 opacity-50' 
+                                : 'border-gray-200'
+                            } cursor-move hover:border-blue-400 hover:bg-blue-50`}
+                          >
+                            🏪 {loja.nome}
+                          </div>
+                        ))}
+                        {roteiro.lojas.length > 3 && (
+                          <p className="text-xs text-gray-500 text-center">
+                            +{roteiro.lojas.length - 3} lojas
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    
                     <div className="mt-auto">
                       <button
                         onClick={() => iniciarRoteiro(roteiro.id)}
