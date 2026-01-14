@@ -27,6 +27,7 @@ export function Roteiros() {
     try {
       setLoading(true);
       const response = await api.get("/roteiros");
+      console.log("Roteiros carregados:", response.data);
       setRoteiros(response.data || []);
     } catch (error) {
       setError("Erro ao carregar roteiros: " + (error.response?.data?.error || error.message));
@@ -83,21 +84,30 @@ export function Roteiros() {
   };
 
   const handleDragStart = (loja, roteiroId) => {
+    console.log("Iniciando arrasto:", { loja, roteiroId });
     setDraggedLoja(loja);
     setDraggedFromRoteiro(roteiroId);
   };
 
   const handleDragOver = (e) => {
     e.preventDefault();
+    e.stopPropagation();
   };
 
   const handleDrop = async (e, roteiroDestinoId) => {
     e.preventDefault();
+    e.stopPropagation();
     
-    if (!draggedLoja || !draggedFromRoteiro) return;
+    console.log("Drop:", { draggedLoja, draggedFromRoteiro, roteiroDestinoId });
+    
+    if (!draggedLoja || !draggedFromRoteiro) {
+      console.log("Sem loja arrastada");
+      return;
+    }
 
     // Se é o mesmo roteiro, não fazer nada
     if (draggedFromRoteiro === roteiroDestinoId) {
+      console.log("Mesmo roteiro, cancelando");
       setDraggedLoja(null);
       setDraggedFromRoteiro(null);
       return;
@@ -106,6 +116,7 @@ export function Roteiros() {
     try {
       setError("");
       
+      console.log("Movendo loja entre roteiros...");
       // Mover loja entre roteiros
       await api.post("/roteiros/mover-loja", {
         lojaId: draggedLoja.id,
@@ -116,6 +127,7 @@ export function Roteiros() {
       setSuccess(`Loja "${draggedLoja.nome}" movida com sucesso!`);
       await carregarRoteiros();
     } catch (error) {
+      console.error("Erro ao mover loja:", error);
       setError("Erro ao mover loja: " + (error.response?.data?.error || error.message));
     } finally {
       setDraggedLoja(null);
@@ -206,7 +218,7 @@ export function Roteiros() {
                           key={loja.id}
                           className="text-xs p-2 bg-white rounded border border-gray-300"
                         >
-                          🏪 {loja.nome}
+                          🏪 {loja.nome || loja.lojaNome || 'Loja sem nome'}
                         </div>
                       ))}
                     </div>
@@ -248,8 +260,14 @@ export function Roteiros() {
                       ? 'ring-2 ring-blue-400 ring-offset-2 bg-blue-50'
                       : ''
                   }`}
-                  onDragOver={isAdmin ? handleDragOver : undefined}
-                  onDrop={isAdmin ? (e) => handleDrop(e, roteiro.id) : undefined}
+                  onDragOver={isAdmin ? (e) => {
+                    handleDragOver(e);
+                    console.log('DragOver no card:', roteiro.id);
+                  } : undefined}
+                  onDrop={isAdmin ? (e) => {
+                    console.log('Drop no card:', roteiro.id);
+                    handleDrop(e, roteiro.id);
+                  } : undefined}
                 >
                   <div className="flex flex-col h-full">
                     {isAdmin ? (
@@ -289,24 +307,38 @@ export function Roteiros() {
                         {roteiro.lojas.map((loja) => (
                           <div
                             key={loja.id}
-                            draggable={isAdmin}
-                            onDragStart={isAdmin ? () => handleDragStart(loja, roteiro.id) : undefined}
+                            draggable={isAdmin ? "true" : "false"}
+                            onDragStart={(e) => {
+                              if (isAdmin) {
+                                handleDragStart(loja, roteiro.id);
+                              } else {
+                                e.preventDefault();
+                              }
+                            }}
+                            onDragEnd={() => {
+                              console.log("Drag end");
+                            }}
                             className={`text-xs p-2 bg-white rounded border transition-all ${
                               draggedLoja?.id === loja.id 
                                 ? 'border-blue-500 opacity-50 shadow-lg' 
                                 : 'border-gray-300'
                             } ${
                               isAdmin 
-                                ? 'cursor-move hover:border-blue-400 hover:bg-blue-50 hover:shadow-md' 
+                                ? 'cursor-move hover:border-blue-400 hover:bg-blue-50 hover:shadow-md select-none' 
                                 : ''
                             }`}
+                            style={isAdmin ? { userSelect: 'none' } : {}}
                           >
-                            🏪 {loja.nome}
+                            🏪 {loja.nome || loja.lojaNome || 'Loja sem nome'}
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div className="mb-3 p-3 bg-gray-50 rounded border-2 border-dashed border-gray-300">
+                      <div 
+                        className="mb-3 p-3 bg-gray-50 rounded border-2 border-dashed border-gray-300"
+                        onDragOver={isAdmin ? handleDragOver : undefined}
+                        onDrop={isAdmin ? (e) => handleDrop(e, roteiro.id) : undefined}
+                      >
                         <p className="text-xs text-gray-500 text-center">
                           {isAdmin ? '📦 Roteiro vazio - Arraste lojas aqui' : '📦 Sem lojas'}
                         </p>
@@ -358,7 +390,7 @@ export function Roteiros() {
                           key={loja.id}
                           className="text-xs p-2 bg-white rounded border border-gray-300"
                         >
-                          🏪 {loja.nome}
+                          🏪 {loja.nome || loja.lojaNome || 'Loja sem nome'}
                         </div>
                       ))}
                     </div>
@@ -398,7 +430,7 @@ export function Roteiros() {
                           key={loja.id}
                           className="text-xs p-2 bg-white rounded border border-gray-300"
                         >
-                          🏪 {loja.nome}
+                          🏪 {loja.nome || loja.lojaNome || 'Loja sem nome'}
                         </div>
                       ))}
                     </div>
