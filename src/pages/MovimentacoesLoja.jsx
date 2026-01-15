@@ -101,12 +101,55 @@ export function MovimentacoesLoja() {
 
       await api.post("/movimentacoes", movimentacao);
       
-      setSuccess("Movimentação registrada com sucesso! Redirecionando...");
+      setSuccess("Movimentação registrada com sucesso!");
       
-      // Redirecionar para a lista de lojas do roteiro após salvar
-      setTimeout(() => {
-        navigate(`/movimentacoes/roteiro/${roteiroId}`);
-      }, 1500);
+      // Recarregar dados para atualizar progresso
+      await carregarDados();
+      
+      // Limpar formulário
+      setMaquinaSelecionada("");
+      setFormData({
+        produto_id: "",
+        quantidadeAtualMaquina: "",
+        quantidadeAdicionada: "",
+        fichas: "",
+        contadorIn: "",
+        contadorOut: "",
+        quantidade_notas_entrada: "",
+        valor_entrada_maquininha_pix: "",
+        numeroBag: "",
+        valorEntradaFichas: "",
+        valorEntradaNotas: "",
+        valorEntradaCartao: "",
+        observacao: "",
+      });
+      
+      // Verificar se todas as máquinas foram processadas
+      const maquinasAtualizadas = await api.get(`/maquinas?lojaId=${lojaId}`);
+      const totalMaquinas = maquinasAtualizadas.data.length;
+      const maquinasProcessadas = maquinasAtualizadas.data.filter(
+        m => m.ultimaMovimentacao?.roteiro_id === parseInt(roteiroId)
+      ).length;
+      
+      // Se todas as máquinas foram processadas, finalizar automaticamente
+      if (totalMaquinas > 0 && maquinasProcessadas === totalMaquinas) {
+        setSuccess("Todas as máquinas processadas! Finalizando loja automaticamente...");
+        
+        setTimeout(async () => {
+          try {
+            await api.post(`/roteiros/${roteiroId}/lojas/${lojaId}/concluir`);
+            setSuccess("Loja finalizada com sucesso! Comissão calculada. Redirecionando...");
+            
+            setTimeout(() => {
+              navigate(`/movimentacoes/roteiro/${roteiroId}`);
+            }, 2000);
+          } catch (error) {
+            console.error("Erro ao finalizar loja automaticamente:", error);
+            // Se falhar, mostrar botão de finalizar manual
+            setError("Clique no botão 'Finalizar Loja Completa' para concluir.");
+          }
+        }, 1000);
+      }
     } catch (error) {
       setError("Erro ao salvar movimentação: " + (error.response?.data?.error || error.message));
     } finally {
@@ -201,15 +244,28 @@ export function MovimentacoesLoja() {
             </div>
           </div>
           
-          {progresso === 100 && (
+          {/* Botão de finalizar - aparece se tiver pelo menos 1 máquina processada */}
+          {maquinasConcluidas.length > 0 && (
             <div className="mt-6">
               <button
                 onClick={finalizarLoja}
                 disabled={finalizando}
-                className="btn-primary w-full text-lg py-3"
+                className={`w-full text-lg py-3 ${
+                  progresso === 100 
+                    ? 'btn-primary' 
+                    : 'bg-yellow-600 hover:bg-yellow-700 text-white font-bold rounded-xl transition-colors'
+                }`}
               >
-                {finalizando ? "Finalizando..." : "✅ Finalizar Loja Completa"}
+                {finalizando ? "Finalizando..." : progresso === 100 
+                  ? "✅ Finalizar Loja Completa" 
+                  : `⚠️ Finalizar Loja (${maquinasConcluidas.length}/${maquinas.length} máquinas)`
+                }
               </button>
+              {progresso < 100 && (
+                <p className="text-sm text-yellow-700 text-center mt-2">
+                  ⚠️ Ainda faltam {maquinasPendentes.length} máquina(s). Tem certeza que quer finalizar?
+                </p>
+              )}
             </div>
           )}
         </div>
