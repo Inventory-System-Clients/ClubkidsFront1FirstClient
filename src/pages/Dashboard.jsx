@@ -6,6 +6,7 @@ import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { PageLoader } from "../components/Loading";
 import { Badge } from "../components/UIComponents";
+import { AlertaRoteirosPendentes } from "../components/AlertaRoteirosPendentes";
 import { useAuth } from "../contexts/AuthContext";
 
 import Swal from "sweetalert2";
@@ -278,6 +279,10 @@ export function Dashboard() {
   // Estados para edição de estoque
   const [estoqueEditando, setEstoqueEditando] = useState(null); // { lojaId, estoque: [...] }
   const [salvandoEstoque, setSalvandoEstoque] = useState(false);
+
+  // Estados para edição de movimentação
+  const [movimentacaoEditando, setMovimentacaoEditando] = useState(null);
+  const [salvandoMovimentacao, setSalvandoMovimentacao] = useState(false);
 
   // Função para remover produto do estoque da loja (usando o id do registro)
 
@@ -1404,6 +1409,47 @@ export function Dashboard() {
     }
   };
 
+  const handleEditarMovimentacao = (mov) => {
+    setMovimentacaoEditando({
+      id: mov.id,
+      totalPre: mov.totalPre || 0,
+      sairam: mov.sairam || 0,
+      abastecidas: mov.abastecidas || 0,
+      fichas: mov.fichas || 0,
+    });
+  };
+
+  const handleSalvarMovimentacao = async () => {
+    try {
+      setSalvandoMovimentacao(true);
+      await api.put(`/movimentacoes/${movimentacaoEditando.id}`, {
+        totalPre: parseInt(movimentacaoEditando.totalPre),
+        sairam: parseInt(movimentacaoEditando.sairam),
+        abastecidas: parseInt(movimentacaoEditando.abastecidas),
+        fichas: parseInt(movimentacaoEditando.fichas),
+      });
+      
+      Swal.fire({
+        icon: "success",
+        title: "Sucesso",
+        text: "Movimentação atualizada com sucesso!",
+        confirmButtonColor: "#fbbf24",
+      });
+      
+      setMovimentacaoEditando(null);
+      carregarDetalhesMaquina(maquinaSelecionada.id);
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title: "Erro",
+        text: "Erro ao atualizar movimentação: " + (error.response?.data?.error || error.message),
+        confirmButtonColor: "#ef4444",
+      });
+    } finally {
+      setSalvandoMovimentacao(false);
+    }
+  };
+
   // Filtrar lojas conforme busca
   const lojasFiltradas = lojas.filter(
     (loja) =>
@@ -1426,6 +1472,7 @@ export function Dashboard() {
   return (
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
       <Navbar />
+      <AlertaRoteirosPendentes />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header com boas-vindas */}
@@ -2607,15 +2654,24 @@ export function Dashboard() {
                                   ? "📥 Entrada"
                                   : "📤 Saída"}
                               </Badge>
-                              <span className="text-sm text-gray-600">
-                                {new Date(mov.createdAt).toLocaleDateString(
-                                  "pt-BR"
-                                )}{" "}
-                                às{" "}
-                                {new Date(mov.createdAt).toLocaleTimeString(
-                                  "pt-BR"
-                                )}
-                              </span>
+                              <div className="flex items-center gap-3">
+                                <span className="text-sm text-gray-600">
+                                  {new Date(mov.createdAt).toLocaleDateString(
+                                    "pt-BR"
+                                  )}{" "}
+                                  às{" "}
+                                  {new Date(mov.createdAt).toLocaleTimeString(
+                                    "pt-BR"
+                                  )}
+                                </span>
+                                <button
+                                  onClick={() => handleEditarMovimentacao(mov)}
+                                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded transition-colors"
+                                  title="Editar Movimentação"
+                                >
+                                  ✏️ Editar
+                                </button>
+                              </div>
                             </div>
                             <div className="grid grid-cols-5 gap-4 mt-3 text-sm">
                               <div>
@@ -3414,6 +3470,145 @@ export function Dashboard() {
                 {salvandoEstoque ? (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black"></div>
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                    Salvar Alterações
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Edição de Movimentação */}
+      {movimentacaoEditando && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+              <span className="text-3xl">✏️</span>
+              Editar Movimentação
+            </h2>
+
+            <div className="grid grid-cols-2 gap-6 mb-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  📦 Total Pré
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={movimentacaoEditando.totalPre}
+                  onChange={(e) =>
+                    setMovimentacaoEditando({
+                      ...movimentacaoEditando,
+                      totalPre: e.target.value,
+                    })
+                  }
+                  className="w-full input-field text-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  📤 Saíram
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={movimentacaoEditando.sairam}
+                  onChange={(e) =>
+                    setMovimentacaoEditando({
+                      ...movimentacaoEditando,
+                      sairam: e.target.value,
+                    })
+                  }
+                  className="w-full input-field text-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  📥 Abastecidas
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={movimentacaoEditando.abastecidas}
+                  onChange={(e) =>
+                    setMovimentacaoEditando({
+                      ...movimentacaoEditando,
+                      abastecidas: e.target.value,
+                    })
+                  }
+                  className="w-full input-field text-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  🎫 Fichas
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={movimentacaoEditando.fichas}
+                  onChange={(e) =>
+                    setMovimentacaoEditando({
+                      ...movimentacaoEditando,
+                      fichas: e.target.value,
+                    })
+                  }
+                  className="w-full input-field text-lg"
+                />
+              </div>
+            </div>
+
+            {/* Total Atual Calculado */}
+            <div className="mb-6 p-4 bg-purple-50 border-2 border-purple-300 rounded-lg">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-purple-900">
+                  📊 Total Atual (Calculado):
+                </span>
+                <span className="text-2xl font-bold text-purple-700">
+                  {parseInt(movimentacaoEditando.totalPre || 0) -
+                    parseInt(movimentacaoEditando.sairam || 0) +
+                    parseInt(movimentacaoEditando.abastecidas || 0)}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex gap-4 justify-end">
+              <button
+                onClick={() => setMovimentacaoEditando(null)}
+                className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-all"
+                disabled={salvandoMovimentacao}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSalvarMovimentacao}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all flex items-center gap-2"
+                disabled={salvandoMovimentacao}
+              >
+                {salvandoMovimentacao ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                     Salvando...
                   </>
                 ) : (
