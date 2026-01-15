@@ -1145,13 +1145,20 @@ export function Dashboard() {
     try {
       // Buscar comissões da loja
       const response = await api.get(`/relatorios/comissoes?lojaId=${lojaId}`);
-      const comissoes = response.data;
+      const data = response.data;
+
+      console.log("📊 Dados de comissão recebidos:", data);
+
+      // A API retorna um objeto com a propriedade 'comissoes' que é um array
+      const comissoes = data.comissoes || [];
+
+      console.log("📋 Comissões da loja:", comissoes);
 
       if (!comissoes || comissoes.length === 0) {
         Swal.fire({
           icon: "info",
           title: "Sem Comissões",
-          text: `Não há comissões registradas para a loja ${nomeLoja}.`,
+          text: `Não há comissões registradas para a loja ${nomeLoja}. Certifique-se de que a loja foi concluída em um roteiro e que as máquinas possuem percentual de comissão configurado.`,
           confirmButtonColor: "#fbbf24",
         });
         return;
@@ -1269,7 +1276,21 @@ export function Dashboard() {
         if (comissao.detalhes && Array.isArray(comissao.detalhes)) {
           detalhesHtml = '<div class="maquina-details">';
           comissao.detalhes.forEach(det => {
-            detalhesHtml += `<div>• ${det.codigoMaquina}: R$ ${parseFloat(det.lucro || 0).toFixed(2)} (${det.percentualComissao}% = R$ ${parseFloat(det.comissao || 0).toFixed(2)})</div>`;
+            const codigoMaquina = det.maquinaCodigo || det.codigoMaquina || 'N/A';
+            const nomeMaquina = det.maquinaNome || '';
+            const lucro = parseFloat(det.lucro || 0);
+            const percentual = parseFloat(det.percentualComissao || 0);
+            const comissaoMaq = parseFloat(det.comissao || 0);
+            const receita = parseFloat(det.receita || 0);
+            const custo = parseFloat(det.custo || 0);
+            
+            detalhesHtml += `
+              <div style="padding: 3px 0; border-bottom: 1px dashed #e5e7eb;">
+                <strong>${codigoMaquina}${nomeMaquina ? ' - ' + nomeMaquina : ''}</strong><br>
+                Receita: R$ ${receita.toFixed(2)} | Custo: R$ ${custo.toFixed(2)} | Lucro: R$ ${lucro.toFixed(2)}<br>
+                Comissão (${percentual.toFixed(2)}%): <strong style="color: #059669;">R$ ${comissaoMaq.toFixed(2)}</strong>
+              </div>
+            `;
           });
           detalhesHtml += '</div>';
         }
