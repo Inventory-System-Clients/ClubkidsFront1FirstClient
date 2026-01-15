@@ -123,33 +123,6 @@ export function MovimentacoesLoja() {
         valorEntradaCartao: "",
         observacao: "",
       });
-      
-      // Verificar se todas as máquinas foram processadas
-      const maquinasAtualizadas = await api.get(`/maquinas?lojaId=${lojaId}`);
-      const totalMaquinas = maquinasAtualizadas.data.length;
-      const maquinasProcessadas = maquinasAtualizadas.data.filter(
-        m => m.ultimaMovimentacao?.roteiro_id === parseInt(roteiroId)
-      ).length;
-      
-      // Se todas as máquinas foram processadas, finalizar automaticamente
-      if (totalMaquinas > 0 && maquinasProcessadas === totalMaquinas) {
-        setSuccess("Todas as máquinas processadas! Finalizando loja automaticamente...");
-        
-        setTimeout(async () => {
-          try {
-            await api.post(`/roteiros/${roteiroId}/lojas/${lojaId}/concluir`);
-            setSuccess("Loja finalizada com sucesso! Comissão calculada. Redirecionando...");
-            
-            setTimeout(() => {
-              navigate(`/movimentacoes/roteiro/${roteiroId}`);
-            }, 2000);
-          } catch (error) {
-            console.error("Erro ao finalizar loja automaticamente:", error);
-            // Se falhar, mostrar botão de finalizar manual
-            setError("Clique no botão 'Finalizar Loja Completa' para concluir.");
-          }
-        }, 1000);
-      }
     } catch (error) {
       setError("Erro ao salvar movimentação: " + (error.response?.data?.error || error.message));
     } finally {
@@ -168,13 +141,17 @@ export function MovimentacoesLoja() {
       setSuccess("Loja finalizada com sucesso! Redirecionando...");
       
       setTimeout(() => {
-        navigate(`/movimentacoes/roteiro/${roteiroId}`);
+        navigate(`/movimentacoes/roteiro/${roteiroId}`, { replace: true });
       }, 2000);
     } catch (error) {
       setError("Erro ao finalizar loja: " + (error.response?.data?.error || error.message));
     } finally {
       setFinalizando(false);
     }
+  };
+  
+  const voltarParaRoteiro = () => {
+    navigate(`/movimentacoes/roteiro/${roteiroId}`, { replace: true });
   };
 
   // Verificar quais máquinas já têm movimentação
@@ -196,7 +173,7 @@ export function MovimentacoesLoja() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <button
-          onClick={() => navigate(`/movimentacoes/roteiro/${roteiroId}`)}
+          onClick={voltarParaRoteiro}
           className="mb-4 text-primary hover:text-blue-700 font-semibold flex items-center gap-2"
         >
           ← Voltar para Lojas do Roteiro
@@ -246,26 +223,42 @@ export function MovimentacoesLoja() {
           
           {/* Botão de finalizar - aparece se tiver pelo menos 1 máquina processada */}
           {maquinasConcluidas.length > 0 && (
-            <div className="mt-6">
+            <div className="mt-6 space-y-3">
               <button
                 onClick={finalizarLoja}
                 disabled={finalizando}
                 className={`w-full text-lg py-3 ${
                   progresso === 100 
-                    ? 'btn-primary' 
+                    ? 'btn-success' 
                     : 'bg-yellow-600 hover:bg-yellow-700 text-white font-bold rounded-xl transition-colors'
                 }`}
               >
                 {finalizando ? "Finalizando..." : progresso === 100 
-                  ? "✅ Finalizar Loja Completa" 
-                  : `⚠️ Finalizar Loja (${maquinasConcluidas.length}/${maquinas.length} máquinas)`
+                  ? "✅ Finalizar Movimentação da Loja" 
+                  : `⚠️ Finalizar Loja Parcialmente (${maquinasConcluidas.length}/${maquinas.length})`
                 }
               </button>
               {progresso < 100 && (
-                <p className="text-sm text-yellow-700 text-center mt-2">
-                  ⚠️ Ainda faltam {maquinasPendentes.length} máquina(s). Tem certeza que quer finalizar?
+                <p className="text-sm text-yellow-700 text-center">
+                  ⚠️ Faltam {maquinasPendentes.length} máquina(s). Finalize agora ou continue depois.
                 </p>
               )}
+              <button
+                onClick={voltarParaRoteiro}
+                className="w-full btn-secondary text-lg py-3"
+              >
+                ← Voltar ao Roteiro sem Finalizar
+              </button>
+            </div>
+          )}
+          {maquinasConcluidas.length === 0 && (
+            <div className="mt-6">
+              <button
+                onClick={voltarParaRoteiro}
+                className="w-full btn-secondary text-lg py-3"
+              >
+                ← Voltar ao Roteiro
+              </button>
             </div>
           )}
         </div>

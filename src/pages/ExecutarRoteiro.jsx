@@ -31,7 +31,16 @@ export function ExecutarRoteiro() {
 
   useEffect(() => {
     carregarRoteiro();
-  }, [id, location.key]); // Recarrega quando a URL muda (location.key muda ao navegar)
+  }, [id]);
+  
+  // Recarregar sempre que voltar para esta página
+  useEffect(() => {
+    const handleFocus = () => {
+      carregarRoteiro();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [id]);
 
   const carregarRoteiro = async () => {
     try {
@@ -57,7 +66,19 @@ export function ExecutarRoteiro() {
 
   const verificarTodasMaquinasAtendidas = (loja) => {
     if (!loja || !loja.maquinas || loja.maquinas.length === 0) return false;
-    return loja.maquinas.every(m => m.atendida);
+    // Cada máquina precisa ter pelo menos 1 movimentação (limite = 1)
+    return loja.maquinas.every(m => m.atendida === true);
+  };
+  
+  const contarMaquinasAtendidas = () => {
+    let totalMaquinas = 0;
+    let maquinasAtendidas = 0;
+    roteiro.lojas?.forEach(loja => {
+      const maquinas = loja.maquinas || [];
+      totalMaquinas += maquinas.length;
+      maquinasAtendidas += maquinas.filter(m => m.atendida).length;
+    });
+    return { totalMaquinas, maquinasAtendidas };
   };
 
   const adicionarGasto = async (e) => {
@@ -111,6 +132,10 @@ export function ExecutarRoteiro() {
   const totalLojas = roteiro.lojas?.length || 0;
   const lojasConcluidas = roteiro.lojas?.filter(l => l.concluida).length || 0;
   const progressoPorcentagem = totalLojas > 0 ? (lojasConcluidas / totalLojas) * 100 : 0;
+  
+  // Contadores de máquinas (limite de 1 movimentação por máquina)
+  const { totalMaquinas, maquinasAtendidas } = contarMaquinasAtendidas();
+  const progressoMaquinas = totalMaquinas > 0 ? (maquinasAtendidas / totalMaquinas) * 100 : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -128,7 +153,7 @@ export function ExecutarRoteiro() {
         {/* Resumo do Roteiro */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="card bg-gradient-to-br from-blue-50 to-blue-100">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Progresso</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Progresso Lojas</h3>
             <div className="flex items-center gap-2">
               <div className="flex-1 bg-gray-200 rounded-full h-4 overflow-hidden">
                 <div 
@@ -141,6 +166,21 @@ export function ExecutarRoteiro() {
             <p className="text-sm text-gray-700 mt-2">
               {lojasConcluidas} de {totalLojas} lojas concluídas
             </p>
+            <div className="mt-3 pt-3 border-t border-blue-200">
+              <h4 className="text-xs font-bold text-gray-600 mb-1">Máquinas (Limite: 1 mov/máquina)</h4>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 bg-gray-200 rounded-full h-3 overflow-hidden">
+                  <div 
+                    className="bg-green-500 h-full transition-all duration-500"
+                    style={{ width: `${progressoMaquinas}%` }}
+                  ></div>
+                </div>
+                <span className="text-xs font-bold">{progressoMaquinas.toFixed(0)}%</span>
+              </div>
+              <p className="text-xs text-gray-600 mt-1">
+                {maquinasAtendidas} de {totalMaquinas} máquinas com movimentação
+              </p>
+            </div>
           </div>
 
           <div className="card bg-gradient-to-br from-green-50 to-green-100">
@@ -157,6 +197,13 @@ export function ExecutarRoteiro() {
             <h3 className="text-lg font-bold text-gray-900 mb-2">Ações</h3>
             <div className="flex flex-col gap-2">
               <button
+                onClick={carregarRoteiro}
+                className="btn-secondary text-sm"
+                title="Recarregar dados do roteiro"
+              >
+                🔄 Atualizar Progresso
+              </button>
+              <button
                 onClick={() => setMostrarFormGasto(true)}
                 className="btn-secondary text-sm"
               >
@@ -164,15 +211,24 @@ export function ExecutarRoteiro() {
               </button>
               <button
                 onClick={concluirRoteiro}
-                disabled={lojasConcluidas < totalLojas}
+                disabled={lojasConcluidas < totalLojas || maquinasAtendidas < totalMaquinas}
                 className={`text-sm ${
-                  lojasConcluidas < totalLojas 
+                  lojasConcluidas < totalLojas || maquinasAtendidas < totalMaquinas
                     ? 'btn-secondary opacity-50 cursor-not-allowed' 
                     : 'btn-success'
                 }`}
-                title={lojasConcluidas < totalLojas ? 'Conclua todas as lojas primeiro' : 'Finalizar roteiro'}
+                title={
+                  lojasConcluidas < totalLojas 
+                    ? `Faltam ${totalLojas - lojasConcluidas} loja(s) para concluir` 
+                    : maquinasAtendidas < totalMaquinas
+                    ? `Faltam ${totalMaquinas - maquinasAtendidas} máquina(s) com movimentação`
+                    : 'Finalizar roteiro'
+                }
               >
-                ✓ Concluir Roteiro
+                {lojasConcluidas === totalLojas && maquinasAtendidas === totalMaquinas 
+                  ? '✓ Concluir Roteiro' 
+                  : `⏳ Faltam ${totalMaquinas - maquinasAtendidas} máquina(s)`
+                }
               </button>
             </div>
           </div>
@@ -293,10 +349,16 @@ export function ExecutarRoteiro() {
                     </h3>
                     <p className="text-sm text-gray-600 mt-1">
                       {maquinasAtendidas} de {totalMaquinas} máquina{totalMaquinas !== 1 ? 's' : ''} atendida{maquinasAtendidas !== 1 ? 's' : ''}
+                      <span className="text-xs text-gray-500 ml-1">(Limite: 1 mov/máquina)</span>
                     </p>
                     {!loja.concluida && todasAtendidas && (
                       <p className="text-sm text-green-600 font-semibold mt-1">
-                        ✓ Todas as máquinas foram atendidas! Clique em "Concluir Loja"
+                        ✓ Todas as máquinas atingiram o limite! Clique em "Concluir Loja"
+                      </p>
+                    )}
+                    {!loja.concluida && !todasAtendidas && maquinasAtendidas > 0 && (
+                      <p className="text-sm text-yellow-600 font-semibold mt-1">
+                        ⏳ Faltam {totalMaquinas - maquinasAtendidas} máquina(s) para atingir o limite
                       </p>
                     )}
                   </div>
@@ -338,9 +400,18 @@ export function ExecutarRoteiro() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <h4 className="font-bold text-gray-900 mb-1">
-                            {maquina.atendida && '✓ '}{maquina.nome}
-                            {maquina.atendida && <span className="text-green-600 text-sm ml-2">(Atendida)</span>}
+                          <h4 className="font-bold text-gray-900 mb-1 flex items-center gap-2">
+                            {maquina.nome}
+                            {maquina.atendida && (
+                              <span className="inline-flex items-center px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-full">
+                                ✓ 1/1 mov
+                              </span>
+                            )}
+                            {!maquina.atendida && (
+                              <span className="inline-flex items-center px-2 py-1 bg-gray-300 text-gray-700 text-xs font-bold rounded-full">
+                                0/1 mov
+                              </span>
+                            )}
                           </h4>
                           <p className="text-sm text-gray-600">
                             Código: {maquina.codigo} | Tipo: {maquina.tipo}
@@ -364,12 +435,12 @@ export function ExecutarRoteiro() {
                                 onClick={() => navigate(`/movimentacoes/roteiro/${id}/loja/${loja.id}`)}
                                 className={`px-4 py-2 rounded-lg transition-colors ${
                                   maquina.atendida
-                                    ? 'bg-gray-400 text-white'
+                                    ? 'bg-green-600 text-white hover:bg-green-700'
                                     : 'bg-blue-500 text-white hover:bg-blue-600'
                                 }`}
-                                title={maquina.atendida ? 'Máquina já atendida' : 'Registrar movimentação'}
+                                title={maquina.atendida ? 'Limite atingido (1/1)' : 'Registrar movimentação'}
                               >
-                                📝 {maquina.atendida ? 'Ver Movimentação' : 'Registrar Movimentação'}
+                                {maquina.atendida ? '✓ Limite OK' : '📝 Registrar Movimentação'}
                               </button>
                             </>
                           )}

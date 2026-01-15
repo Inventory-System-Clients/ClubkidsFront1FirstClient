@@ -46,6 +46,20 @@ export function SelecionarRoteiro() {
   };
 
   const selecionarRoteiro = (roteiroId) => {
+    // Verificar se o roteiro está concluído
+    const roteiro = roteiros.find(r => r.id === roteiroId);
+    
+    if (roteiro) {
+      const totalLojas = roteiro.lojas?.length || 0;
+      const lojasConcluidas = roteiro.lojas?.filter(l => l.concluida).length || 0;
+      
+      // Se todas as lojas estão concluídas ou status é 'concluido'
+      if ((totalLojas > 0 && lojasConcluidas === totalLojas) || roteiro.status === 'concluido') {
+        setError("Este roteiro já foi concluído hoje e não pode mais ser acessado!");
+        return;
+      }
+    }
+    
     navigate(`/movimentacoes/roteiro/${roteiroId}`);
   };
 
@@ -124,8 +138,34 @@ export function SelecionarRoteiro() {
   // Filtrar roteiros do dia atual
   const hoje = new Date().toISOString().split('T')[0];
   const roteirosHoje = roteiros.filter(r => r.data?.startsWith(hoje));
-  const roteirosPendentes = roteirosHoje.filter(r => r.status === 'pendente' || r.status === 'em_andamento');
-  const roteirosConcluidos = roteirosHoje.filter(r => r.status === 'concluido');
+  
+  // Separar roteiros pendentes/em andamento e concluídos
+  // Se todas as lojas de um roteiro estão concluídas, considerar como concluído
+  const roteirosPendentes = roteirosHoje.filter(r => {
+    // Se o status já é concluído, não mostrar aqui
+    if (r.status === 'concluido') return false;
+    
+    // Se tem lojas e todas estão concluídas, não mostrar aqui (vai para concluídos)
+    const totalLojas = r.lojas?.length || 0;
+    const lojasConcluidas = r.lojas?.filter(l => l.concluida).length || 0;
+    
+    if (totalLojas > 0 && lojasConcluidas === totalLojas) {
+      return false; // Roteiro com todas lojas concluídas vai para "concluídos"
+    }
+    
+    return true; // Pendente ou em andamento com lojas pendentes
+  });
+  
+  const roteirosConcluidos = roteirosHoje.filter(r => {
+    // Se o status já é concluído, mostrar aqui
+    if (r.status === 'concluido') return true;
+    
+    // Se tem lojas e todas estão concluídas, considerar concluído
+    const totalLojas = r.lojas?.length || 0;
+    const lojasConcluidas = r.lojas?.filter(l => l.concluida).length || 0;
+    
+    return totalLojas > 0 && lojasConcluidas === totalLojas;
+  });
   
   // Verificar se usuário é admin
   const isAdmin = usuario?.role === "ADMIN";
@@ -271,17 +311,21 @@ export function SelecionarRoteiro() {
                               }
                             }}
                             onClick={(e) => e.stopPropagation()}
-                            className={`text-xs p-2 bg-white rounded border transition-all ${
+                            className={`text-xs p-2 rounded border transition-all ${
+                              loja.concluida
+                                ? 'bg-green-50 border-green-400 text-green-800'
+                                : 'bg-white border-gray-300'
+                            } ${
                               draggedLoja?.id === loja.id 
                                 ? 'border-blue-500 opacity-50 shadow-lg' 
-                                : 'border-gray-300'
+                                : ''
                             } ${
                               isAdmin 
-                                ? 'cursor-move hover:border-blue-400 hover:bg-blue-50 hover:shadow-md select-none' 
+                                ? 'cursor-move hover:border-blue-400 hover:shadow-md select-none' 
                                 : ''
                             }`}
                           >
-                            🏪 {loja.nome || 'Loja sem nome'}
+                            {loja.concluida ? '✅' : '🏪'} {loja.nome || 'Loja sem nome'}
                           </div>
                         ))}
                       </div>
