@@ -279,11 +279,6 @@ export function Dashboard() {
   const [estoqueEditando, setEstoqueEditando] = useState(null); // { lojaId, estoque: [...] }
   const [salvandoEstoque, setSalvandoEstoque] = useState(false);
 
-  // Estados para relatório de comissões
-  const [comissoes, setComissoes] = useState(null);
-  const [loadingComissoes, setLoadingComissoes] = useState(false);
-  const [mostrarRelatorioComissoes, setMostrarRelatorioComissoes] = useState(false);
-
   // Função para remover produto do estoque da loja (usando o id do registro)
 
   const carregarDados = useCallback(async () => {
@@ -647,113 +642,7 @@ export function Dashboard() {
     }));
   };
 
-  // Função para carregar relatório de comissões
-  const carregarRelatorioComissoes = async () => {
-    try {
-      setLoadingComissoes(true);
-      const response = await api.get("/relatorios/comissoes");
-      setComissoes(response.data);
-      setMostrarRelatorioComissoes(true);
-    } catch (error) {
-      console.error("Erro ao carregar relatório de comissões:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Erro",
-        text: "Erro ao carregar relatório de comissões",
-        confirmButtonColor: "#ef4444",
-      });
-    } finally {
-      setLoadingComissoes(false);
-    }
-  };
-
-  // Função para imprimir relatório de comissões
-  const imprimirRelatorioComissoes = () => {
-    if (!comissoes) return;
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html lang="pt-BR">
-      <head>
-        <meta charset="UTF-8">
-        <title>Relatório de Comissões</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: Arial, sans-serif; padding: 40px; }
-          h1 { color: #2457B1; margin-bottom: 20px; text-align: center; }
-          h2 { color: #C91F24; margin-top: 30px; margin-bottom: 15px; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-          th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-          th { background-color: #2457B1; color: white; }
-          tr:nth-child(even) { background-color: #f9f9f9; }
-          .total { font-weight: bold; background-color: #fbbf24 !important; }
-          .periodo { text-align: center; margin-bottom: 20px; color: #666; }
-        </style>
-      </head>
-      <body>
-        <h1>💰 Relatório de Comissões</h1>
-        <p class="periodo">Período: ${new Date(comissoes.periodo.inicio).toLocaleDateString()} a ${new Date(comissoes.periodo.fim).toLocaleDateString()}</p>
-        
-        <h2>Resumo Geral</h2>
-        <table>
-          <tr>
-            <th>Total de Lucro</th>
-            <th>Total de Comissões</th>
-          </tr>
-          <tr class="total">
-            <td>R$ ${comissoes.totalGeral.totalLucro.toFixed(2)}</td>
-            <td>R$ ${comissoes.totalGeral.totalComissao.toFixed(2)}</td>
-          </tr>
-        </table>
-
-        <h2>Comissões por Loja</h2>
-        <table>
-          <tr>
-            <th>Loja</th>
-            <th>Lucro Total</th>
-            <th>Comissão Total</th>
-            <th>Registros</th>
-          </tr>
-          ${comissoes.comissoesPorLoja.map(loja => `
-            <tr>
-              <td>${loja.lojaNome}</td>
-              <td>R$ ${loja.totalLucro.toFixed(2)}</td>
-              <td>R$ ${loja.totalComissao.toFixed(2)}</td>
-              <td>${loja.registros}</td>
-            </tr>
-          `).join('')}
-        </table>
-
-        <h2>Detalhamento por Data</h2>
-        <table>
-          <tr>
-            <th>Data</th>
-            <th>Loja</th>
-            <th>Lucro</th>
-            <th>Comissão</th>
-          </tr>
-          ${comissoes.comissoes.map(com => `
-            <tr>
-              <td>${new Date(com.dataCalculo).toLocaleDateString()}</td>
-              <td>${com.lojaNome}</td>
-              <td>R$ ${com.totalLucro.toFixed(2)}</td>
-              <td>R$ ${com.totalComissao.toFixed(2)}</td>
-            </tr>
-          `).join('')}
-        </table>
-      </body>
-      </html>
-    `;
-
-    const printWindow = window.open("", "_blank");
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-    printWindow.print();
-  };
-
   // Função para imprimir relatório individual de uma loja
-  const imprimirRelatorioLoja = (loja) => {
-  const imprimirRelatorioLoja = (loja) => {
   const imprimirRelatorioLoja = (loja) => {
     const itensParaComprar = loja.estoque.filter(
       (item) => item.quantidade < item.estoqueMinimo
@@ -1336,7 +1225,7 @@ export function Dashboard() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header com boas-vindas */}
-        <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
+        <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="text-4xl font-bold mb-2">
               <span className="text-gradient">Dashboard</span> 🧸
@@ -1345,31 +1234,9 @@ export function Dashboard() {
               Visão geral do seu sistema de pelúcias
             </p>
           </div>
-          <div className="flex gap-2 flex-wrap">
-            {usuario?.role === "ADMIN" && (
-              <button
-                onClick={carregarRelatorioComissoes}
-                className="btn-primary flex items-center gap-2"
-                disabled={loadingComissoes}
-              >
-                {loadingComissoes ? (
-                  <>
-                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Carregando...
-                  </>
-                ) : (
-                  <>
-                    💰 Relatório de Comissões
-                  </>
-                )}
-              </button>
-            )}
-            <button
-              onClick={carregarDados}
-              className="btn-primary flex items-center gap-2"
+          <button
+            onClick={carregarDados}
+            className="btn-primary flex items-center gap-2"
             title="Atualizar dados"
           >
             <svg
@@ -3349,128 +3216,6 @@ export function Dashboard() {
                   </>
                 )}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Relatório de Comissões */}
-      {mostrarRelatorioComissoes && comissoes && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-            {/* Header do Modal */}
-            <div className="sticky top-0 bg-linear-to-r from-primary to-accent-yellow p-6 border-b-4 border-yellow-400 z-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-3xl font-bold text-black flex items-center gap-3">
-                    💰 Relatório de Comissões
-                  </h2>
-                  <p className="text-black opacity-80 mt-1">
-                    Período: {new Date(comissoes.periodo.inicio).toLocaleDateString()} a {new Date(comissoes.periodo.fim).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={imprimirRelatorioComissoes}
-                    className="px-4 py-2 bg-white text-black rounded-lg font-semibold hover:bg-gray-100 transition-colors flex items-center gap-2"
-                  >
-                    🖨️ Imprimir
-                  </button>
-                  <button
-                    onClick={() => setMostrarRelatorioComissoes(false)}
-                    className="px-4 py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-colors"
-                  >
-                    ✕ Fechar
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Conteúdo do Modal */}
-            <div className="p-6">
-              {/* Resumo Geral */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl border-2 border-green-200">
-                  <h3 className="text-sm font-semibold text-green-700 mb-2">💵 Total de Lucro</h3>
-                  <p className="text-3xl font-bold text-green-900">
-                    R$ {comissoes.totalGeral.totalLucro.toFixed(2)}
-                  </p>
-                </div>
-                <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-6 rounded-xl border-2 border-yellow-200">
-                  <h3 className="text-sm font-semibold text-yellow-700 mb-2">💰 Total de Comissões</h3>
-                  <p className="text-3xl font-bold text-yellow-900">
-                    R$ {comissoes.totalGeral.totalComissao.toFixed(2)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Comissões por Loja */}
-              <div className="mb-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  🏪 Comissões por Loja
-                </h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Loja</th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Lucro Total</th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Comissão Total</th>
-                        <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Registros</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {comissoes.comissoesPorLoja.map((loja, idx) => (
-                        <tr key={idx} className="border-b hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{loja.lojaNome}</td>
-                          <td className="px-4 py-3 text-sm text-right text-green-700 font-semibold">
-                            R$ {loja.totalLucro.toFixed(2)}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-right text-yellow-700 font-bold">
-                            R$ {loja.totalComissao.toFixed(2)}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-center text-gray-600">{loja.registros}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Detalhamento por Data */}
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  📅 Detalhamento por Data
-                </h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Data</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Loja</th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Lucro</th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Comissão</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {comissoes.comissoes.map((com, idx) => (
-                        <tr key={idx} className="border-b hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm text-gray-600">
-                            {new Date(com.dataCalculo).toLocaleDateString()}
-                          </td>
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{com.lojaNome}</td>
-                          <td className="px-4 py-3 text-sm text-right text-green-700 font-semibold">
-                            R$ {com.totalLucro.toFixed(2)}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-right text-yellow-700 font-bold">
-                            R$ {com.totalComissao.toFixed(2)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
             </div>
           </div>
         </div>
