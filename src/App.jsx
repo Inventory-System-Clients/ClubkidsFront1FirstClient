@@ -1,33 +1,34 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Suspense, lazy } from "react";
-import { AuthProvider } from "./contexts/AuthContext";
-import { PrivateRoute } from "./components/PrivateRoute";
-import { PageLoader } from "./components/Loading";
-import { AlertaFinanceiro } from "./components/AlertaFinanceiro";
+import { AuthProvider } from "../contexts/AuthContext";
+import { PrivateRoute } from "../components/PrivateRoute";
+import { PageLoader } from "../components/Loading";
+import { AlertaFinanceiro } from "../components/AlertaFinanceiro";
 
 // Lazy load das páginas para reduzir bundle inicial
-const Login = lazy(() => import("./pages/Login").then(m => ({ default: m.Login })));
-const Registrar = lazy(() => import("./pages/Registrar").then(m => ({ default: m.Registrar })));
-const Dashboard = lazy(() => import("./pages/Dashboard").then(m => ({ default: m.Dashboard })));
-const Usuarios = lazy(() => import("./pages/Usuarios").then(m => ({ default: m.Usuarios })));
-const UsuarioForm = lazy(() => import("./pages/UsuarioForm").then(m => ({ default: m.UsuarioForm })));
-const Lojas = lazy(() => import("./pages/Lojas").then(m => ({ default: m.Lojas })));
-const LojaForm = lazy(() => import("./pages/LojaForm").then(m => ({ default: m.LojaForm })));
-const LojaDetalhes = lazy(() => import("./pages/LojaDetalhes").then(m => ({ default: m.LojaDetalhes })));
-const Maquinas = lazy(() => import("./pages/Maquinas").then(m => ({ default: m.Maquinas })));
-const MaquinaForm = lazy(() => import("./pages/MaquinaForm").then(m => ({ default: m.MaquinaForm })));
-const MaquinaDetalhes = lazy(() => import("./pages/MaquinaDetalhes").then(m => ({ default: m.MaquinaDetalhes })));
-const Produtos = lazy(() => import("./pages/Produtos").then(m => ({ default: m.Produtos })));
-const ProdutoForm = lazy(() => import("./pages/ProdutoForm").then(m => ({ default: m.ProdutoForm })));
-const Movimentacoes = lazy(() => import("./pages/Movimentacoes").then(m => ({ default: m.Movimentacoes })));
-const SelecionarRoteiro = lazy(() => import("./pages/SelecionarRoteiro").then(m => ({ default: m.SelecionarRoteiro })));
-const LojasRoteiro = lazy(() => import("./pages/LojasRoteiro").then(m => ({ default: m.LojasRoteiro })));
-const MovimentacoesLoja = lazy(() => import("./pages/MovimentacoesLoja").then(m => ({ default: m.MovimentacoesLoja })));
-const GerenciarRoteiros = lazy(() => import("./pages/GerenciarRoteiros").then(m => ({ default: m.GerenciarRoteiros })));
-const Financeiro = lazy(() => import("./pages/Financeiro").then(m => ({ default: m.Financeiro })));
-const Graficos = lazy(() => import("./pages/Graficos").then(m => ({ default: m.Graficos })));
-const Relatorios = lazy(() => import("./pages/Relatorios").then(m => ({ default: m.Relatorios })));
-const StyleGuide = lazy(() => import("./pages/StyleGuide").then(m => ({ default: m.StyleGuide })));
+const Login = lazy(() => import("../Login").then(m => ({ default: m.Login })));
+const Registrar = lazy(() => import("../Registrar").then(m => ({ default: m.Registrar })));
+const Dashboard = lazy(() => import("../Dashboard").then(m => ({ default: m.Dashboard })));
+const Usuarios = lazy(() => import("../Usuarios").then(m => ({ default: m.Usuarios })));
+const UsuarioForm = lazy(() => import("../UsuarioForm").then(m => ({ default: m.UsuarioForm })));
+const Lojas = lazy(() => import("../Lojas").then(m => ({ default: m.Lojas })));
+const LojaForm = lazy(() => import("../LojaForm").then(m => ({ default: m.LojaForm })));
+const LojaDetalhes = lazy(() => import("../LojaDetalhes").then(m => ({ default: m.LojaDetalhes })));
+const Maquinas = lazy(() => import("../Maquinas").then(m => ({ default: m.Maquinas })));
+const MaquinaForm = lazy(() => import("../MaquinaForm").then(m => ({ default: m.MaquinaForm })));
+const MaquinaDetalhes = lazy(() => import("../MaquinaDetalhes").then(m => ({ default: m.MaquinaDetalhes })));
+const Produtos = lazy(() => import("../Produtos").then(m => ({ default: m.Produtos })));
+const ProdutoForm = lazy(() => import("../ProdutoForm").then(m => ({ default: m.ProdutoForm })));
+const Movimentacoes = lazy(() => import("../Movimentacoes").then(m => ({ default: m.Movimentacoes })));
+const SelecionarRoteiro = lazy(() => import("../SelecionarRoteiro").then(m => ({ default: m.SelecionarRoteiro })));
+const LojasRoteiro = lazy(() => import("../LojasRoteiro").then(m => ({ default: m.LojasRoteiro })));
+const MovimentacoesLoja = lazy(() => import("../MovimentacoesLoja").then(m => ({ default: m.MovimentacoesLoja })));
+const ExecutarRoteiro = lazy(() => import("../ExecutarRoteiro").then(m => ({ default: m.ExecutarRoteiro })));
+const GerenciarRoteiros = lazy(() => import("../GerenciarRoteiros").then(m => ({ default: m.GerenciarRoteiros })));
+const Financeiro = lazy(() => import("../Financeiro").then(m => ({ default: m.Financeiro })));
+const Graficos = lazy(() => import("../Graficos").then(m => ({ default: m.Graficos })));
+const Relatorios = lazy(() => import("../Relatorios").then(m => ({ default: m.Relatorios })));
+const StyleGuide = lazy(() => import("../StyleGuide").then(m => ({ default: m.StyleGuide })));
 
 function App() {
   return (
@@ -180,6 +181,14 @@ function App() {
             element={
               <PrivateRoute>
                 <MovimentacoesLoja />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/roteiros/:id/executar"
+            element={
+              <PrivateRoute>
+                <ExecutarRoteiro />
               </PrivateRoute>
             }
           />

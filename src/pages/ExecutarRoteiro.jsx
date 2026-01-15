@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import api from "../services/api";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
@@ -9,6 +9,7 @@ import { PageLoader } from "../components/Loading";
 export function ExecutarRoteiro() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   
   const [roteiro, setRoteiro] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -30,7 +31,7 @@ export function ExecutarRoteiro() {
 
   useEffect(() => {
     carregarRoteiro();
-  }, [id]);
+  }, [id, location.key]); // Recarrega quando a URL muda (location.key muda ao navegar)
 
   const carregarRoteiro = async () => {
     try {
@@ -360,7 +361,7 @@ export function ExecutarRoteiro() {
                                 🔧
                               </button>
                               <button
-                                onClick={() => navigate(`/movimentacoes/nova?maquinaId=${maquina.id}&roteiroId=${id}`)}
+                                onClick={() => navigate(`/movimentacoes/roteiro/${id}/loja/${loja.id}`)}
                                 className={`px-4 py-2 rounded-lg transition-colors ${
                                   maquina.atendida
                                     ? 'bg-gray-400 text-white'
