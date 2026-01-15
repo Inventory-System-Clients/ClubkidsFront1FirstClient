@@ -101,28 +101,12 @@ export function MovimentacoesLoja() {
 
       await api.post("/movimentacoes", movimentacao);
       
-      setSuccess("Movimentação registrada com sucesso!");
+      setSuccess("Movimentação registrada com sucesso! Redirecionando...");
       
-      // Limpar formulário
-      setMaquinaSelecionada("");
-      setFormData({
-        produto_id: "",
-        quantidadeAtualMaquina: "",
-        quantidadeAdicionada: "",
-        fichas: "",
-        contadorIn: "",
-        contadorOut: "",
-        quantidade_notas_entrada: "",
-        valor_entrada_maquininha_pix: "",
-        numeroBag: "",
-        valorEntradaFichas: "",
-        valorEntradaNotas: "",
-        valorEntradaCartao: "",
-        observacao: "",
-      });
-      
-      // Recarregar dados
-      await carregarDados();
+      // Redirecionar para a lista de lojas do roteiro após salvar
+      setTimeout(() => {
+        navigate(`/movimentacoes/roteiro/${roteiroId}`);
+      }, 1500);
     } catch (error) {
       setError("Erro ao salvar movimentação: " + (error.response?.data?.error || error.message));
     } finally {

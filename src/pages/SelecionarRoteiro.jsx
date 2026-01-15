@@ -121,22 +121,6 @@ export function SelecionarRoteiro() {
     }
   };
 
-  const deletarRoteiro = async (roteiroId, zona) => {
-    if (!window.confirm(`Tem certeza que deseja excluir o roteiro ${zona}?\n\n⚠️ ATENÇÃO: Se este roteiro estiver em andamento, será excluído mesmo assim.\n\nEsta ação não pode ser desfeita.`)) {
-      return;
-    }
-
-    try {
-      setError("");
-      // Adicionar force=true para permitir deletar roteiros em andamento
-      await api.delete(`/roteiros/${roteiroId}?force=true`);
-      setSuccess("Roteiro excluído com sucesso!");
-      await carregarRoteiros();
-    } catch (error) {
-      setError("Erro ao excluir roteiro: " + (error.response?.data?.error || error.message));
-    }
-  };
-
   // Filtrar roteiros do dia atual
   const hoje = new Date().toISOString().split('T')[0];
   const roteirosHoje = roteiros.filter(r => r.data?.startsWith(hoje));
@@ -344,7 +328,7 @@ export function SelecionarRoteiro() {
                     )}
                   </div>
 
-                  <div className="mt-6 space-y-2">
+                  <div className="mt-6 text-center">
                     <button 
                       className="btn-primary w-full"
                       onClick={(e) => {
@@ -354,21 +338,6 @@ export function SelecionarRoteiro() {
                     >
                       {roteiro.status === 'em_andamento' ? 'Continuar Roteiro' : 'Iniciar Roteiro'}
                     </button>
-                    
-                    {isAdmin && (
-                      <button 
-                        className="w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-semibold flex items-center justify-center gap-2"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deletarRoteiro(roteiro.id, roteiro.zona);
-                        }}
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Excluir Roteiro
-                      </button>
-                    )}
                   </div>
                 </div>
               ))}
@@ -398,40 +367,50 @@ export function SelecionarRoteiro() {
               {roteirosConcluidos.map((roteiro) => (
                 <div
                   key={roteiro.id}
-                  className="card-gradient opacity-75"
+                  className="card-gradient bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-500 relative"
                 >
+                  {/* Ícone de bloqueio */}
+                  <div className="absolute top-4 right-4 text-3xl">
+                    🔒
+                  </div>
+                  
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-bold text-green-600">
-                      Roteiro #{roteiro.id}
+                    <h3 className="text-xl font-bold text-green-700">
+                      {roteiro.zona}
                     </h3>
-                    <Badge variant="success">Concluído</Badge>
+                    <Badge variant="success">✅ Concluído</Badge>
                   </div>
 
-                  <div className="space-y-2 text-gray-600">
-                    <div>📍 Zona: {roteiro.zona || 'N/A'}</div>
-                    <div>🏪 Lojas: {roteiro.lojas?.length || 0}</div>
-                    <div>🎰 Máquinas: {roteiro.totalMaquinas || 0}</div>
+                  <div className="space-y-2 text-gray-700">
+                    <div className="flex items-center">
+                      <span className="text-2xl mr-2">📍</span>
+                      <div>
+                        <div className="font-semibold">Estado: {roteiro.estado || 'N/A'}</div>
+                        <div className="text-sm text-gray-600">{roteiro.cidade || 'N/A'}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center">
+                      <span className="text-2xl mr-2">🏪</span>
+                      <span>Lojas: {roteiro.lojas?.length || 0}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <span className="text-2xl mr-2">🎰</span>
+                      <span>Máquinas: {roteiro.totalMaquinas || 0}</span>
+                    </div>
                     {roteiro.funcionarioNome && (
-                      <div>👤 {roteiro.funcionarioNome}</div>
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-2">👤</span>
+                        <span>{roteiro.funcionarioNome}</span>
+                      </div>
                     )}
                   </div>
 
-                  {isAdmin && (
-                    <div className="mt-4">
-                      <button 
-                        className="w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-semibold flex items-center justify-center gap-2"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deletarRoteiro(roteiro.id, roteiro.zona);
-                        }}
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Excluir
-                      </button>
-                    </div>
-                  )}
+                  {/* Mensagem de roteiro bloqueado */}
+                  <div className="mt-6 p-4 bg-green-200 border-l-4 border-green-600 rounded">
+                    <p className="text-sm font-semibold text-green-800 text-center">
+                      🎉 Roteiro finalizado! Não pode mais ser acessado hoje.
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>

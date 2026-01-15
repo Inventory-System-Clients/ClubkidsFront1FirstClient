@@ -1141,6 +1141,189 @@ export function Dashboard() {
     }
   };
 
+  const imprimirComissaoLoja = async (lojaId, nomeLoja) => {
+    try {
+      // Buscar comissões da loja
+      const response = await api.get(`/relatorios/comissoes?lojaId=${lojaId}`);
+      const comissoes = response.data;
+
+      if (!comissoes || comissoes.length === 0) {
+        Swal.fire({
+          icon: "info",
+          title: "Sem Comissões",
+          text: `Não há comissões registradas para a loja ${nomeLoja}.`,
+          confirmButtonColor: "#fbbf24",
+        });
+        return;
+      }
+
+      // Criar HTML para impressão
+      let htmlContent = `
+        <html>
+          <head>
+            <title>Relatório de Comissão - ${nomeLoja}</title>
+            <style>
+              body {
+                font-family: Arial, sans-serif;
+                padding: 20px;
+                color: #333;
+              }
+              .header {
+                text-align: center;
+                margin-bottom: 30px;
+                border-bottom: 3px solid #fbbf24;
+                padding-bottom: 15px;
+              }
+              .header h1 {
+                color: #1e40af;
+                margin: 0;
+              }
+              .header h2 {
+                color: #059669;
+                margin: 10px 0 0 0;
+                font-size: 20px;
+              }
+              .info {
+                margin-bottom: 20px;
+              }
+              .info p {
+                margin: 5px 0;
+              }
+              table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 20px;
+              }
+              th, td {
+                border: 1px solid #ddd;
+                padding: 12px;
+                text-align: left;
+              }
+              th {
+                background-color: #1e40af;
+                color: white;
+                font-weight: bold;
+              }
+              tr:nth-child(even) {
+                background-color: #f3f4f6;
+              }
+              .total-row {
+                background-color: #dcfce7 !important;
+                font-weight: bold;
+                font-size: 16px;
+              }
+              .total-row td {
+                border-top: 3px solid #059669;
+              }
+              .footer {
+                margin-top: 30px;
+                text-align: center;
+                font-size: 12px;
+                color: #6b7280;
+              }
+              .maquina-details {
+                font-size: 12px;
+                color: #6b7280;
+                margin-top: 5px;
+              }
+              @media print {
+                button { display: none; }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>🏪 Relatório de Comissão</h1>
+              <h2>${nomeLoja}</h2>
+            </div>
+            
+            <div class="info">
+              <p><strong>Data de Geração:</strong> ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
+              <p><strong>Total de Registros:</strong> ${comissoes.length}</p>
+            </div>
+            
+            <table>
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Roteiro</th>
+                  <th>Máquinas</th>
+                  <th>Lucro Total</th>
+                  <th>Comissão</th>
+                </tr>
+              </thead>
+              <tbody>
+      `;
+
+      let totalLucro = 0;
+      let totalComissao = 0;
+
+      comissoes.forEach((comissao) => {
+        totalLucro += parseFloat(comissao.totalLucro || 0);
+        totalComissao += parseFloat(comissao.totalComissao || 0);
+
+        const dataCalculo = new Date(comissao.dataCalculo).toLocaleDateString('pt-BR');
+        
+        // Detalhes das máquinas
+        let detalhesHtml = '';
+        if (comissao.detalhes && Array.isArray(comissao.detalhes)) {
+          detalhesHtml = '<div class="maquina-details">';
+          comissao.detalhes.forEach(det => {
+            detalhesHtml += `<div>• ${det.codigoMaquina}: R$ ${parseFloat(det.lucro || 0).toFixed(2)} (${det.percentualComissao}% = R$ ${parseFloat(det.comissao || 0).toFixed(2)})</div>`;
+          });
+          detalhesHtml += '</div>';
+        }
+
+        htmlContent += `
+          <tr>
+            <td>${dataCalculo}</td>
+            <td>${comissao.roteiroZona || 'N/A'}</td>
+            <td>${comissao.detalhes?.length || 0}${detalhesHtml}</td>
+            <td>R$ ${parseFloat(comissao.totalLucro || 0).toFixed(2)}</td>
+            <td>R$ ${parseFloat(comissao.totalComissao || 0).toFixed(2)}</td>
+          </tr>
+        `;
+      });
+
+      htmlContent += `
+                <tr class="total-row">
+                  <td colspan="3"><strong>TOTAL GERAL</strong></td>
+                  <td><strong>R$ ${totalLucro.toFixed(2)}</strong></td>
+                  <td><strong>R$ ${totalComissao.toFixed(2)}</strong></td>
+                </tr>
+              </tbody>
+            </table>
+            
+            <div class="footer">
+              <p>ClubeKids - Sistema de Gestão de Máquinas</p>
+              <p>Relatório gerado automaticamente pelo sistema</p>
+            </div>
+          </body>
+        </html>
+      `;
+
+      // Abrir janela de impressão
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      printWindow.focus();
+      
+      // Aguardar um pouco antes de imprimir para garantir que o conteúdo foi carregado
+      setTimeout(() => {
+        printWindow.print();
+      }, 250);
+
+    } catch (error) {
+      console.error("Erro ao buscar comissões:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Erro",
+        text: "Erro ao buscar dados de comissão. Verifique se há comissões cadastradas.",
+        confirmButtonColor: "#ef4444",
+      });
+    }
+  };
+
   const handleSelecionarLoja = (loja) => {
     setLojaSelecionada(loja);
     setMaquinaSelecionada(null);
@@ -2067,9 +2250,24 @@ export function Dashboard() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <h3 className="text-lg font-bold text-gray-900 mb-1">
-                            🏪 {loja.nome}
-                          </h3>
+                          <div className="flex items-center justify-between mb-1">
+                            <h3 className="text-lg font-bold text-gray-900">
+                              🏪 {loja.nome}
+                            </h3>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                imprimirComissaoLoja(loja.id, loja.nome);
+                              }}
+                              className="ml-3 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-md hover:shadow-lg"
+                              title="Imprimir Comissão desta Loja"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                              </svg>
+                              Comissão
+                            </button>
+                          </div>
                           <p className="text-sm text-gray-600">
                             📍 {loja.endereco || "Endereço não cadastrado"}
                           </p>
