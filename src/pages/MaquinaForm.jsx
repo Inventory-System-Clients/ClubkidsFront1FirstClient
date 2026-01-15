@@ -24,6 +24,7 @@ export function MaquinaForm() {
     forcaPremium: "",
     jogadasPremium: "",
     percentualAlertaEstoque: "",
+    percentualComissao: "",
     localizacao: "",
     ativo: true,
   });
@@ -73,6 +74,7 @@ export function MaquinaForm() {
         forcaPremium: response.data.forcaPremium || "",
         jogadasPremium: response.data.jogadasPremium || "",
         percentualAlertaEstoque: response.data.percentualAlertaEstoque || 20,
+        percentualComissao: response.data.percentualComissao || 0,
         localizacao: response.data.localizacao || "",
 
         ativo: response.data.ativo !== undefined ? response.data.ativo : true,
@@ -137,6 +139,7 @@ export function MaquinaForm() {
         jogadasPremium: parseInt(formData.jogadasPremium, 10) || null,
         percentualAlertaEstoque:
           parseInt(formData.percentualAlertaEstoque, 10) || 20,
+        percentualComissao: parseFloat(formData.percentualComissao) || 0,
         localizacao: formData.localizacao?.trim() || null,
         ativo: formData.ativo,
       };
@@ -446,6 +449,26 @@ export function MaquinaForm() {
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Percentual mínimo para alerta (padrão: 20%)
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    💰 Percentual de Comissão (%)
+                  </label>
+                  <input
+                    type="number"
+                    name="percentualComissao"
+                    value={formData.percentualComissao}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="Ex: 10"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Percentual de comissão sobre o lucro da máquina (0-100%)
                   </p>
                 </div>
               </div>
