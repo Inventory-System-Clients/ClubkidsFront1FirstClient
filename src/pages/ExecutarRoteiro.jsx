@@ -54,35 +54,9 @@ export function ExecutarRoteiro() {
     }
   };
 
-  const verificarMaquinasAtendidas = async (lojaId) => {
-    try {
-      // Buscar todas as movimentações do roteiro
-      const response = await api.get(`/movimentacoes?lojaId=${lojaId}`);
-      const movimentacoes = response.data;
-      
-      // Filtrar movimentações do roteiro atual (hoje)
-      const hoje = new Date().toISOString().split('T')[0];
-      const movimentacoesHoje = movimentacoes.filter(mov => {
-        const dataMovimentacao = new Date(mov.dataColeta).toISOString().split('T')[0];
-        return dataMovimentacao === hoje;
-      });
-      
-      // Buscar máquinas da loja no roteiro
-      const loja = roteiro.lojas?.find(l => l.id === lojaId);
-      if (!loja) return false;
-      
-      const maquinasIds = loja.maquinas.map(m => m.id);
-      const maquinasAtendidas = new Set(
-        movimentacoesHoje
-          .filter(mov => maquinasIds.includes(mov.maquinaId))
-          .map(mov => mov.maquinaId)
-      );
-      
-      return maquinasAtendidas.size === maquinasIds.length;
-    } catch (error) {
-      console.error("Erro ao verificar máquinas atendidas:", error);
-      return false;
-    }
+  const verificarTodasMaquinasAtendidas = (loja) => {
+    if (!loja || !loja.maquinas || loja.maquinas.length === 0) return false;
+    return loja.maquinas.every(m => m.atendida);
   };
 
   const adicionarGasto = async (e) => {
@@ -302,6 +276,8 @@ export function ExecutarRoteiro() {
           {roteiro.lojas?.map((loja) => {
             const maquinasDaLoja = loja.maquinas || [];
             const totalMaquinas = maquinasDaLoja.length;
+            const maquinasAtendidas = maquinasDaLoja.filter(m => m.atendida).length;
+            const todasAtendidas = verificarTodasMaquinasAtendidas(loja);
             
             return (
               <div key={loja.id} className={`card ${
@@ -315,21 +291,31 @@ export function ExecutarRoteiro() {
                       <Badge type="info">{loja.cidade}</Badge>
                     </h3>
                     <p className="text-sm text-gray-600 mt-1">
-                      {totalMaquinas} máquina{totalMaquinas !== 1 ? 's' : ''} nesta loja
+                      {maquinasAtendidas} de {totalMaquinas} máquina{totalMaquinas !== 1 ? 's' : ''} atendida{maquinasAtendidas !== 1 ? 's' : ''}
                     </p>
+                    {!loja.concluida && todasAtendidas && (
+                      <p className="text-sm text-green-600 font-semibold mt-1">
+                        ✓ Todas as máquinas foram atendidas! Clique em "Concluir Loja"
+                      </p>
+                    )}
                   </div>
                   
                   {!loja.concluida && (
                     <button
-                      onClick={async () => {
-                        const todasAtendidas = await verificarMaquinasAtendidas(loja.id);
+                      onClick={() => {
                         if (todasAtendidas) {
-                          await marcarLojaConcluida(loja.id);
+                          marcarLojaConcluida(loja.id);
                         } else {
-                          setError("Nem todas as máquinas desta loja foram atendidas ainda!");
+                          setError(`Faltam ${totalMaquinas - maquinasAtendidas} máquina(s) para concluir esta loja!`);
                         }
                       }}
-                      className="btn-success"
+                      disabled={!todasAtendidas}
+                      className={`${
+                        todasAtendidas 
+                          ? 'btn-success' 
+                          : 'btn-secondary opacity-50 cursor-not-allowed'
+                      }`}
+                      title={todasAtendidas ? 'Concluir loja' : 'Atenda todas as máquinas primeiro'}
                     >
                       ✓ Concluir Loja
                     </button>
@@ -343,12 +329,17 @@ export function ExecutarRoteiro() {
                   {maquinasDaLoja.map((maquina) => (
                     <div 
                       key={maquina.id} 
-                      className="p-4 rounded-lg border-2 bg-white border-gray-200"
+                      className={`p-4 rounded-lg border-2 transition-all ${
+                        maquina.atendida 
+                          ? 'bg-green-50 border-green-300' 
+                          : 'bg-white border-gray-200'
+                      }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <h4 className="font-bold text-gray-900 mb-1">
-                            {maquina.nome}
+                            {maquina.atendida && '✓ '}{maquina.nome}
+                            {maquina.atendida && <span className="text-green-600 text-sm ml-2">(Atendida)</span>}
                           </h4>
                           <p className="text-sm text-gray-600">
                             Código: {maquina.codigo} | Tipo: {maquina.tipo}
@@ -357,23 +348,30 @@ export function ExecutarRoteiro() {
                         
                         <div className="flex gap-2">
                           {!loja.concluida && (
-                            <button
-                              onClick={() => {
-                                setManutencaoMaquina(maquina.id);
-                                setMostrarFormManutencao(true);
-                              }}
-                              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-                              title="Registrar Manutenção"
-                            >
-                              🔧
-                            </button>
+                            <>
+                              <button
+                                onClick={() => {
+                                  setManutencaoMaquina(maquina.id);
+                                  setMostrarFormManutencao(true);
+                                }}
+                                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                                title="Registrar Manutenção"
+                              >
+                                🔧
+                              </button>
+                              <button
+                                onClick={() => navigate(`/movimentacoes/nova?maquinaId=${maquina.id}&roteiroId=${id}`)}
+                                className={`px-4 py-2 rounded-lg transition-colors ${
+                                  maquina.atendida
+                                    ? 'bg-gray-400 text-white'
+                                    : 'bg-blue-500 text-white hover:bg-blue-600'
+                                }`}
+                                title={maquina.atendida ? 'Máquina já atendida' : 'Registrar movimentação'}
+                              >
+                                📝 {maquina.atendida ? 'Ver Movimentação' : 'Registrar Movimentação'}
+                              </button>
+                            </>
                           )}
-                          <button
-                            onClick={() => navigate(`/movimentacoes/nova?maquinaId=${maquina.id}&roteiroId=${id}`)}
-                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                          >
-                            📝 Registrar Movimentação
-                          </button>
                         </div>
                       </div>
                     </div>
