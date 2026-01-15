@@ -103,7 +103,21 @@ export function Graficos() {
         (sum, mov) => sum + (mov.fichas || 0),
         0
       );
-      const faturamento = totalFichas * (parseFloat(maquina.valorFicha) || 0);
+      
+      // Calcular valores de entrada separados
+      const valorEntradaFichas = movsMaquina.reduce(
+        (sum, mov) => sum + parseFloat(mov.valorEntradaFichas || 0),
+        0
+      );
+      const valorEntradaNotas = movsMaquina.reduce(
+        (sum, mov) => sum + parseFloat(mov.valorEntradaNotas || 0),
+        0
+      );
+      const valorEntradaCartao = movsMaquina.reduce(
+        (sum, mov) => sum + parseFloat(mov.valorEntradaCartao || 0),
+        0
+      );
+      const faturamento = valorEntradaFichas + valorEntradaNotas + valorEntradaCartao;
 
       // Calcular estoque atual baseado nas movimentações
       const ultimaMov =
@@ -146,6 +160,9 @@ export function Graficos() {
         totalEntradas,
         totalFichas,
         faturamento,
+        valorEntradaFichas,
+        valorEntradaNotas,
+        valorEntradaCartao,
         estoqueAtual,
         capacidade: maquina.capacidadePadrao || 0,
         numeroMovimentacoes: movsMaquina.length,
@@ -197,6 +214,18 @@ export function Graficos() {
       totalFichas: dadosPorMaquina.reduce((sum, m) => sum + m.totalFichas, 0),
       faturamentoTotal: dadosPorMaquina.reduce(
         (sum, m) => sum + m.faturamento,
+        0
+      ),
+      valorTotalFichas: dadosPorMaquina.reduce(
+        (sum, m) => sum + m.valorEntradaFichas,
+        0
+      ),
+      valorTotalNotas: dadosPorMaquina.reduce(
+        (sum, m) => sum + m.valorEntradaNotas,
+        0
+      ),
+      valorTotalCartao: dadosPorMaquina.reduce(
+        (sum, m) => sum + m.valorEntradaCartao,
         0
       ),
       numeroMaquinas: maquinasLista.length,
@@ -301,14 +330,6 @@ export function Graficos() {
           <div className="space-y-6">
             {/* Cards de Resumo */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="card bg-gradient-to-br from-green-500 to-green-600 text-white">
-                <div className="text-3xl mb-2">💰</div>
-                <div className="text-2xl font-bold">
-                  R$ {dadosProcessados.totais.faturamentoTotal.toFixed(2)}
-                </div>
-                <div className="text-sm opacity-90">Faturamento Total</div>
-              </div>
-
               <div className="card bg-gradient-to-br from-red-500 to-red-600 text-white">
                 <div className="text-3xl mb-2">📤</div>
                 <div className="text-2xl font-bold">
@@ -331,6 +352,56 @@ export function Graficos() {
                   {dadosProcessados.totais.numeroMovimentacoes}
                 </div>
                 <div className="text-sm opacity-90">Movimentações</div>
+              </div>
+
+              <div className="card bg-gradient-to-br from-orange-500 to-red-600 text-white">
+                <div className="text-3xl mb-2">💰</div>
+                <div className="text-2xl font-bold">
+                  R$ {dadosProcessados.totais.faturamentoTotal.toFixed(2)}
+                </div>
+                <div className="text-sm opacity-90">Lucro Total</div>
+              </div>
+            </div>
+
+            {/* Cards de Valores de Entrada */}
+            <div className="card bg-gradient-to-r from-purple-50 to-blue-100 border-2 border-purple-300">
+              <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <span className="text-2xl">💸</span>
+                Detalhamento do Lucro por Tipo de Pagamento
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="card bg-gradient-to-br from-yellow-400 to-yellow-500 text-white">
+                  <div className="text-3xl mb-2">🪙</div>
+                  <div className="text-2xl font-bold">
+                    R$ {dadosProcessados.totais.valorTotalFichas.toFixed(2)}
+                  </div>
+                  <div className="text-sm opacity-90">Entrada em Fichas</div>
+                  <div className="text-xs opacity-75 mt-1">
+                    {((dadosProcessados.totais.valorTotalFichas / dadosProcessados.totais.faturamentoTotal) * 100).toFixed(1)}% do total
+                  </div>
+                </div>
+
+                <div className="card bg-gradient-to-br from-green-400 to-green-500 text-white">
+                  <div className="text-3xl mb-2">💵</div>
+                  <div className="text-2xl font-bold">
+                    R$ {dadosProcessados.totais.valorTotalNotas.toFixed(2)}
+                  </div>
+                  <div className="text-sm opacity-90">Entrada em Notas</div>
+                  <div className="text-xs opacity-75 mt-1">
+                    {((dadosProcessados.totais.valorTotalNotas / dadosProcessados.totais.faturamentoTotal) * 100).toFixed(1)}% do total
+                  </div>
+                </div>
+
+                <div className="card bg-gradient-to-br from-blue-400 to-blue-500 text-white">
+                  <div className="text-3xl mb-2">💳</div>
+                  <div className="text-2xl font-bold">
+                    R$ {dadosProcessados.totais.valorTotalCartao.toFixed(2)}
+                  </div>
+                  <div className="text-sm opacity-90">Entrada Digital/Cartão</div>
+                  <div className="text-xs opacity-75 mt-1">
+                    {((dadosProcessados.totais.valorTotalCartao / dadosProcessados.totais.faturamentoTotal) * 100).toFixed(1)}% do total
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -364,11 +435,11 @@ export function Graficos() {
               </ResponsiveContainer>
             </div>
 
-            {/* Gráfico de Barras - Faturamento por Máquina */}
+            {/* Gráfico de Barras - Faturamento por Máquina (Empilhado por Tipo) */}
             <div className="card">
               <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <span className="text-2xl">💰</span>
-                Faturamento por Máquina
+                Faturamento por Máquina (Detalhado por Tipo de Pagamento)
               </h3>
               <ResponsiveContainer width="100%" height={400}>
                 <BarChart
@@ -386,11 +457,74 @@ export function Graficos() {
                   <Tooltip formatter={(value) => `R$ ${value.toFixed(2)}`} />
                   <Legend />
                   <Bar
-                    dataKey="faturamento"
+                    dataKey="valorEntradaFichas"
+                    stackId="a"
+                    fill="#eab308"
+                    name="Fichas (R$)"
+                  />
+                  <Bar
+                    dataKey="valorEntradaNotas"
+                    stackId="a"
                     fill="#22c55e"
-                    name="Faturamento (R$)"
+                    name="Notas (R$)"
+                  />
+                  <Bar
+                    dataKey="valorEntradaCartao"
+                    stackId="a"
+                    fill="#3b82f6"
+                    name="Digital/Cartão (R$)"
                   />
                 </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Gráfico de Pizza - Distribuição de Tipos de Pagamento */}
+            <div className="card">
+              <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <span className="text-2xl">🥧</span>
+                Distribuição por Tipo de Pagamento
+              </h3>
+              <ResponsiveContainer width="100%" height={400}>
+                <PieChart>
+                  <Pie
+                    data={[
+                      {
+                        name: "Fichas",
+                        value: dadosProcessados.totais.valorTotalFichas,
+                        emoji: "🪙"
+                      },
+                      {
+                        name: "Notas",
+                        value: dadosProcessados.totais.valorTotalNotas,
+                        emoji: "💵"
+                      },
+                      {
+                        name: "Digital/Cartão",
+                        value: dadosProcessados.totais.valorTotalCartao,
+                        emoji: "💳"
+                      }
+                    ].filter(item => item.value > 0)}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={true}
+                    label={({ name, value, percent }) =>
+                      `${name}: R$ ${value.toFixed(2)} (${(percent * 100).toFixed(1)}%)`
+                    }
+                    outerRadius={120}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {[
+                      { color: "#eab308" },
+                      { color: "#22c55e" },
+                      { color: "#3b82f6" }
+                    ].map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => `R$ ${value.toFixed(2)}`} />
+                  <Legend />
+                </PieChart>
               </ResponsiveContainer>
             </div>
 

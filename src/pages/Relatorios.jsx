@@ -210,7 +210,7 @@ export function Relatorios() {
                 <span className="text-2xl sm:text-3xl">📊</span>
                 Resumo Geral da Loja
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <div className="card bg-gradient-to-br from-blue-500 to-blue-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">🎫</div>
                   <div className="text-xl sm:text-2xl font-bold">
@@ -254,21 +254,44 @@ export function Relatorios() {
                     Total de Movimentações
                   </div>
                 </div>
+              </div>
 
-                <div className="card bg-gradient-to-br from-yellow-500 to-orange-600 text-white">
+              {/* Cards de Valores de Entrada */}
+              <h4 className="text-lg sm:text-xl font-bold text-gray-900 mt-6 mb-4 flex items-center gap-2">
+                <span className="text-xl sm:text-2xl">💰</span>
+                Valores de Entrada (Lucro)
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div className="card bg-gradient-to-br from-yellow-400 to-yellow-500 text-white">
+                  <div className="text-2xl sm:text-3xl mb-2">🪙</div>
+                  <div className="text-xl sm:text-2xl font-bold">
+                    R$ {(relatorio.totais?.valoresEntrada?.fichas || 0).toFixed(2)}
+                  </div>
+                  <div className="text-sm opacity-90">Entrada em Fichas</div>
+                </div>
+
+                <div className="card bg-gradient-to-br from-green-400 to-green-500 text-white">
+                  <div className="text-2xl sm:text-3xl mb-2">💵</div>
+                  <div className="text-xl sm:text-2xl font-bold">
+                    R$ {(relatorio.totais?.valoresEntrada?.notas || 0).toFixed(2)}
+                  </div>
+                  <div className="text-sm opacity-90">Entrada em Notas</div>
+                </div>
+
+                <div className="card bg-gradient-to-br from-blue-400 to-blue-500 text-white">
+                  <div className="text-2xl sm:text-3xl mb-2">💳</div>
+                  <div className="text-xl sm:text-2xl font-bold">
+                    R$ {(relatorio.totais?.valoresEntrada?.cartao || 0).toFixed(2)}
+                  </div>
+                  <div className="text-sm opacity-90">Entrada Digital/Cartão</div>
+                </div>
+
+                <div className="card bg-gradient-to-br from-orange-500 to-red-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">💰</div>
                   <div className="text-xl sm:text-2xl font-bold">
-                    R${" "}
-                    {(() => {
-                      const totalFichas = relatorio.totais?.fichas || 0;
-                      const valorFicha =
-                        relatorio.loja?.valorFichaPadrao || 2.5;
-                      return (totalFichas * valorFicha).toFixed(2);
-                    })()}
+                    R$ {(relatorio.totais?.valoresEntrada?.total || 0).toFixed(2)}
                   </div>
-                  <div className="text-xs sm:text-sm opacity-90">
-                    Lucro Total da Loja
-                  </div>
+                  <div className="text-sm opacity-90">Lucro Total da Loja</div>
                 </div>
               </div>
             </div>
@@ -329,7 +352,7 @@ export function Relatorios() {
                           Resumo de Movimentações desta Máquina
                         </span>
                       </h4>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
                         <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-3 sm:p-5 rounded-xl shadow-lg">
                           <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
                             🎫
@@ -378,21 +401,64 @@ export function Relatorios() {
                             Movimentações
                           </div>
                         </div>
-                        <div className="bg-gradient-to-br from-yellow-500 to-orange-600 text-white p-3 sm:p-5 rounded-xl shadow-lg">
+                      </div>
+
+                      {/* Valores de Entrada por Máquina */}
+                      <h4 className="text-base sm:text-xl font-bold text-gray-900 mt-4 sm:mt-6 mb-3 sm:mb-4 flex items-center gap-2">
+                        <span className="text-xl sm:text-2xl">💰</span>
+                        <span className="text-sm sm:text-base">
+                          Valores de Entrada (Lucro da Máquina)
+                        </span>
+                      </h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+                        <div className="bg-gradient-to-br from-yellow-400 to-yellow-500 text-white p-3 sm:p-5 rounded-xl shadow-lg">
+                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
+                            🪙
+                          </div>
+                          <div className="text-xl sm:text-3xl font-bold text-center">
+                            R$ {(maquina.valoresEntrada?.fichas || 0).toFixed(2)}
+                          </div>
+                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
+                            Entrada em Fichas
+                          </div>
+                        </div>
+                        <div className="bg-gradient-to-br from-green-400 to-green-500 text-white p-3 sm:p-5 rounded-xl shadow-lg">
+                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
+                            💵
+                          </div>
+                          <div className="text-xl sm:text-3xl font-bold text-center">
+                            R$ {(maquina.valoresEntrada?.notas || 0).toFixed(2)}
+                          </div>
+                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
+                            Entrada em Notas
+                          </div>
+                        </div>
+                        <div className="bg-gradient-to-br from-blue-400 to-blue-500 text-white p-3 sm:p-5 rounded-xl shadow-lg">
+                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
+                            💳
+                          </div>
+                          <div className="text-xl sm:text-3xl font-bold text-center">
+                            R$ {(maquina.valoresEntrada?.cartao || 0).toFixed(2)}
+                          </div>
+                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
+                            Entrada Digital/Cartão
+                          </div>
+                        </div>
+                        <div className="bg-gradient-to-br from-orange-500 to-red-600 text-white p-3 sm:p-5 rounded-xl shadow-lg">
                           <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
                             💰
                           </div>
                           <div className="text-xl sm:text-3xl font-bold text-center">
                             R${" "}
                             {(() => {
-                              const fichas = maquina.totais.fichas || 0;
-                              const valorFicha =
-                                maquina.maquina.valorFicha || 2.5;
-                              return (fichas * valorFicha).toFixed(2);
+                              const fichas = maquina.valoresEntrada?.fichas || 0;
+                              const notas = maquina.valoresEntrada?.notas || 0;
+                              const cartao = maquina.valoresEntrada?.cartao || 0;
+                              return (fichas + notas + cartao).toFixed(2);
                             })()}
                           </div>
                           <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
-                            Lucro da Máquina
+                            Lucro Total
                           </div>
                         </div>
                       </div>
