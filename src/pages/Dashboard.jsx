@@ -1197,7 +1197,6 @@ export function Dashboard() {
       }
       
       // SEGUNDO: Buscar comissões da loja SOMENTE DO DIA ATUAL
-      const hoje = new Date().toISOString().split('T')[0];
       const response = await api.get(`/relatorios/comissoes?lojaId=${lojaId}&dataInicio=${hoje}&dataFim=${hoje}`);
       const data = response.data;
 
