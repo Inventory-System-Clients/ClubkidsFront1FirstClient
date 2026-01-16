@@ -26,10 +26,8 @@ export function MovimentacoesLoja() {
     produto_id: "",
     quantidadeAtualMaquina: "",
     quantidadeAdicionada: "",
-    fichas: "",
     contadorIn: "",
     contadorOut: "",
-    quantidade_notas_entrada: "",
     valor_entrada_maquininha_pix: "",
     numeroBag: "",
     valorEntradaFichas: "",
@@ -82,10 +80,10 @@ export function MovimentacoesLoja() {
         totalPre: parseInt(formData.quantidadeAtualMaquina) || 0,
         sairam: 0, // Calculado no backend baseado no produto
         abastecidas: parseInt(formData.quantidadeAdicionada) || 0,
-        fichas: parseInt(formData.fichas) || 0,
+        fichas: 0,
         contadorIn: parseInt(formData.contadorIn) || 0,
         contadorOut: parseInt(formData.contadorOut) || 0,
-        quantidade_notas_entrada: parseInt(formData.quantidade_notas_entrada) || 0,
+        quantidade_notas_entrada: 0,
         valor_entrada_maquininha_pix: parseFloat(formData.valor_entrada_maquininha_pix) || 0,
         numeroBag: formData.numeroBag || null,
         valorEntradaFichas: formData.valorEntradaFichas ? parseFloat(formData.valorEntradaFichas) : null,
@@ -355,21 +353,6 @@ export function MovimentacoesLoja() {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Fichas
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.fichas}
-                      onChange={(e) =>
-                        setFormData({ ...formData, fichas: e.target.value })
-                      }
-                      className="input-field"
-                      min="0"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Contador IN
                     </label>
                     <input
@@ -392,24 +375,6 @@ export function MovimentacoesLoja() {
                       value={formData.contadorOut}
                       onChange={(e) =>
                         setFormData({ ...formData, contadorOut: e.target.value })
-                      }
-                      className="input-field"
-                      min="0"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Qtd Notas Entrada
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.quantidade_notas_entrada}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          quantidade_notas_entrada: e.target.value,
-                        })
                       }
                       className="input-field"
                       min="0"
