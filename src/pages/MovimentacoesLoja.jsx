@@ -107,9 +107,10 @@ export function MovimentacoesLoja() {
       console.log('📊 [MovimentacoesLoja] RoteiroId:', roteiroId);
       console.log('🔧 [MovimentacoesLoja] MaquinaId:', maquinaSelecionada);
       
-      // Aguardar 1 segundo e redirecionar para forçar reload no ExecutarRoteiro
+      // Aguardar 1 segundo e redirecionar para a rota CORRETA do ExecutarRoteiro
       setTimeout(() => {
-        navigate(`/roteiros/${roteiroId}`, { 
+        console.log('🔄 [MovimentacoesLoja] Redirecionando para /roteiros/' + roteiroId + '/executar');
+        navigate(`/roteiros/${roteiroId}/executar`, { 
           replace: true,
           state: { reload: true, timestamp: Date.now() }
         });
