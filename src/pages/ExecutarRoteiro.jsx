@@ -33,19 +33,48 @@ export function ExecutarRoteiro() {
     carregarRoteiro();
   }, [id]);
   
-  // Recarregar sempre que voltar para esta página
+  // Recarregar sempre que voltar para esta página (de qualquer navegação)
   useEffect(() => {
     const handleFocus = () => {
+      console.log('🔄 [ExecutarRoteiro] Janela focada - recarregando dados...');
       carregarRoteiro();
     };
+    
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('🔄 [ExecutarRoteiro] Página visível - recarregando dados...');
+        carregarRoteiro();
+      }
+    };
+    
     window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [id]);
+  
+  // Recarregar quando voltar da navegação (ex: após salvar movimentação)
+  useEffect(() => {
+    const unlistenNavigate = () => {
+      console.log('🔄 [ExecutarRoteiro] Voltou da navegação - recarregando dados...');
+      carregarRoteiro();
+    };
+    
+    // Executar ao montar e sempre que location mudar
+    return () => {
+      // Cleanup se necessário
+    };
+  }, [location]);
 
   const carregarRoteiro = async () => {
     try {
       setLoading(true);
+      console.log(`🔄 [ExecutarRoteiro] Carregando roteiro ${id}...`);
       const response = await api.get(`/roteiros/${id}`);
+      console.log(`✅ [ExecutarRoteiro] Roteiro carregado:`, response.data);
       setRoteiro(response.data);
     } catch (error) {
       setError("Erro ao carregar roteiro: " + (error.response?.data?.error || error.message));
@@ -202,8 +231,11 @@ export function ExecutarRoteiro() {
             <h3 className="text-lg font-bold text-gray-900 mb-2">Ações</h3>
             <div className="flex flex-col gap-2">
               <button
-                onClick={carregarRoteiro}
-                className="btn-secondary text-sm"
+                onClick={() => {
+                  console.log('🔄 [ExecutarRoteiro] Botão atualizar clicado');
+                  carregarRoteiro();
+                }}
+                className="btn-primary text-sm font-bold"
                 title="Recarregar dados do roteiro"
               >
                 🔄 Atualizar Progresso

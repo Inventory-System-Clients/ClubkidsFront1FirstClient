@@ -101,28 +101,19 @@ export function MovimentacoesLoja() {
 
       await api.post("/movimentacoes", movimentacao);
       
-      setSuccess("Movimentação registrada com sucesso!");
+      setSuccess("Movimentação registrada com sucesso! Redirecionando...");
       
-      // Recarregar dados para atualizar progresso
-      await carregarDados();
+      console.log('✅ [MovimentacoesLoja] Movimentação salva com sucesso');
+      console.log('📊 [MovimentacoesLoja] RoteiroId:', roteiroId);
+      console.log('🔧 [MovimentacoesLoja] MaquinaId:', maquinaSelecionada);
       
-      // Limpar formulário
-      setMaquinaSelecionada("");
-      setFormData({
-        produto_id: "",
-        quantidadeAtualMaquina: "",
-        quantidadeAdicionada: "",
-        fichas: "",
-        contadorIn: "",
-        contadorOut: "",
-        quantidade_notas_entrada: "",
-        valor_entrada_maquininha_pix: "",
-        numeroBag: "",
-        valorEntradaFichas: "",
-        valorEntradaNotas: "",
-        valorEntradaCartao: "",
-        observacao: "",
-      });
+      // Aguardar 1 segundo e redirecionar para forçar reload no ExecutarRoteiro
+      setTimeout(() => {
+        navigate(`/roteiros/${roteiroId}`, { 
+          replace: true,
+          state: { reload: true, timestamp: Date.now() }
+        });
+      }, 1500);
     } catch (error) {
       setError("Erro ao salvar movimentação: " + (error.response?.data?.error || error.message));
     } finally {
