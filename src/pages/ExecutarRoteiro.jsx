@@ -65,9 +65,14 @@ export function ExecutarRoteiro() {
   };
 
   const verificarTodasMaquinasAtendidas = (loja) => {
-    if (!loja || !loja.maquinas || loja.maquinas.length === 0) return false;
-    // Cada máquina precisa ter pelo menos 1 movimentação (limite = 1)
-    return loja.maquinas.every(m => m.atendida === true);
+    if (!loja || !loja.maquinas || loja.maquinas.length === 0) {
+      console.log('⚠️ Loja sem máquinas:', loja?.nome);
+      return false;
+    }
+    // Cada máquina precisa ter pelo menos 1 movimentação registrada no roteiro
+    const todasAtendidas = loja.maquinas.every(m => m.atendida === true);
+    console.log(`🔍 Loja ${loja.nome}: ${loja.maquinas.filter(m => m.atendida).length}/${loja.maquinas.length} máquinas atendidas =`, todasAtendidas);
+    return todasAtendidas;
   };
   
   const contarMaquinasAtendidas = () => {
@@ -338,7 +343,11 @@ export function ExecutarRoteiro() {
             
             return (
               <div key={loja.id} className={`card ${
-                loja.concluida ? 'bg-green-50 border-2 border-green-500' : ''
+                loja.concluida 
+                  ? 'bg-green-50 border-2 border-green-500' 
+                  : todasAtendidas 
+                    ? 'bg-green-50 border-2 border-green-400 shadow-lg' 
+                    : 'bg-white border border-gray-200'
               }`}>
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex-1">
@@ -352,13 +361,19 @@ export function ExecutarRoteiro() {
                       <span className="text-xs text-gray-500 ml-1">(Limite: 1 mov/máquina)</span>
                     </p>
                     {!loja.concluida && todasAtendidas && (
-                      <p className="text-sm text-green-600 font-semibold mt-1">
-                        ✓ Todas as máquinas atingiram o limite! Clique em "Concluir Loja"
+                      <p className="text-sm text-green-600 font-bold mt-2 flex items-center gap-2 animate-pulse">
+                        <span className="text-lg">✅</span>
+                        Todas as máquinas foram atendidas! Clique em "Concluir Loja"
                       </p>
                     )}
                     {!loja.concluida && !todasAtendidas && maquinasAtendidas > 0 && (
                       <p className="text-sm text-yellow-600 font-semibold mt-1">
-                        ⏳ Faltam {totalMaquinas - maquinasAtendidas} máquina(s) para atingir o limite
+                        ⏳ Faltam {totalMaquinas - maquinasAtendidas} máquina(s) para concluir a loja
+                      </p>
+                    )}
+                    {!loja.concluida && maquinasAtendidas === 0 && totalMaquinas > 0 && (
+                      <p className="text-sm text-red-600 font-semibold mt-1">
+                        ❌ Nenhuma máquina foi atendida ainda
                       </p>
                     )}
                   </div>
