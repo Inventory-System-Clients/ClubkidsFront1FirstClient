@@ -1196,8 +1196,9 @@ export function Dashboard() {
         console.log(`ℹ️ Nenhum roteiro encontrado para hoje, buscando comissões antigas`);
       }
       
-      // SEGUNDO: Buscar comissões da loja
-      const response = await api.get(`/relatorios/comissoes?lojaId=${lojaId}`);
+      // SEGUNDO: Buscar comissões da loja SOMENTE DO DIA ATUAL
+      const hoje = new Date().toISOString().split('T')[0];
+      const response = await api.get(`/relatorios/comissoes?lojaId=${lojaId}&dataInicio=${hoje}&dataFim=${hoje}`);
       const data = response.data;
 
       console.log("📊 Dados de comissão recebidos:", data);
@@ -1205,7 +1206,7 @@ export function Dashboard() {
       // A API retorna um objeto com a propriedade 'comissoes' que é um array
       const comissoes = data.comissoes || [];
 
-      console.log("📋 Comissões da loja:", comissoes);
+      console.log("📋 Comissões da loja (dia atual):", comissoes);
 
       if (!comissoes || comissoes.length === 0) {
         Swal.fire({
