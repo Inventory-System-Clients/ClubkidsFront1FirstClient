@@ -1148,7 +1148,35 @@ export function Dashboard() {
 
   const imprimirComissaoLoja = async (lojaId, nomeLoja) => {
     try {
-      // Buscar comissões da loja
+      // PRIMEIRO: Tentar calcular a comissão (se ainda não foi calculada)
+      // Buscar roteiro mais recente da loja
+      const hoje = new Date().toISOString().split('T')[0];
+      const roteirosRes = await api.get(`/roteiros?data=${hoje}`);
+      const roteiros = roteirosRes.data || [];
+      
+      // Encontrar roteiro que contém esta loja
+      let roteiroId = null;
+      for (const roteiro of roteiros) {
+        const lojas = roteiro.lojas || [];
+        if (lojas.some(l => l.id === lojaId)) {
+          roteiroId = roteiro.id;
+          break;
+        }
+      }
+      
+      if (roteiroId) {
+        console.log(`🔄 Calculando comissão para loja ${nomeLoja} no roteiro ${roteiroId}...`);
+        try {
+          await api.post(`/roteiros/lojas/${lojaId}/calcular-comissao`, { roteiroId });
+          console.log(`✅ Comissão calculada com sucesso`);
+        } catch (calcError) {
+          console.warn(`⚠️ Erro ao calcular comissão (pode já ter sido calculada):`, calcError.message);
+        }
+      } else {
+        console.log(`ℹ️ Nenhum roteiro encontrado para hoje, buscando comissões antigas`);
+      }
+      
+      // SEGUNDO: Buscar comissões da loja
       const response = await api.get(`/relatorios/comissoes?lojaId=${lojaId}`);
       const data = response.data;
 
