@@ -531,7 +531,7 @@ export function ExecutarRoteiro() {
                   {roteiro.gastos.map((gasto, idx) => (
                     <tr key={idx} className="border-t">
                       <td className="px-4 py-2">{gasto.categoria}</td>
-                      <td className="px-4 py-2 font-bold">R$ {gasto.valor.toFixed(2)}</td>
+                      <td className="px-4 py-2 font-bold">R$ {(parseFloat(gasto.valor) || 0).toFixed(2)}</td>
                       <td className="px-4 py-2">{gasto.descricao || '-'}</td>
                       <td className="px-4 py-2 text-sm text-gray-600">
                         {new Date(gasto.dataHora).toLocaleString('pt-BR')}
