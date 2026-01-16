@@ -15,6 +15,7 @@ export function ExecutarRoteiro() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [lastUpdate, setLastUpdate] = useState(Date.now());
   
   // Controle de gastos
   const [mostrarFormGasto, setMostrarFormGasto] = useState(false);
@@ -30,10 +31,21 @@ export function ExecutarRoteiro() {
   const [descricaoManutencao, setDescricaoManutencao] = useState("");
 
   useEffect(() => {
+    console.log('🎯 [ExecutarRoteiro] Montado ou ID mudou, carregando...');
     carregarRoteiro();
   }, [id]);
   
-  // Recarregar sempre que voltar para esta página (de qualquer navegação)
+  // Recarregar quando location.state mudar (vindo de MovimentacoesLoja)
+  useEffect(() => {
+    if (location.state?.reload || location.state?.timestamp) {
+      console.log('🔄 [ExecutarRoteiro] Estado de reload detectado, recarregando...');
+      carregarRoteiro();
+      // Limpar o state para não recarregar múltiplas vezes
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+  
+  // Recarregar quando voltar para a página (focus)
   useEffect(() => {
     const handleFocus = () => {
       console.log('🔄 [ExecutarRoteiro] Janela focada - recarregando dados...');
@@ -55,27 +67,27 @@ export function ExecutarRoteiro() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [id]);
-  
-  // Recarregar quando voltar da navegação (ex: após salvar movimentação)
-  useEffect(() => {
-    const unlistenNavigate = () => {
-      console.log('🔄 [ExecutarRoteiro] Voltou da navegação - recarregando dados...');
-      carregarRoteiro();
-    };
-    
-    // Executar ao montar e sempre que location mudar
-    return () => {
-      // Cleanup se necessário
-    };
-  }, [location]);
 
   const carregarRoteiro = async () => {
     try {
       setLoading(true);
-      console.log(`🔄 [ExecutarRoteiro] Carregando roteiro ${id}...`);
-      const response = await api.get(`/roteiros/${id}`);
+      console.log(`🔄 [ExecutarRoteiro] Carregando roteiro ${id}... (${new Date().toLocaleTimeString()})`);
+      // Adicionar timestamp para forçar cache bust
+      const response = await api.get(`/roteiros/${id}?_t=${Date.now()}`);
       console.log(`✅ [ExecutarRoteiro] Roteiro carregado:`, response.data);
+      
+      // Log detalhado das lojas e máquinas
+      response.data.lojas?.forEach(loja => {
+        const totalMaq = loja.maquinas?.length || 0;
+        const atendidas = loja.maquinas?.filter(m => m.atendida).length || 0;
+        console.log(`🏪 Loja "${loja.nome}": ${atendidas}/${totalMaq} máquinas atendidas`);
+        loja.maquinas?.forEach(maq => {
+          console.log(`  - ${maq.nome} (${maq.codigo}): ${maq.atendida ? '✅ ATENDIDA' : '❌ PENDENTE'}`);
+        });
+      });
+      
       setRoteiro(response.data);
+      setLastUpdate(Date.now());
     } catch (error) {
       setError("Erro ao carregar roteiro: " + (error.response?.data?.error || error.message));
     } finally {
@@ -176,8 +188,8 @@ export function ExecutarRoteiro() {
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <PageHeader
-          title={roteiro.nome}
-          subtitle={`Zona: ${roteiro.zona} | Estado: ${roteiro.estado}`}
+          title={roteiro.zona || "Roteiro"}
+          subtitle={`Data: ${new Date(roteiro.data).toLocaleDateString()} | Última atualização: ${new Date(lastUpdate).toLocaleTimeString()}`}
           icon="🛠️"
         />
 
