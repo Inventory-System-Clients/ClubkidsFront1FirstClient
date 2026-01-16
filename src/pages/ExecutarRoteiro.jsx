@@ -232,10 +232,10 @@ export function ExecutarRoteiro() {
           <div className="card bg-gradient-to-br from-green-50 to-green-100">
             <h3 className="text-lg font-bold text-gray-900 mb-2">Orçamento</h3>
             <p className="text-2xl font-bold text-green-700">
-              R$ {roteiro.saldoRestante?.toFixed(2) || "500.00"}
+              R$ {(parseFloat(roteiro.saldoRestante) || 500).toFixed(2)}
             </p>
             <p className="text-sm text-gray-700">
-              Gasto: R$ {((roteiro.valorInicial || 500) - (roteiro.saldoRestante || 500)).toFixed(2)}
+              Gasto: R$ {((parseFloat(roteiro.valorInicial) || 500) - (parseFloat(roteiro.saldoRestante) || 500)).toFixed(2)}
             </p>
           </div>
 
