@@ -81,15 +81,7 @@ export function GerenciarRoteiros() {
         roteiroDestinoId: roteiroDestinoId,
       });
 
-      // Salvar template automaticamente após mover loja
-      try {
-        await api.post("/roteiros/salvar-template");
-        console.log("Template salvo automaticamente");
-      } catch (templateError) {
-        console.warn("Erro ao salvar template:", templateError);
-      }
-
-      setSuccess(`Loja "${draggedLoja.nome}" movida com sucesso! Configuração salva para próximos dias.`);
+      setSuccess(`Loja "${draggedLoja.nome}" movida com sucesso!`);
       await carregarDados();
     } catch (error) {
       setError("Erro ao mover loja: " + (error.response?.data?.error || error.message));
@@ -104,15 +96,7 @@ export function GerenciarRoteiros() {
       setError("");
       await api.post(`/roteiros/${roteiroId}/lojas`, { lojaId });
       
-      // Salvar template automaticamente
-      try {
-        await api.post("/roteiros/salvar-template");
-        console.log("Template salvo automaticamente");
-      } catch (templateError) {
-        console.warn("Erro ao salvar template:", templateError);
-      }
-      
-      setSuccess("Loja adicionada ao roteiro e configuração salva!");
+      setSuccess("Loja adicionada ao roteiro com sucesso!");
       await carregarDados();
     } catch (error) {
       setError("Erro ao adicionar loja: " + (error.response?.data?.error || error.message));
@@ -128,15 +112,7 @@ export function GerenciarRoteiros() {
       setError("");
       await api.delete(`/roteiros/${roteiroId}/lojas/${lojaId}`);
       
-      // Salvar template automaticamente
-      try {
-        await api.post("/roteiros/salvar-template");
-        console.log("Template salvo automaticamente");
-      } catch (templateError) {
-        console.warn("Erro ao salvar template:", templateError);
-      }
-      
-      setSuccess("Loja removida do roteiro e configuração salva!");
+      setSuccess("Loja removida do roteiro com sucesso!");
       await carregarDados();
     } catch (error) {
       setError("Erro ao remover loja: " + (error.response?.data?.error || error.message));
@@ -174,13 +150,6 @@ export function GerenciarRoteiros() {
           roteiroDestinoId: roteiroSelecionadoParaAdicionar.id,
         });
 
-        // Salvar template automaticamente
-        try {
-          await api.post("/roteiros/salvar-template");
-        } catch (templateError) {
-          console.warn("Erro ao salvar template:", templateError);
-        }
-
         setSuccess(`Loja "${loja.nome}" movida com sucesso!`);
         await carregarDados();
         fecharModalAdicionarLoja();
@@ -199,15 +168,7 @@ export function GerenciarRoteiros() {
       setError("");
       await api.put(`/roteiros/${roteiroId}`, { zona: novaZona });
       
-      // Salvar template automaticamente
-      try {
-        await api.post("/roteiros/salvar-template");
-        console.log("Template salvo automaticamente");
-      } catch (templateError) {
-        console.warn("Erro ao salvar template:", templateError);
-      }
-      
-      setSuccess("Nome do roteiro atualizado e configuração salva!");
+      setSuccess("Nome do roteiro atualizado com sucesso!");
       await carregarDados();
     } catch (error) {
       setError("Erro ao atualizar roteiro: " + (error.response?.data?.error || error.message));
