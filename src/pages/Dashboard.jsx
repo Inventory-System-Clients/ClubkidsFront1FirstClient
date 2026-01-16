@@ -270,6 +270,10 @@ export function Dashboard() {
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [alertasEstoqueLoja, setAlertasEstoqueLoja] = useState([]);
+  
+  // Estados para gastos de roteiro
+  const [gastosRoteiro, setGastosRoteiro] = useState([]);
+  const [editandoGasto, setEditandoGasto] = useState(null);
 
   // Estados para estoque das lojas
   const [lojasComEstoque, setLojasComEstoque] = useState([]);
@@ -467,10 +471,26 @@ export function Dashboard() {
     try {
       setLoadingMaquina(true);
       const movRes = await api.get(`/movimentacoes?maquinaId=${maquinaId}`);
-      setMovimentacoes(movRes.data || []);
+      const movimentacoesData = movRes.data || [];
+      setMovimentacoes(movimentacoesData);
+      
+      // Buscar gastos dos roteiros relacionados às movimentações
+      const roteiroIds = [...new Set(movimentacoesData.map(m => m.roteiroId).filter(Boolean))];
+      const gastosPromises = roteiroIds.map(roteiroId => 
+        api.get(`/roteiros/${roteiroId}/gastos`).catch(() => ({ data: [] }))
+      );
+      const gastosResults = await Promise.all(gastosPromises);
+      const todosGastos = gastosResults.flatMap((res, index) => 
+        (res.data || []).map(gasto => ({
+          ...gasto,
+          roteiroId: roteiroIds[index]
+        }))
+      );
+      setGastosRoteiro(todosGastos);
     } catch (error) {
       console.error("Erro ao carregar movimentações:", error);
       setMovimentacoes([]);
+      setGastosRoteiro([]);
     } finally {
       setLoadingMaquina(false);
     }
@@ -1475,6 +1495,43 @@ export function Dashboard() {
       });
     } finally {
       setSalvandoMovimentacao(false);
+    }
+  };
+
+  const handleEditarGasto = (gasto) => {
+    setEditandoGasto({
+      id: gasto.id,
+      categoria: gasto.categoria,
+      descricao: gasto.descricao,
+      valor: gasto.valor,
+      roteiroId: gasto.roteiroId,
+    });
+  };
+
+  const handleSalvarGasto = async () => {
+    try {
+      await api.put(`/roteiros/${editandoGasto.roteiroId}/gastos/${editandoGasto.id}`, {
+        categoria: editandoGasto.categoria,
+        descricao: editandoGasto.descricao,
+        valor: parseFloat(editandoGasto.valor),
+      });
+      
+      Swal.fire({
+        icon: "success",
+        title: "Sucesso",
+        text: "Gasto atualizado com sucesso!",
+        confirmButtonColor: "#fbbf24",
+      });
+      
+      setEditandoGasto(null);
+      carregarDetalhesMaquina(maquinaSelecionada.id);
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title: "Erro",
+        text: "Erro ao atualizar gasto: " + (error.response?.data?.error || error.message),
+        confirmButtonColor: "#ef4444",
+      });
     }
   };
 
@@ -2770,6 +2827,99 @@ export function Dashboard() {
                               <p className="text-sm text-gray-600 mt-3 italic">
                                 💬 {mov.observacoes}
                               </p>
+                            )}
+
+                            {/* Gastos do Roteiro */}
+                            {mov.roteiroId && gastosRoteiro.filter(g => g.roteiroId === mov.roteiroId).length > 0 && (
+                              <div className="mt-4 pt-4 border-t border-gray-200">
+                                <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1">
+                                  <span>💰</span> Gastos do Roteiro
+                                </h4>
+                                <div className="space-y-2">
+                                  {gastosRoteiro
+                                    .filter(g => g.roteiroId === mov.roteiroId)
+                                    .map(gasto => (
+                                      <div key={gasto.id} className="bg-gray-50 rounded p-3">
+                                        {editandoGasto?.id === gasto.id ? (
+                                          <div className="space-y-2">
+                                            <select
+                                              value={editandoGasto.categoria}
+                                              onChange={(e) => setEditandoGasto({
+                                                ...editandoGasto,
+                                                categoria: e.target.value
+                                              })}
+                                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                                            >
+                                              <option value="Combustível">🚗 Combustível</option>
+                                              <option value="Alimentação">🍔 Alimentação</option>
+                                              <option value="Pedágio">🛣️ Pedágio</option>
+                                              <option value="Estacionamento">🅿️ Estacionamento</option>
+                                              <option value="Outros">📋 Outros</option>
+                                            </select>
+                                            <input
+                                              type="text"
+                                              value={editandoGasto.descricao || ''}
+                                              onChange={(e) => setEditandoGasto({
+                                                ...editandoGasto,
+                                                descricao: e.target.value
+                                              })}
+                                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                                              placeholder="Descrição (opcional)"
+                                            />
+                                            <input
+                                              type="number"
+                                              step="0.01"
+                                              value={editandoGasto.valor}
+                                              onChange={(e) => setEditandoGasto({
+                                                ...editandoGasto,
+                                                valor: e.target.value
+                                              })}
+                                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                                              placeholder="Valor"
+                                            />
+                                            <div className="flex gap-2">
+                                              <button
+                                                onClick={handleSalvarGasto}
+                                                className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded transition-colors"
+                                              >
+                                                ✅ Salvar
+                                              </button>
+                                              <button
+                                                onClick={() => setEditandoGasto(null)}
+                                                className="px-3 py-1 bg-gray-400 hover:bg-gray-500 text-white text-xs font-semibold rounded transition-colors"
+                                              >
+                                                ❌ Cancelar
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div className="flex items-center justify-between">
+                                            <div className="flex-1">
+                                              <div className="flex items-center gap-2 mb-1">
+                                                <Badge variant="warning">{gasto.categoria}</Badge>
+                                                {gasto.descricao && (
+                                                  <span className="text-xs text-gray-600 italic">
+                                                    {gasto.descricao}
+                                                  </span>
+                                                )}
+                                              </div>
+                                              <p className="text-lg font-bold text-red-600">
+                                                R$ {parseFloat(gasto.valor || 0).toFixed(2)}
+                                              </p>
+                                            </div>
+                                            <button
+                                              onClick={() => handleEditarGasto(gasto)}
+                                              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded transition-colors"
+                                              title="Editar Gasto"
+                                            >
+                                              ✏️ Editar
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                </div>
+                              </div>
                             )}
                           </div>
                         ))}
