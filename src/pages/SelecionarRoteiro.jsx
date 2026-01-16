@@ -18,10 +18,15 @@ export function SelecionarRoteiro() {
   const [draggedLoja, setDraggedLoja] = useState(null);
   const [draggedFromRoteiro, setDraggedFromRoteiro] = useState(null);
   const [funcionarios, setFuncionarios] = useState([]);
+  const [todasLojas, setTodasLojas] = useState([]);
+  const [showModalAdicionarLoja, setShowModalAdicionarLoja] = useState(false);
+  const [roteiroSelecionadoParaAdicionar, setRoteiroSelecionadoParaAdicionar] = useState(null);
+  const [filtroLoja, setFiltroLoja] = useState("");
 
   useEffect(() => {
     carregarRoteiros();
     carregarFuncionarios();
+    carregarTodasLojas();
   }, []);
 
   const carregarRoteiros = async () => {
@@ -42,6 +47,15 @@ export function SelecionarRoteiro() {
       setFuncionarios(response.data || []);
     } catch (error) {
       console.error("Erro ao carregar funcionários:", error);
+    }
+  };
+
+  const carregarTodasLojas = async () => {
+    try {
+      const response = await api.get("/lojas");
+      setTodasLojas(response.data || []);
+    } catch (error) {
+      console.error("Erro ao carregar lojas:", error);
     }
   };
 
@@ -97,15 +111,7 @@ export function SelecionarRoteiro() {
         roteiroDestinoId: roteiroDestinoId,
       });
 
-      // Salvar template automaticamente após mover loja
-      try {
-        await api.post("/roteiros/salvar-template");
-        console.log("Template salvo automaticamente");
-      } catch (templateError) {
-        console.warn("Erro ao salvar template:", templateError);
-      }
-
-      setSuccess(`Loja "${draggedLoja.nome}" movida com sucesso! Configuração salva para próximos dias.`);
+      setSuccess(`Loja "${draggedLoja.nome}" movida com sucesso!`);
       await carregarRoteiros();
     } catch (error) {
       setError("Erro ao mover loja: " + (error.response?.data?.error || error.message));
@@ -120,18 +126,66 @@ export function SelecionarRoteiro() {
       setError("");
       await api.put(`/roteiros/${roteiroId}`, { funcionarioId });
       
-      // Salvar template automaticamente após atribuir funcionário
-      try {
-        await api.post("/roteiros/salvar-template");
-        console.log("Template salvo automaticamente");
-      } catch (templateError) {
-        console.warn("Erro ao salvar template:", templateError);
-      }
-      
-      setSuccess("Funcionário atribuído com sucesso e configuração salva!");
+      setSuccess("Funcionário atribuído com sucesso!");
       await carregarRoteiros();
     } catch (error) {
       setError("Erro ao atribuir funcionário: " + (error.response?.data?.error || error.message));
+    }
+  };
+
+  const adicionarLojaAoRoteiro = async (lojaId, roteiroId) => {
+    try {
+      setError("");
+      await api.post(`/roteiros/${roteiroId}/lojas`, { lojaId });
+      
+      setSuccess("Loja adicionada ao roteiro com sucesso!");
+      await carregarRoteiros();
+    } catch (error) {
+      setError("Erro ao adicionar loja: " + (error.response?.data?.error || error.message));
+    }
+  };
+
+  const abrirModalAdicionarLoja = (roteiro) => {
+    setRoteiroSelecionadoParaAdicionar(roteiro);
+    setFiltroLoja("");
+    setShowModalAdicionarLoja(true);
+  };
+
+  const fecharModalAdicionarLoja = () => {
+    setShowModalAdicionarLoja(false);
+    setRoteiroSelecionadoParaAdicionar(null);
+    setFiltroLoja("");
+  };
+
+  const adicionarLojaSelecionadaAoRoteiro = async (loja, jaEstaEmRoteiro) => {
+    if (!roteiroSelecionadoParaAdicionar) return;
+
+    // Se a loja já está em um roteiro, confirmar a movimentação
+    if (jaEstaEmRoteiro) {
+      const confirmar = window.confirm(
+        `A loja "${loja.nome}" já está no roteiro "${jaEstaEmRoteiro.zona}".\n\nDeseja movê-la para "${roteiroSelecionadoParaAdicionar.zona}"?`
+      );
+      if (!confirmar) return;
+
+      // Mover loja entre roteiros
+      try {
+        setError("");
+        await api.post("/roteiros/mover-loja", {
+          lojaId: loja.id,
+          roteiroOrigemId: jaEstaEmRoteiro.id,
+          roteiroDestinoId: roteiroSelecionadoParaAdicionar.id,
+        });
+
+        setSuccess(`Loja "${loja.nome}" movida com sucesso!`);
+        await carregarRoteiros();
+        fecharModalAdicionarLoja();
+      } catch (error) {
+        setError("Erro ao mover loja: " + (error.response?.data?.error || error.message));
+      }
+    } else {
+      // Adicionar loja que não está em nenhum roteiro
+      await adicionarLojaAoRoteiro(loja.id, roteiroSelecionadoParaAdicionar.id);
+      fecharModalAdicionarLoja();
     }
   };
 
@@ -169,6 +223,27 @@ export function SelecionarRoteiro() {
   
   // Verificar se usuário é admin
   const isAdmin = usuario?.role === "ADMIN";
+
+  // Função helper para verificar se uma loja já está em um roteiro
+  const obterRoteiroAtualDaLoja = (lojaId) => {
+    return roteirosHoje.find(roteiro => 
+      roteiro.lojas?.some(loja => loja.id === lojaId)
+    );
+  };
+
+  // Filtrar lojas para o modal
+  const lojasFiltradas = todasLojas.filter(loja => {
+    if (!loja.ativo) return false;
+    if (!filtroLoja) return true;
+    
+    const searchTerm = filtroLoja.toLowerCase();
+    return (
+      loja.nome.toLowerCase().includes(searchTerm) ||
+      loja.cidade.toLowerCase().includes(searchTerm) ||
+      loja.estado.toLowerCase().includes(searchTerm) ||
+      loja.endereco?.toLowerCase().includes(searchTerm)
+    );
+  });
 
   if (loading) return <PageLoader />;
 
@@ -372,7 +447,18 @@ export function SelecionarRoteiro() {
                     )}
                   </div>
 
-                  <div className="mt-6 text-center">
+                  <div className="mt-6 space-y-2">
+                    {isAdmin && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          abrirModalAdicionarLoja(roteiro);
+                        }}
+                        className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+                      >
+                        ➕ Adicionar Loja Manualmente
+                      </button>
+                    )}
                     <button 
                       className="btn-primary w-full"
                       onClick={(e) => {
@@ -461,6 +547,140 @@ export function SelecionarRoteiro() {
           </div>
         )}
       </div>
+
+      {/* Modal de Adicionar Loja */}
+      {showModalAdicionarLoja && roteiroSelecionadoParaAdicionar && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header do Modal */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold">Adicionar Loja ao Roteiro</h2>
+                  <p className="text-blue-100 mt-1">
+                    {roteiroSelecionadoParaAdicionar.zona}
+                  </p>
+                </div>
+                <button
+                  onClick={fecharModalAdicionarLoja}
+                  className="text-white hover:text-gray-200 text-3xl font-bold"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            {/* Filtro de Busca */}
+            <div className="p-4 border-b border-gray-200">
+              <input
+                type="text"
+                placeholder="🔍 Buscar por nome, cidade, estado ou endereço..."
+                value={filtroLoja}
+                onChange={(e) => setFiltroLoja(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                autoFocus
+              />
+            </div>
+
+            {/* Lista de Lojas */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {lojasFiltradas.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <div className="text-4xl mb-2">🔍</div>
+                  <p>Nenhuma loja encontrada</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {lojasFiltradas.map((loja) => {
+                    const roteiroAtual = obterRoteiroAtualDaLoja(loja.id);
+                    const jaEstaNesteRoteiro = roteiroAtual?.id === roteiroSelecionadoParaAdicionar.id;
+                    
+                    return (
+                      <div
+                        key={loja.id}
+                        className={`p-4 rounded-lg border-2 transition-all ${
+                          jaEstaNesteRoteiro
+                            ? "bg-gray-100 border-gray-300"
+                            : roteiroAtual
+                            ? "bg-yellow-50 border-yellow-300 hover:border-yellow-500"
+                            : "bg-white border-gray-200 hover:border-blue-500 hover:shadow-md"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h3 className="font-bold text-gray-900 mb-1">
+                              {loja.nome}
+                            </h3>
+                            <p className="text-sm text-gray-600">
+                              📍 {loja.endereco}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {loja.cidade} - {loja.estado}
+                            </p>
+                            
+                            {roteiroAtual && (
+                              <div className="mt-2">
+                                <Badge variant={jaEstaNesteRoteiro ? "default" : "warning"}>
+                                  {jaEstaNesteRoteiro 
+                                    ? "✓ Já está neste roteiro"
+                                    : `No roteiro: ${roteiroAtual.zona}`
+                                  }
+                                </Badge>
+                              </div>
+                            )}
+                            
+                            {!roteiroAtual && (
+                              <div className="mt-2">
+                                <Badge variant="info">
+                                  📦 Disponível
+                                </Badge>
+                              </div>
+                            )}
+                          </div>
+                          
+                          <button
+                            onClick={() => adicionarLojaSelecionadaAoRoteiro(loja, roteiroAtual)}
+                            disabled={jaEstaNesteRoteiro}
+                            className={`ml-3 px-4 py-2 rounded-lg font-medium transition-colors ${
+                              jaEstaNesteRoteiro
+                                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                                : roteiroAtual
+                                ? "bg-yellow-600 hover:bg-yellow-700 text-white"
+                                : "bg-blue-600 hover:bg-blue-700 text-white"
+                            }`}
+                          >
+                            {jaEstaNesteRoteiro
+                              ? "✓ Já está aqui"
+                              : roteiroAtual
+                              ? "Mover ↔️"
+                              : "Adicionar ➕"
+                            }
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Footer do Modal */}
+            <div className="p-4 border-t border-gray-200 bg-gray-50">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-600">
+                  {lojasFiltradas.length} {lojasFiltradas.length === 1 ? 'loja encontrada' : 'lojas encontradas'}
+                </p>
+                <button
+                  onClick={fecharModalAdicionarLoja}
+                  className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>
