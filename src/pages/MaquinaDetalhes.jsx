@@ -387,7 +387,7 @@ export function MaquinaDetalhes() {
               </Badge>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-600 mb-1">Valor da Ficha</label>
+              <label className="block text-sm font-semibold text-gray-600 mb-1">Valor da Moeda</label>
               <p className="text-lg text-gray-900">R$ {parseFloat(maquina.valorFicha || 0).toFixed(2)}</p>
             </div>
             <div>

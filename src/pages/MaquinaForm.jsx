@@ -17,8 +17,8 @@ export function MaquinaForm() {
     loja_id: "",
     tipo: "",
     capacidadePadrao: "",
-    valorFicha: "",
-    fichasNecessarias: "",
+    valorMoeda: "",
+    moedasNecessarias: "",
     forcaForte: "",
     forcaFraca: "",
     forcaPremium: "",
@@ -67,8 +67,8 @@ export function MaquinaForm() {
         loja_id: response.data.lojaId ? String(response.data.lojaId) : "",
         tipo: response.data.tipo || "",
         capacidadePadrao: response.data.capacidadePadrao || "",
-        valorFicha: response.data.valorFicha || "",
-        fichasNecessarias: response.data.fichasNecessarias || "",
+        valorMoeda: response.data.valorMoeda || "",
+        moedasNecessarias: response.data.moedasNecessarias || "",
         forcaForte: response.data.forcaForte || "",
         forcaFraca: response.data.forcaFraca || "",
         forcaPremium: response.data.forcaPremium || "",
@@ -131,8 +131,8 @@ export function MaquinaForm() {
         lojaId: formData.loja_id,
         tipo: formData.tipo?.trim() || null,
         capacidadePadrao: parseInt(formData.capacidadePadrao, 10) || 0,
-        valorFicha: parseFloat(formData.valorFicha) || 0,
-        fichasNecessarias: parseInt(formData.fichasNecessarias, 10) || null,
+        valorMoeda: parseFloat(formData.valorMoeda) || 0,
+        moedasNecessarias: parseInt(formData.moedasNecessarias, 10) || null,
         forcaForte: parseInt(formData.forcaForte, 10) || null,
         forcaFraca: parseInt(formData.forcaFraca, 10) || null,
         forcaPremium: parseInt(formData.forcaPremium, 10) || null,
@@ -323,12 +323,12 @@ export function MaquinaForm() {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Valor da Ficha (R$)
+                    Valor da Moeda (R$)
                   </label>
                   <input
                     type="number"
-                    name="valorFicha"
-                    value={formData.valorFicha}
+                    name="valorMoeda"
+                    value={formData.valorMoeda}
                     onChange={handleChange}
                     className="input-field"
                     placeholder="Ex: 2.00"
@@ -336,25 +336,25 @@ export function MaquinaForm() {
                     step="0.01"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Valor cobrado por ficha
+                    Valor cobrado por moeda
                   </p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    🎫 Fichas para Jogar
+                    🪙 Moedas para Jogar
                   </label>
                   <input
                     type="number"
-                    name="fichasNecessarias"
-                    value={formData.fichasNecessarias}
+                    name="moedasNecessarias"
+                    value={formData.moedasNecessarias}
                     onChange={handleChange}
                     className="input-field"
                     placeholder="Ex: 1"
                     min="1"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Quantas fichas são necessárias para liberar uma jogada
+                    Quantas moedas são necessárias para liberar uma jogada
                   </p>
                 </div>
 

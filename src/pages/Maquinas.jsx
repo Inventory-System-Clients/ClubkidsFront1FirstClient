@@ -112,11 +112,11 @@ export function Maquinas() {
       gradient: "bg-gradient-to-br from-blue-500 to-blue-600",
     },
     {
-      label: "Valor Médio Ficha",
+      label: "Valor Médio Moeda",
       value:
         maquinas.length > 0
           ? `R$ ${(
-              maquinas.reduce((sum, m) => sum + (m.valorFicha || 0), 0) /
+              maquinas.reduce((sum, m) => sum + (m.valorMoeda || 0), 0) /
               maquinas.length
             ).toFixed(2)}`
           : "R$ 0,00",
@@ -170,10 +170,10 @@ export function Maquinas() {
       render: (maquina) => maquina.capacidadePadrao || 0,
     },
     {
-      key: "valorFicha",
-      label: "Valor Ficha",
+      key: "valorMoeda",
+      label: "Valor Moeda",
       render: (maquina) => {
-        const valor = parseFloat(maquina.valorFicha);
+        const valor = parseFloat(maquina.valorMoeda);
         return !isNaN(valor) && valor > 0 ? `R$ ${valor.toFixed(2)}` : "-";
       },
     },

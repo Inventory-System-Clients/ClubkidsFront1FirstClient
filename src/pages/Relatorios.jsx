@@ -214,9 +214,9 @@ export function Relatorios() {
                 <div className="card bg-gradient-to-br from-blue-500 to-blue-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">🎫</div>
                   <div className="text-xl sm:text-2xl font-bold">
-                    {(relatorio.totais?.fichas || 0).toLocaleString("pt-BR")}
+                    {(relatorio.totais?.moedas || 0).toLocaleString("pt-BR")}
                   </div>
-                  <div className="text-sm opacity-90">Total de Fichas</div>
+                  <div className="text-sm opacity-90">Total de Moedas</div>
                 </div>
 
                 <div className="card bg-gradient-to-br from-red-500 to-red-600 text-white">
@@ -265,9 +265,9 @@ export function Relatorios() {
                 <div className="card bg-gradient-to-br from-yellow-400 to-yellow-500 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">🪙</div>
                   <div className="text-xl sm:text-2xl font-bold">
-                    R$ {(relatorio.totais?.valoresEntrada?.fichas || 0).toFixed(2)}
+                    R$ {(relatorio.totais?.valoresEntrada?.moedas || 0).toFixed(2)}
                   </div>
-                  <div className="text-sm opacity-90">Entrada em Fichas</div>
+                  <div className="text-sm opacity-90">Entrada em Moedas</div>
                 </div>
 
                 <div className="card bg-gradient-to-br from-green-400 to-green-500 text-white">
@@ -358,10 +358,10 @@ export function Relatorios() {
                             🎫
                           </div>
                           <div className="text-xl sm:text-3xl font-bold text-center">
-                            {maquina.totais.fichas.toLocaleString("pt-BR")}
+                            {maquina.totais.moedas.toLocaleString("pt-BR")}
                           </div>
                           <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
-                            Total de Fichas
+                            Total de Moedas
                           </div>
                         </div>
                         <div className="bg-gradient-to-br from-red-500 to-red-600 text-white p-3 sm:p-5 rounded-xl shadow-lg">
@@ -416,10 +416,10 @@ export function Relatorios() {
                             🪙
                           </div>
                           <div className="text-xl sm:text-3xl font-bold text-center">
-                            R$ {(maquina.valoresEntrada?.fichas || 0).toFixed(2)}
+                            R$ {(maquina.valoresEntrada?.moedas || 0).toFixed(2)}
                           </div>
                           <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
-                            Entrada em Fichas
+                            Entrada em Moedas
                           </div>
                         </div>
                         <div className="bg-gradient-to-br from-green-400 to-green-500 text-white p-3 sm:p-5 rounded-xl shadow-lg">
@@ -451,10 +451,10 @@ export function Relatorios() {
                           <div className="text-xl sm:text-3xl font-bold text-center">
                             R${" "}
                             {(() => {
-                              const fichas = maquina.valoresEntrada?.fichas || 0;
+                              const moedas = maquina.valoresEntrada?.moedas || 0;
                               const notas = maquina.valoresEntrada?.notas || 0;
                               const cartao = maquina.valoresEntrada?.cartao || 0;
-                              return (fichas + notas + cartao).toFixed(2);
+                              return (moedas + notas + cartao).toFixed(2);
                             })()}
                           </div>
                           <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">

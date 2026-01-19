@@ -30,7 +30,7 @@ export function MovimentacoesLoja() {
     contadorOut: "",
     valor_entrada_maquininha_pix: "",
     numeroBag: "",
-    valorEntradaFichas: "",
+    valorEntradaMoedas: "",
     valorEntradaNotas: "",
     valorEntradaCartao: "",
     observacao: "",
@@ -80,13 +80,13 @@ export function MovimentacoesLoja() {
         totalPre: parseInt(formData.quantidadeAtualMaquina) || 0,
         sairam: 0, // Calculado no backend baseado no produto
         abastecidas: parseInt(formData.quantidadeAdicionada) || 0,
-        fichas: 0,
+        moedas: 0,
         contadorIn: parseInt(formData.contadorIn) || 0,
         contadorOut: parseInt(formData.contadorOut) || 0,
         quantidade_notas_entrada: 0,
         valor_entrada_maquininha_pix: parseFloat(formData.valor_entrada_maquininha_pix) || 0,
         numeroBag: formData.numeroBag || null,
-        valorEntradaFichas: formData.valorEntradaFichas ? parseFloat(formData.valorEntradaFichas) : null,
+        valorEntradaMoedas: formData.valorEntradaMoedas ? parseFloat(formData.valorEntradaMoedas) : null,
         valorEntradaNotas: formData.valorEntradaNotas ? parseFloat(formData.valorEntradaNotas) : null,
         valorEntradaCartao: formData.valorEntradaCartao ? parseFloat(formData.valorEntradaCartao) : null,
         observacoes: formData.observacao || "",
@@ -407,16 +407,16 @@ export function MovimentacoesLoja() {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      💰 Valor Entrada Fichas (R$){!formData.numeroBag && " *"}
+                      💰 Valor Entrada Moedas (R$){!formData.numeroBag && " *"}
                     </label>
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.valorEntradaFichas}
+                      value={formData.valorEntradaMoedas}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          valorEntradaFichas: e.target.value,
+                          valorEntradaMoedas: e.target.value,
                         })
                       }
                       className="input-field"

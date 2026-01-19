@@ -327,7 +327,7 @@ export function ProdutoForm() {
                 </div>
               </div>
 
-              {/* Análise de Lucro por Ficha */}
+              {/* Análise de Lucro por Moeda */}
               {formData.preco && (
                 <div className="mt-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg">
                   <h4 className="text-sm font-bold text-green-900 mb-3 flex items-center gap-2">
@@ -340,11 +340,11 @@ export function ProdutoForm() {
                   </p>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Ficha R$ 2,50 */}
+                    {/* Moeda R$ 2,50 */}
                     <div className="bg-white p-4 rounded-lg border border-green-300">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-semibold text-gray-700">
-                          💰 Ficha R$ 2,50
+                          🪙 Moeda R$ 2,50
                         </span>
                         <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full font-bold">
                           Econômica
@@ -368,11 +368,11 @@ export function ProdutoForm() {
                       </div>
                     </div>
 
-                    {/* Ficha R$ 5,00 */}
+                    {/* Moeda R$ 5,00 */}
                     <div className="bg-white p-4 rounded-lg border border-green-300">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-semibold text-gray-700">
-                          💎 Ficha R$ 5,00
+                          💎 Moeda R$ 5,00
                         </span>
                         <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-bold">
                           Premium
@@ -402,7 +402,7 @@ export function ProdutoForm() {
                       <span>💡</span>
                       <span>
                         <strong>Dica:</strong> Quanto menor o número de jogadas,
-                        mais rápido você recupera o investimento. Com ficha de
+                        mais rápido você recupera o investimento. Com moeda de
                         R$ 5,00, o lucro é mais rápido!
                       </span>
                     </p>

@@ -14,7 +14,7 @@ export function Financeiro() {
   const [success, setSuccess] = useState("");
   const [editando, setEditando] = useState(null);
   const [valores, setValores] = useState({
-    valorEntradaFichas: "",
+    valorEntradaMoedas: "",
     valorEntradaNotas: "",
     valorEntradaCartao: "",
   });
@@ -38,7 +38,7 @@ export function Financeiro() {
   const iniciarEdicao = (movimentacao) => {
     setEditando(movimentacao.id);
     setValores({
-      valorEntradaFichas: movimentacao.valorEntradaFichas || "",
+      valorEntradaMoedas: movimentacao.valorEntradaMoedas || "",
       valorEntradaNotas: movimentacao.valorEntradaNotas || "",
       valorEntradaCartao: movimentacao.valorEntradaCartao || "",
     });
@@ -47,7 +47,7 @@ export function Financeiro() {
   const cancelarEdicao = () => {
     setEditando(null);
     setValores({
-      valorEntradaFichas: "",
+      valorEntradaMoedas: "",
       valorEntradaNotas: "",
       valorEntradaCartao: "",
     });
@@ -60,7 +60,7 @@ export function Financeiro() {
       setSuccess("Valores financeiros salvos com sucesso!");
       setEditando(null);
       setValores({
-        valorEntradaFichas: "",
+        valorEntradaMoedas: "",
         valorEntradaNotas: "",
         valorEntradaCartao: "",
       });
@@ -109,7 +109,7 @@ export function Financeiro() {
                       Nº Bag
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Fichas
+                      Moedas
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Funcionário
@@ -140,7 +140,7 @@ export function Financeiro() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {mov.fichas || 0}
+                        {mov.moedas || 0}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {mov.usuario?.nome || "N/A"}
@@ -151,10 +151,10 @@ export function Financeiro() {
                             <input
                               type="number"
                               step="0.01"
-                              placeholder="Fichas"
-                              value={valores.valorEntradaFichas}
+                              placeholder="Moedas"
+                              value={valores.valorEntradaMoedas}
                               onChange={(e) =>
-                                setValores({ ...valores, valorEntradaFichas: e.target.value })
+                                setValores({ ...valores, valorEntradaMoedas: e.target.value })
                               }
                               className="w-full px-2 py-1 border rounded text-sm"
                             />

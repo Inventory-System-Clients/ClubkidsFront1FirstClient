@@ -49,11 +49,11 @@ export function Movimentacoes() {
   // Edição
   const [editandoMovimentacao, setEditandoMovimentacao] = useState(null);
   const [formEdicao, setFormEdicao] = useState({
-    fichas: "",
+    moedas: "",
     abastecidas: "",
     quantidade_notas_entrada: "",
     valor_entrada_maquininha_pix: "",
-    valorEntradaFichas: "",
+    valorEntradaMoedas: "",
     valorEntradaNotas: "",
     valorEntradaCartao: "",
   });
@@ -64,12 +64,12 @@ export function Movimentacoes() {
     produto_id: "",
     quantidadeAtualMaquina: "",
     quantidadeAdicionada: "",
-    fichas: "",
+    moedas: "",
     contadorIn: "",
     contadorOut: "",
     quantidade_notas_entrada: "",
     valor_entrada_maquininha_pix: "",
-    valorEntradaFichas: "",
+    valorEntradaMoedas: "",
     valorEntradaNotas: "",
     valorEntradaCartao: "",
     observacao: "",
@@ -163,7 +163,7 @@ export function Movimentacoes() {
       // Converter valores do formulário
       const totalPre = parseInt(formData.quantidadeAtualMaquina) || 0; // valor digitado pelo usuário
       const quantidadeAdicionada = parseInt(formData.quantidadeAdicionada) || 0;
-      const fichas = parseInt(formData.fichas) || 0;
+      const moedas = parseInt(formData.moedas) || 0;
 
       // totalPos = totalPre + abastecidas
       const totalPos = totalPre + quantidadeAdicionada;
@@ -216,7 +216,7 @@ export function Movimentacoes() {
         sairam: quantidadeSaiu,
         abastecidas: quantidadeAdicionada,
         totalPos: totalPos,
-        fichas: fichas,
+        moedas: moedas,
         contadorIn: parseInt(formData.contadorIn) || null,
         contadorOut: parseInt(formData.contadorOut) || null,
         quantidade_notas_entrada: formData.quantidade_notas_entrada
@@ -225,8 +225,8 @@ export function Movimentacoes() {
         valor_entrada_maquininha_pix: formData.valor_entrada_maquininha_pix
           ? parseFloat(formData.valor_entrada_maquininha_pix)
           : null,
-        valorEntradaFichas: formData.valorEntradaFichas
-          ? parseFloat(formData.valorEntradaFichas)
+        valorEntradaMoedas: formData.valorEntradaMoedas
+          ? parseFloat(formData.valorEntradaMoedas)
           : null,
         valorEntradaNotas: formData.valorEntradaNotas
           ? parseFloat(formData.valorEntradaNotas)
@@ -268,12 +268,12 @@ export function Movimentacoes() {
         produto_id: "",
         quantidadeAtualMaquina: "",
         quantidadeAdicionada: "",
-        fichas: "",
+        moedas: "",
         contadorIn: "",
         contadorOut: "",
         quantidade_notas_entrada: "",
         valor_entrada_maquininha_pix: "",
-        valorEntradaFichas: "",
+        valorEntradaMoedas: "",
         valorEntradaNotas: "",
         valorEntradaCartao: "",
         observacao: "",
@@ -300,12 +300,12 @@ export function Movimentacoes() {
   const iniciarEdicao = (movimentacao) => {
     setEditandoMovimentacao(movimentacao);
     setFormEdicao({
-      fichas: movimentacao.fichas || 0,
+      moedas: movimentacao.moedas || 0,
       abastecidas: movimentacao.abastecidas || 0,
       quantidade_notas_entrada: movimentacao.quantidade_notas_entrada || "",
       valor_entrada_maquininha_pix:
         movimentacao.valor_entrada_maquininha_pix || "",
-      valorEntradaFichas: movimentacao.valorEntradaFichas || "",
+      valorEntradaMoedas: movimentacao.valorEntradaMoedas || "",
       valorEntradaNotas: movimentacao.valorEntradaNotas || "",
       valorEntradaCartao: movimentacao.valorEntradaCartao || "",
     });
@@ -314,11 +314,11 @@ export function Movimentacoes() {
   const cancelarEdicao = () => {
     setEditandoMovimentacao(null);
     setFormEdicao({
-      fichas: "",
+      moedas: "",
       abastecidas: "",
       quantidade_notas_entrada: "",
       valor_entrada_maquininha_pix: "",
-      valorEntradaFichas: "",
+      valorEntradaMoedas: "",
       valorEntradaNotas: "",
       valorEntradaCartao: "",
     });
@@ -327,7 +327,7 @@ export function Movimentacoes() {
   const salvarEdicao = async () => {
     try {
       await api.put(`/movimentacoes/${editandoMovimentacao.id}`, {
-        fichas: parseInt(formEdicao.fichas) || 0,
+        moedas: parseInt(formEdicao.moedas) || 0,
         abastecidas: parseInt(formEdicao.abastecidas) || 0,
         quantidade_notas_entrada:
           formEdicao.quantidade_notas_entrada !== ""
@@ -337,9 +337,9 @@ export function Movimentacoes() {
           formEdicao.valor_entrada_maquininha_pix !== ""
             ? parseFloat(formEdicao.valor_entrada_maquininha_pix)
             : null,
-        valorEntradaFichas:
-          formEdicao.valorEntradaFichas !== ""
-            ? parseFloat(formEdicao.valorEntradaFichas)
+        valorEntradaMoedas:
+          formEdicao.valorEntradaMoedas !== ""
+            ? parseFloat(formEdicao.valorEntradaMoedas)
             : null,
         valorEntradaNotas:
           formEdicao.valorEntradaNotas !== ""
@@ -550,12 +550,12 @@ export function Movimentacoes() {
       ),
     },
     {
-      key: "fichas",
-      label: "Fichas",
+      key: "moedas",
+      label: "Moedas",
       render: (mov) => (
         <div className="flex items-center gap-1">
           <span className="text-lg">🎫</span>
-          <span className="font-semibold text-blue-600">{mov.fichas || 0}</span>
+          <span className="font-semibold text-blue-600">{mov.moedas || 0}</span>
         </div>
       ),
     },
@@ -765,12 +765,12 @@ export function Movimentacoes() {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    🎫 Quantidade de Fichas
+                    🪙 Quantidade de Moedas
                   </label>
                   <input
                     type="number"
-                    name="fichas"
-                    value={formData.fichas}
+                    name="moedas"
+                    value={formData.moedas}
                     onChange={handleChange}
                     className="input-field"
                     placeholder="0"
@@ -778,7 +778,7 @@ export function Movimentacoes() {
                     disabled={formData.retiradaEstoque}
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Fichas coletadas da máquina
+                    Moedas coletadas da máquina
                   </p>
                 </div>
               </div>
@@ -790,12 +790,12 @@ export function Movimentacoes() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    💰 Valor Entrada Fichas (R$)
+                    💰 Valor Entrada Moedas (R$)
                   </label>
                   <input
                     type="number"
-                    name="valorEntradaFichas"
-                    value={formData.valorEntradaFichas}
+                    name="valorEntradaMoedas"
+                    value={formData.valorEntradaMoedas}
                     onChange={handleChange}
                     className="input-field"
                     placeholder="0.00"
@@ -803,7 +803,7 @@ export function Movimentacoes() {
                     step="0.01"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Valor total arrecadado em fichas
+                    Valor total arrecadado em moedas
                   </p>
                 </div>
                 <div>
@@ -939,7 +939,7 @@ export function Movimentacoes() {
                     <p className="text-xs text-orange-700 mt-1">
                       Marque esta opção quando estiver retirando produtos da
                       máquina sem que seja uma venda (exemplo: produtos
-                      danificados, devolução, transferência). As fichas serão
+                      danificados, devolução, transferência). As moedas serão
                       automaticamente zeradas.
                     </p>
                   </div>
@@ -1235,14 +1235,14 @@ export function Movimentacoes() {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    🎫 Quantidade de Fichas
+                    🪙 Quantidade de Moedas
                   </label>
                   <input
                     type="number"
                     min="0"
-                    value={formEdicao.fichas}
+                    value={formEdicao.moedas}
                     onChange={(e) =>
-                      setFormEdicao({ ...formEdicao, fichas: e.target.value })
+                      setFormEdicao({ ...formEdicao, moedas: e.target.value })
                     }
                     className="input-field"
                     placeholder="0"
@@ -1274,17 +1274,17 @@ export function Movimentacoes() {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    💰 Valor Entrada Fichas (R$)
+                    💰 Valor Entrada Moedas (R$)
                   </label>
                   <input
                     type="number"
                     min="0"
                     step="0.01"
-                    value={formEdicao.valorEntradaFichas}
+                    value={formEdicao.valorEntradaMoedas}
                     onChange={(e) =>
                       setFormEdicao({
                         ...formEdicao,
-                        valorEntradaFichas: e.target.value,
+                        valorEntradaMoedas: e.target.value,
                       })
                     }
                     className="input-field"
