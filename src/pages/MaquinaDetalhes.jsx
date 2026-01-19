@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
 import api from "../services/api";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
@@ -279,13 +280,49 @@ export function MaquinaDetalhes() {
       </html>
     `;
 
-    const printWindow = window.open("", "_blank");
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-    }, 250);
+    // Detectar se é mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+    
+    if (isMobile) {
+      // Mobile: Mostrar alerta e opção de imprimir
+      Swal.fire({
+        title: 'Relatório Gerado',
+        html: '<p>Relatório de vendas e comissão gerado! Clique em Imprimir para visualizar.</p>',
+        icon: 'success',
+        showCancelButton: true,
+        confirmButtonText: '🖨️ Imprimir',
+        cancelButtonText: 'Fechar',
+        confirmButtonColor: '#1e40af'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          const blob = new Blob([htmlContent], { type: 'text/html' });
+          const url = URL.createObjectURL(blob);
+          const printWindow = window.open(url, '_blank');
+          if (printWindow) {
+            printWindow.onload = () => {
+              setTimeout(() => {
+                printWindow.print();
+                URL.revokeObjectURL(url);
+              }, 500);
+            };
+          } else {
+            Swal.fire('Pop-up Bloqueado', 'Permita pop-ups para imprimir.', 'warning');
+          }
+        }
+      });
+    } else {
+      const printWindow = window.open("", "_blank");
+      if (printWindow) {
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+          printWindow.print();
+        }, 250);
+      } else {
+        Swal.fire('Pop-up Bloqueado', 'Permita pop-ups para visualizar.', 'warning');
+      }
+    }
   };
 
   if (loading) return <PageLoader />;

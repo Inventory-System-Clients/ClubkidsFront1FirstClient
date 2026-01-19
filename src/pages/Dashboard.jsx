@@ -678,6 +678,7 @@ export function Dashboard() {
       <html>
         <head>
           <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Relatório de Estoque - ${loja.nome}</title>
           <style>
             body {
@@ -845,13 +846,49 @@ export function Dashboard() {
       </html>
     `;
 
-    const printWindow = window.open("", "_blank");
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-    }, 250);
+    // Detectar se é mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+    
+    if (isMobile) {
+      // Mobile: Mostrar alerta e opção de imprimir
+      Swal.fire({
+        title: 'Relatório de Estoque',
+        html: '<p>Relatório gerado com sucesso! Clique em Imprimir para visualizar.</p>',
+        icon: 'success',
+        showCancelButton: true,
+        confirmButtonText: '🖨️ Imprimir',
+        cancelButtonText: 'Fechar',
+        confirmButtonColor: '#1e40af'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          const blob = new Blob([htmlContent], { type: 'text/html' });
+          const url = URL.createObjectURL(blob);
+          const printWindow = window.open(url, '_blank');
+          if (printWindow) {
+            printWindow.onload = () => {
+              setTimeout(() => {
+                printWindow.print();
+                URL.revokeObjectURL(url);
+              }, 500);
+            };
+          } else {
+            Swal.fire('Pop-up Bloqueado', 'Permita pop-ups para imprimir.', 'warning');
+          }
+        }
+      });
+    } else {
+      const printWindow = window.open("", "_blank");
+      if (printWindow) {
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+          printWindow.print();
+        }, 250);
+      } else {
+        Swal.fire('Pop-up Bloqueado', 'Permita pop-ups para visualizar.', 'warning');
+      }
+    }
   };
 
   // Função para imprimir relatório consolidado de todas as lojas
@@ -892,6 +929,7 @@ export function Dashboard() {
       <html>
         <head>
           <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Relatório Consolidado de Compras</title>
           <style>
             body {
@@ -1068,13 +1106,49 @@ export function Dashboard() {
       </html>
     `;
 
-    const printWindow = window.open("", "_blank");
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-    }, 250);
+    // Detectar se é mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+    
+    if (isMobile) {
+      // Mobile: Mostrar alerta e opção de imprimir
+      Swal.fire({
+        title: 'Relatório Consolidado',
+        html: '<p>Relatório consolidado gerado! Clique em Imprimir para visualizar.</p>',
+        icon: 'success',
+        showCancelButton: true,
+        confirmButtonText: '🖨️ Imprimir',
+        cancelButtonText: 'Fechar',
+        confirmButtonColor: '#1e40af'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          const blob = new Blob([htmlContent], { type: 'text/html' });
+          const url = URL.createObjectURL(blob);
+          const printWindow = window.open(url, '_blank');
+          if (printWindow) {
+            printWindow.onload = () => {
+              setTimeout(() => {
+                printWindow.print();
+                URL.revokeObjectURL(url);
+              }, 500);
+            };
+          } else {
+            Swal.fire('Pop-up Bloqueado', 'Permita pop-ups para imprimir.', 'warning');
+          }
+        }
+      });
+    } else {
+      const printWindow = window.open("", "_blank");
+      if (printWindow) {
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+          printWindow.print();
+        }, 250);
+      } else {
+        Swal.fire('Pop-up Bloqueado', 'Permita pop-ups para visualizar.', 'warning');
+      }
+    }
   };
 
   const salvarEstoque = async () => {
@@ -1221,6 +1295,8 @@ export function Dashboard() {
       let htmlContent = `
         <html>
           <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Relatório de Comissão - ${nomeLoja}</title>
             <style>
               body {
@@ -1288,6 +1364,13 @@ export function Dashboard() {
               }
               @media print {
                 button { display: none; }
+              }
+              @media (max-width: 768px) {
+                body { padding: 10px; font-size: 14px; }
+                th, td { padding: 6px; font-size: 12px; }
+                .maquina-details { font-size: 10px; }
+                .header h1 { font-size: 20px; }
+                .header h2 { font-size: 16px; }
               }
             </style>
           </head>
@@ -1377,15 +1460,135 @@ export function Dashboard() {
       `;
 
       // Abrir janela de impressão
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
-      printWindow.focus();
+      // Detectar se é mobile
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
       
-      // Aguardar um pouco antes de imprimir para garantir que o conteúdo foi carregado
-      setTimeout(() => {
-        printWindow.print();
-      }, 250);
+      if (isMobile) {
+        // Em mobile: usar SweetAlert2 com HTML customizado
+        Swal.fire({
+          title: `Comissão - ${nomeLoja}`,
+          html: `
+            <div style="max-height: 60vh; overflow-y: auto; text-align: left; font-size: 12px;">
+              <div class="info" style="margin-bottom: 15px; padding: 10px; background: #f3f4f6; border-radius: 8px;">
+                <p style="margin: 3px 0;"><strong>Data:</strong> ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
+                <p style="margin: 3px 0;"><strong>Total de Registros:</strong> ${comissoes.length}</p>
+              </div>
+              
+              <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                <thead>
+                  <tr style="background: #1e40af; color: white;">
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Data</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Roteiro</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Máquinas</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Lucro</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Comissão</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${comissoes.map((comissao, idx) => {
+                    const dataCalculo = new Date(comissao.dataCalculo).toLocaleDateString('pt-BR');
+                    let detalhesHtml = '';
+                    if (comissao.detalhes && Array.isArray(comissao.detalhes)) {
+                      detalhesHtml = '<div style="font-size: 10px; color: #6b7280; margin-top: 5px;">';
+                      comissao.detalhes.forEach(det => {
+                        const codigoMaquina = det.maquinaCodigo || det.codigoMaquina || 'N/A';
+                        const nomeMaquina = det.maquinaNome || '';
+                        const lucro = parseFloat(det.lucro || 0);
+                        const percentual = parseFloat(det.percentualComissao || 0);
+                        const comissaoMaq = parseFloat(det.comissao || 0);
+                        const receita = parseFloat(det.receita || 0);
+                        const custo = parseFloat(det.custo || 0);
+                        
+                        detalhesHtml += `
+                          <div style="padding: 3px 0; border-bottom: 1px dashed #e5e7eb;">
+                            <strong>${codigoMaquina}${nomeMaquina ? ' - ' + nomeMaquina : ''}</strong><br>
+                            R: R$ ${receita.toFixed(2)} | C: R$ ${custo.toFixed(2)} | L: R$ ${lucro.toFixed(2)}<br>
+                            Comissão (${percentual.toFixed(2)}%): <strong style="color: #059669;">R$ ${comissaoMaq.toFixed(2)}</strong>
+                          </div>
+                        `;
+                      });
+                      detalhesHtml += '</div>';
+                    }
+                    
+                    return `
+                      <tr style="${idx % 2 === 0 ? 'background: #f3f4f6;' : ''}">
+                        <td style="border: 1px solid #ddd; padding: 8px;">${dataCalculo}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">${comissao.roteiroZona || 'N/A'}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">${comissao.detalhes?.length || 0}${detalhesHtml}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">R$ ${parseFloat(comissao.totalLucro || 0).toFixed(2)}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">R$ ${parseFloat(comissao.totalComissao || 0).toFixed(2)}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                  <tr style="background: #dcfce7; font-weight: bold;">
+                    <td colspan="3" style="border: 1px solid #ddd; padding: 10px; border-top: 3px solid #059669;"><strong>TOTAL GERAL</strong></td>
+                    <td style="border: 1px solid #ddd; padding: 10px; border-top: 3px solid #059669;"><strong>R$ ${totalLucro.toFixed(2)}</strong></td>
+                    <td style="border: 1px solid #ddd; padding: 10px; border-top: 3px solid #059669;"><strong>R$ ${totalComissao.toFixed(2)}</strong></td>
+                  </tr>
+                </tbody>
+              </table>
+              
+              <div style="margin-top: 15px; text-align: center; font-size: 10px; color: #6b7280;">
+                <p>ClubeKids - Sistema de Gestão de Máquinas</p>
+              </div>
+            </div>
+          `,
+          width: '95%',
+          showCloseButton: true,
+          showCancelButton: true,
+          confirmButtonText: '🖨️ Imprimir',
+          cancelButtonText: 'Fechar',
+          confirmButtonColor: '#1e40af',
+          cancelButtonColor: '#6b7280',
+          customClass: {
+            popup: 'swal-wide',
+            htmlContainer: 'swal-html-container'
+          }
+        }).then((result) => {
+          if (result.isConfirmed) {
+            // Criar blob e abrir em nova aba para impressão
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const printWindow = window.open(url, '_blank');
+            
+            if (printWindow) {
+              printWindow.onload = () => {
+                setTimeout(() => {
+                  printWindow.print();
+                  URL.revokeObjectURL(url);
+                }, 500);
+              };
+            } else {
+              Swal.fire({
+                icon: 'warning',
+                title: 'Pop-up Bloqueado',
+                text: 'Por favor, permita pop-ups para imprimir o relatório.',
+                confirmButtonColor: '#fbbf24'
+              });
+            }
+          }
+        });
+      } else {
+        // Em desktop: comportamento original (abrir em nova aba)
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(htmlContent);
+          printWindow.document.close();
+          printWindow.focus();
+          
+          // Aguardar um pouco antes de imprimir para garantir que o conteúdo foi carregado
+          setTimeout(() => {
+            printWindow.print();
+          }, 250);
+        } else {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Pop-up Bloqueado',
+            text: 'Por favor, permita pop-ups para visualizar o relatório.',
+            confirmButtonColor: '#fbbf24'
+          });
+        }
+      }
 
     } catch (error) {
       console.error("Erro ao buscar comissões:", error);
