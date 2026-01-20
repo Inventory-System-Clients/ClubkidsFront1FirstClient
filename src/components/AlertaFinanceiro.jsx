@@ -11,8 +11,13 @@ export function AlertaFinanceiro() {
 
   const verificarPendentes = async () => {
     try {
-      const response = await api.get("/movimentacoes/pendentes-financeiro");
-      setPendentes(response.data?.length || 0);
+      const [movsRes, areceberRes] = await Promise.all([
+        api.get("/movimentacoes/pendentes-financeiro"),
+        api.get("/roteiros/financeiro/areceber"),
+      ]);
+      const movsPendentes = (movsRes.data || []).length;
+      const lojasAReceber = (areceberRes.data || []).length;
+      setPendentes(movsPendentes + lojasAReceber);
     } catch (error) {
       console.error("Erro ao verificar pendentes financeiro:", error);
     }

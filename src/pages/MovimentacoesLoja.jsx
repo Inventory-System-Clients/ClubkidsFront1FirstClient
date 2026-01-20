@@ -19,6 +19,7 @@ export function MovimentacoesLoja() {
   const [success, setSuccess] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
+  const [areceberPendente, setAReceberPendente] = useState(false);
   
   // Formulário de movimentação
   const [maquinaSelecionada, setMaquinaSelecionada] = useState("");
@@ -56,6 +57,13 @@ export function MovimentacoesLoja() {
       // Buscar máquinas da loja
       const maquinasRes = await api.get(`/maquinas?lojaId=${lojaId}`);
       setMaquinas(maquinasRes.data);
+
+      // Verificar se já existe pendência "à receber" para esta loja neste roteiro
+      try {
+        const arRes = await api.get(`/roteiros/financeiro/areceber`);
+        const existe = (arRes.data || []).some(r => r.lojaId === lojaId && r.roteiroId === roteiroId && !r.recebido);
+        setAReceberPendente(existe);
+      } catch {}
     } catch (error) {
       setError("Erro ao carregar dados: " + (error.response?.data?.error || error.message));
     } finally {
@@ -139,6 +147,21 @@ export function MovimentacoesLoja() {
       setFinalizando(false);
     }
   };
+
+  const marcarLojaAReceber = async () => {
+    if (!window.confirm("Deseja marcar esta loja como 'à receber'?")) return;
+    try {
+      setFinalizando(true);
+      await api.post(`/roteiros/${roteiroId}/lojas/${lojaId}/areceber`);
+      setSuccess("Loja marcada como 'à receber'. Você pode concluir a loja agora ou depois.");
+      setAReceberPendente(true);
+    } catch (error) {
+      const msg = error.response?.data?.error || error.message;
+      setError("Não foi possível marcar como 'à receber': " + msg);
+    } finally {
+      setFinalizando(false);
+    }
+  };
   
   const voltarParaRoteiro = () => {
     navigate(`/movimentacoes/roteiro/${roteiroId}`, { replace: true });
@@ -211,7 +234,7 @@ export function MovimentacoesLoja() {
             </div>
           </div>
           
-          {/* Botão de finalizar - aparece se tiver pelo menos 1 máquina processada */}
+          {/* Botões de finalizar e à receber - aparecem se tiver pelo menos 1 máquina processada */}
           {maquinasConcluidas.length > 0 && (
             <div className="mt-6 space-y-3">
               <button
@@ -227,6 +250,14 @@ export function MovimentacoesLoja() {
                   ? "✅ Finalizar Movimentação da Loja" 
                   : `⚠️ Finalizar Loja Parcialmente (${maquinasConcluidas.length}/${maquinas.length})`
                 }
+              </button>
+              <button
+                onClick={marcarLojaAReceber}
+                disabled={finalizando || areceberPendente}
+                className={`w-full btn-secondary text-lg py-3 ${areceberPendente ? 'opacity-60 cursor-not-allowed' : ''}`}
+                title={areceberPendente ? 'Já existe uma pendência à receber para esta loja' : 'Marcar que o dono fará o PIX depois'}
+              >
+                💸 Deixar à Receber
               </button>
               {progresso < 100 && (
                 <p className="text-sm text-yellow-700 text-center">
