@@ -7,6 +7,9 @@ import { PageHeader, AlertBox, Badge } from "../components/UIComponents";
 import { PageLoader, EmptyState } from "../components/Loading";
 
 export function LojasRoteiro() {
+  // Estado para roteiros pendentes do dia
+  const [roteirosPendentesDia, setRoteirosPendentesDia] = useState([]);
+  const [showAlertaPendentes, setShowAlertaPendentes] = useState(true);
   const { roteiroId } = useParams();
   const navigate = useNavigate();
   
@@ -15,9 +18,21 @@ export function LojasRoteiro() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+
   useEffect(() => {
     carregarRoteiro();
+    buscarRoteirosPendentesDia();
   }, [roteiroId]);
+
+  // Buscar roteiros pendentes do dia da semana atual
+  const buscarRoteirosPendentesDia = async () => {
+    try {
+      const resp = await api.get("/roteiros/pendentes-dia");
+      setRoteirosPendentesDia(resp.data || []);
+    } catch (e) {
+      // Não exibe erro para usuário
+    }
+  };
 
   const carregarRoteiro = async () => {
     try {
@@ -59,18 +74,30 @@ export function LojasRoteiro() {
     }
   };
 
-  if (loading) return <PageLoader />;
-  if (!roteiro) {
-    return (
-      <div className="min-h-screen bg-background-light">
-        <Navbar />
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <AlertBox type="error" message="Roteiro não encontrado" />
-        </div>
-        <Footer />
+
+  // Alerta visual para roteiros pendentes do dia da semana atual
+  const alertaPendentesDia =
+    roteirosPendentesDia.length > 0 && showAlertaPendentes ? (
+      <div style={{ position: "fixed", left: 20, bottom: 30, zIndex: 50, maxWidth: 350 }}>
+        <AlertBox
+          type="warning"
+          title="Roteiros pendentes do dia"
+          message={
+            <div>
+              Existem <b>{roteirosPendentesDia.length}</b> roteiro(s) pendente(s) para hoje.<br />
+              <ul className="list-disc ml-5 mt-2">
+                {roteirosPendentesDia.map((r) => (
+                  <li key={r.id}>
+                    <b>{r.zona}</b> ({r.cidade || ""})
+                  </li>
+                ))}
+              </ul>
+            </div>
+          }
+          onClose={() => setShowAlertaPendentes(false)}
+        />
       </div>
-    );
-  }
+    ) : null;
 
   const lojasPendentes = roteiro.lojas?.filter(l => !l.concluida) || [];
   const lojasConcluidas = roteiro.lojas?.filter(l => l.concluida) || [];
@@ -80,6 +107,7 @@ export function LojasRoteiro() {
   return (
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
       <Navbar />
+      {alertaPendentesDia}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <button
