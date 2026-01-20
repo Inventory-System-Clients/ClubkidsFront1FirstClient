@@ -343,7 +343,7 @@ export function Graficos() {
                 <div className="text-2xl font-bold">
                   {dadosProcessados.totais.totalFichas}
                 </div>
-                <div className="text-sm opacity-90">Total de Fichas</div>
+                <div className="text-sm opacity-90">Total de Moedas</div>
               </div>
 
               <div className="card bg-gradient-to-br from-purple-500 to-purple-600 text-white">
@@ -375,7 +375,7 @@ export function Graficos() {
                   <div className="text-2xl font-bold">
                     R$ {dadosProcessados.totais.valorTotalFichas.toFixed(2)}
                   </div>
-                  <div className="text-sm opacity-90">Entrada em Fichas</div>
+                  <div className="text-sm opacity-90">Entrada em Moedas</div>
                   <div className="text-xs opacity-75 mt-1">
                     {((dadosProcessados.totais.valorTotalFichas / dadosProcessados.totais.faturamentoTotal) * 100).toFixed(1)}% do total
                   </div>
@@ -460,7 +460,7 @@ export function Graficos() {
                     dataKey="valorEntradaFichas"
                     stackId="a"
                     fill="#eab308"
-                    name="Fichas (R$)"
+                    name="Moedas (R$)"
                   />
                   <Bar
                     dataKey="valorEntradaNotas"
@@ -489,7 +489,7 @@ export function Graficos() {
                   <Pie
                     data={[
                       {
-                        name: "Fichas",
+                        name: "Moedas",
                         value: dadosProcessados.totais.valorTotalFichas,
                         emoji: "🪙"
                       },
@@ -744,7 +744,7 @@ export function Graficos() {
                     dataKey="fichas"
                     stroke="#3b82f6"
                     strokeWidth={2}
-                    name="Fichas"
+                    name="Moedas"
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -770,7 +770,7 @@ export function Graficos() {
                         Abastecidos
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        Fichas
+                        Moedas
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Faturamento

@@ -516,7 +516,7 @@ export function LojaDetalhes() {
                               </div>
                               <div>
                                 <p className="text-gray-600 flex items-center gap-1">
-                                  <span>🎫</span> Fichas
+                                  <span>🎫</span> Moedas
                                 </p>
                                 <p className="font-semibold text-blue-600">
                                   {mov.fichas || 0}

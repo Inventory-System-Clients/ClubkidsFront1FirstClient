@@ -343,7 +343,7 @@ export function Dashboard() {
       if (isAdmin) {
         console.log("Balanço semanal:", balancoRes.data);
         console.log("Estrutura completa de totais:", balancoRes.data?.totais);
-        console.log("Total de Fichas:", balancoRes.data?.totais?.totalFichas);
+        console.log("Total de Moedas:", balancoRes.data?.totais?.totalFichas);
         console.log(
           "Total de Faturamento:",
           balancoRes.data?.totais?.totalFaturamento
@@ -1755,7 +1755,7 @@ export function Dashboard() {
   }
 
   console.log("Estado stats no render:", stats);
-  console.log("Fichas no render:", stats.balanco?.totais?.totalFichas);
+  console.log("Moedas no render:", stats.balanco?.totais?.totalFichas);
 
   return (
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
@@ -1831,7 +1831,7 @@ export function Dashboard() {
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-medium opacity-90">
-                    Fichas Inseridas
+                    Moedas Inseridas
                   </h3>
                   <svg
                     className="w-8 h-8 opacity-80"
@@ -1851,7 +1851,7 @@ export function Dashboard() {
                   {stats.balanco?.totais?.totalFichas || 0}
                 </p>
                 <p className="text-xs opacity-75 mt-1">
-                  🎫 Fichas que entraram
+                  🎫 Moedas que entraram
                 </p>
               </div>
             </div>
@@ -2775,7 +2775,7 @@ export function Dashboard() {
                   )}
                   {maquinaSelecionada.valorFicha && (
                     <div>
-                      <p className="text-sm text-gray-600">Valor da Ficha</p>
+                      <p className="text-sm text-gray-600">Valor da Moeda</p>
                       <p className="text-lg font-semibold">
                         R${" "}
                         {parseFloat(maquinaSelecionada.valorFicha).toFixed(2)}
@@ -2785,13 +2785,13 @@ export function Dashboard() {
                   {maquinaSelecionada.fichasNecessarias && (
                     <div>
                       <p className="text-sm text-gray-600">
-                        🎫 Fichas para Jogar
+                        🎫 Moedas para Jogar
                       </p>
                       <p className="text-lg font-semibold">
                         {maquinaSelecionada.fichasNecessarias}{" "}
                         {maquinaSelecionada.fichasNecessarias === 1
-                          ? "ficha"
-                          : "fichas"}
+                          ? "Moeda"
+                          : "Moedas"}
                       </p>
                     </div>
                   )}
@@ -2990,7 +2990,7 @@ export function Dashboard() {
                               </div>
                               <div>
                                 <p className="text-gray-600 flex items-center gap-1">
-                                  <span>🎫</span> Fichas
+                                  <span>🎫</span> Moedas
                                 </p>
                                 <p className="font-semibold text-blue-600">
                                   {mov.fichas || 0}
@@ -3437,7 +3437,7 @@ export function Dashboard() {
                             clipRule="evenodd"
                           />
                         </svg>
-                        Fichas
+                        Moedas
                       </div>
                     </th>
                     <th>
@@ -3943,7 +3943,7 @@ export function Dashboard() {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  🎫 Fichas
+                  🎫 Moedas
                 </label>
                 <input
                   type="number"
