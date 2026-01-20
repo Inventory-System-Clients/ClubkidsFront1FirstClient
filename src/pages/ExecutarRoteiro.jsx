@@ -16,6 +16,7 @@ export function ExecutarRoteiro() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [lastUpdate, setLastUpdate] = useState(Date.now());
+    const [aReceberPendentes, setAReceberPendentes] = useState(new Set());
   
   // Controle de gastos
   const [mostrarFormGasto, setMostrarFormGasto] = useState(false);
@@ -207,9 +208,12 @@ export function ExecutarRoteiro() {
                   style={{ width: `${progressoPorcentagem}%` }}
                 ></div>
               </div>
-              <span className="text-sm font-bold">{progressoPorcentagem.toFixed(0)}%</span>
+                  const [roteiroRes, areceberRes] = await Promise.all([
+                    api.get(`/roteiros/${id}`),
+                    api.get(`/roteiros/financeiro/areceber`)
+                  ]);
             </div>
-            <p className="text-sm text-gray-700 mt-2">
+                  console.log("📦 Roteiro carregado:", roteiroRes.data);
               {lojasConcluidas} de {totalLojas} lojas concluídas
             </p>
             <div className="mt-3 pt-3 border-t border-blue-200">
@@ -218,7 +222,9 @@ export function ExecutarRoteiro() {
                 <div className="flex-1 bg-gray-200 rounded-full h-3 overflow-hidden">
                   <div 
                     className="bg-green-500 h-full transition-all duration-500"
-                    style={{ width: `${progressoMaquinas}%` }}
+                  const setPend = new Set((areceberRes.data || []).filter(r => !r.recebido).map(r => r.lojaId));
+                  setAReceberPendentes(setPend);
+                  setRoteiro(roteiroRes.data);
                   ></div>
                 </div>
                 <span className="text-xs font-bold">{progressoMaquinas.toFixed(0)}%</span>
@@ -226,6 +232,16 @@ export function ExecutarRoteiro() {
               <p className="text-xs text-gray-600 mt-1">
                 {maquinasAtendidas} de {totalMaquinas} máquinas com movimentação
               </p>
+
+              const marcarLojaAReceber = async (lojaId) => {
+                try {
+                  await api.post(`/roteiros/${id}/lojas/${lojaId}/areceber`);
+                  setSuccess("Loja marcada como 'à receber'. Siga para o próximo atendimento.");
+                  setAReceberPendentes(prev => new Set([...prev, lojaId]));
+                } catch (error) {
+                  setError("Erro ao marcar 'à receber': " + (error.response?.data?.error || error.message));
+                }
+              };
             </div>
           </div>
 
@@ -440,6 +456,37 @@ export function ExecutarRoteiro() {
                       title={todasAtendidas ? 'Concluir loja' : 'Atenda todas as máquinas primeiro'}
                     >
                       ✓ Concluir Loja
+                                      {!loja.concluida && (
+                                        <div className="flex items-center gap-2">
+                                          <button
+                                            onClick={() => {
+                                              if (todasAtendidas) {
+                                                marcarLojaConcluida(loja.id);
+                                              } else {
+                                                setError(`Faltam ${totalMaquinas - maquinasAtendidas} máquina(s) para concluir esta loja!`);
+                                              }
+                                            }}
+                                            disabled={!todasAtendidas}
+                                            className={`${
+                                              todasAtendidas 
+                                                ? 'btn-success' 
+                                                : 'btn-secondary opacity-50 cursor-not-allowed'
+                                            }`}
+                                            title={todasAtendidas ? 'Concluir loja' : 'Atenda todas as máquinas primeiro'}
+                                          >
+                                            ✓ Concluir Loja
+                                          </button>
+
+                                          <button
+                                            onClick={() => marcarLojaAReceber(loja.id)}
+                                            disabled={!todasAtendidas || aReceberPendentes.has(loja.id)}
+                                            className={`btn-secondary ${(!todasAtendidas || aReceberPendentes.has(loja.id)) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                            title={aReceberPendentes.has(loja.id) ? 'Já há pendência "à receber" para esta loja' : 'Marcar que o recebimento será feito depois'}
+                                          >
+                                            💸 Deixar à Receber
+                                          </button>
+                                        </div>
+                                      )}
                     </button>
                   )}
                   {loja.concluida && (
