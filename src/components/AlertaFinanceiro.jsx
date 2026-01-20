@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
 
+
 export function AlertaFinanceiro() {
   const { usuario } = useAuth();
   const navigate = useNavigate();
-  const [pendentes, setPendentes] = useState(0);
+  const [valorAReceber, setValorAReceber] = useState(0);
   const [mostrar, setMostrar] = useState(true);
 
   const verificarPendentes = async () => {
@@ -15,9 +16,18 @@ export function AlertaFinanceiro() {
         api.get("/movimentacoes/pendentes-financeiro"),
         api.get("/roteiros/financeiro/areceber"),
       ]);
-      const movsPendentes = (movsRes.data || []).length;
-      const lojasAReceber = (areceberRes.data || []).length;
-      setPendentes(movsPendentes + lojasAReceber);
+      // Calcular o valor total a receber das lojas (valorTotal - comissao)
+      const lojas = areceberRes.data || [];
+      let totalAReceber = 0;
+      lojas.forEach((item) => {
+        // Ajuste: garantir que os campos corretos sejam usados
+        // Se vierem como valorTotal e comissao, usa direto
+        // Se vierem como totalLucro e totalComissao, usa esses
+        const valorTotal = item.valorTotal ?? item.totalLucro ?? 0;
+        const comissao = item.comissao ?? item.totalComissao ?? 0;
+        totalAReceber += (valorTotal - comissao);
+      });
+      setValorAReceber(totalAReceber);
     } catch (error) {
       console.error("Erro ao verificar pendentes financeiro:", error);
     }
@@ -35,11 +45,12 @@ export function AlertaFinanceiro() {
   }, [usuario]);
 
   // Não mostrar se não for FINANCEIRO/ADMIN ou se não houver pendentes
+
   if (!usuario || (usuario.role !== "FINANCEIRO" && usuario.role !== "ADMIN")) {
     return null;
   }
 
-  if (pendentes === 0 || !mostrar) {
+  if ((valorAReceber === 0 && valorAReceber !== undefined) || !mostrar) {
     return null;
   }
 
@@ -56,10 +67,10 @@ export function AlertaFinanceiro() {
             <div>
               <h3 className="font-bold text-lg">Atenção Financeiro!</h3>
               <p className="text-sm opacity-90">
-                {pendentes} movimentação{pendentes > 1 ? "ões" : ""} pendente{pendentes > 1 ? "s" : ""} de valor
+                Valor a receber: <span className="font-bold">R$ {valorAReceber.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
               </p>
               <p className="text-xs opacity-75 mt-1">
-                Bags aguardando contagem
+                Valor total das lojas pendentes menos comissão
               </p>
             </div>
           </div>

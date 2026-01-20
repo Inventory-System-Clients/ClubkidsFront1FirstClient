@@ -103,10 +103,19 @@ export function Financeiro() {
                     const criado = new Date(item.createdAt || item.dataMarcacao);
                     const diffDias = Math.floor((Date.now() - criado.getTime()) / (1000 * 60 * 60 * 24));
                     const atrasado = diffDias > 7;
+                    // Calcular valor a receber da loja
+                    const valorTotal = item.valorTotal ?? item.totalLucro ?? 0;
+                    const comissao = item.comissao ?? item.totalComissao ?? 0;
+                    const valorAReceber = valorTotal - comissao;
                     return (
                       <div key={item.id} className={`flex items-center justify-between p-3 rounded border ${atrasado ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}>
                         <div>
-                          <div className="font-semibold">{item.loja?.nome || 'Loja'}</div>
+                          <div className="font-semibold flex items-center gap-2">
+                            {item.loja?.nome || 'Loja'}
+                            <span className="text-green-700 bg-green-100 rounded px-2 py-1 text-sm font-bold ml-2">
+                              R$ {valorAReceber.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
                           <div className="text-sm text-gray-600">
                             Marcado em {criado.toLocaleDateString()} {atrasado && (<span className="text-red-700 font-semibold ml-1">(&gt; 1 semana)</span>)}
                           </div>
