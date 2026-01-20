@@ -9,6 +9,15 @@ export function AlertaFinanceiro() {
   const [pendentes, setPendentes] = useState(0);
   const [mostrar, setMostrar] = useState(true);
 
+  const verificarPendentes = async () => {
+    try {
+      const response = await api.get("/movimentacoes/pendentes-financeiro");
+      setPendentes(response.data?.length || 0);
+    } catch (error) {
+      console.error("Erro ao verificar pendentes financeiro:", error);
+    }
+  };
+
   useEffect(() => {
     // Apenas para usuários FINANCEIRO ou ADMIN
     if (usuario?.role === "FINANCEIRO" || usuario?.role === "ADMIN") {
@@ -19,15 +28,6 @@ export function AlertaFinanceiro() {
       return () => clearInterval(interval);
     }
   }, [usuario]);
-
-  const verificarPendentes = async () => {
-    try {
-      const response = await api.get("/movimentacoes/pendentes-financeiro");
-      setPendentes(response.data?.length || 0);
-    } catch (error) {
-      console.error("Erro ao verificar pendentes financeiro:", error);
-    }
-  };
 
   // Não mostrar se não for FINANCEIRO/ADMIN ou se não houver pendentes
   if (!usuario || (usuario.role !== "FINANCEIRO" && usuario.role !== "ADMIN")) {
