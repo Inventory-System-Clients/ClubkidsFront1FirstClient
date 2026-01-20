@@ -17,6 +17,7 @@ export function ExecutarRoteiro() {
   const [success, setSuccess] = useState("");
   const [lastUpdate, setLastUpdate] = useState(Date.now());
     const [aReceberPendentes, setAReceberPendentes] = useState(new Set());
+  const [reloadConsumido, setReloadConsumido] = useState(false);
   
   // Controle de gastos
   const [mostrarFormGasto, setMostrarFormGasto] = useState(false);
@@ -38,13 +39,12 @@ export function ExecutarRoteiro() {
   
   // Recarregar quando location.state mudar (vindo de MovimentacoesLoja)
   useEffect(() => {
-    if (location.state?.reload || location.state?.timestamp) {
+    if ((location.state?.reload || location.state?.timestamp) && !reloadConsumido) {
       console.log('🔄 [ExecutarRoteiro] Estado de reload detectado, recarregando...');
       carregarRoteiro();
-      // Limpar o state para não recarregar múltiplas vezes
-      window.history.replaceState({}, document.title);
+      setReloadConsumido(true);
     }
-  }, [location.state]);
+  }, [location.state, reloadConsumido]);
   
   // Recarregar quando voltar para a página (focus)
   useEffect(() => {
@@ -73,12 +73,15 @@ export function ExecutarRoteiro() {
     try {
       setLoading(true);
       console.log(`🔄 [ExecutarRoteiro] Carregando roteiro ${id}... (${new Date().toLocaleTimeString()})`);
-      // Adicionar timestamp para forçar cache bust
-      const response = await api.get(`/roteiros/${id}?_t=${Date.now()}`);
-      console.log(`✅ [ExecutarRoteiro] Roteiro carregado:`, response.data);
+      // Adicionar timestamp para forçar cache bust e carregar pendências "à receber"
+      const [roteiroRes, areceberRes] = await Promise.all([
+        api.get(`/roteiros/${id}?_t=${Date.now()}`),
+        api.get(`/roteiros/financeiro/areceber`)
+      ]);
+      console.log(`✅ [ExecutarRoteiro] Roteiro carregado:`, roteiroRes.data);
       
       // Log detalhado das lojas e máquinas
-      response.data.lojas?.forEach(loja => {
+      roteiroRes.data.lojas?.forEach(loja => {
         const totalMaq = loja.maquinas?.length || 0;
         const atendidas = loja.maquinas?.filter(m => m.atendida).length || 0;
         console.log(`🏪 Loja "${loja.nome}": ${atendidas}/${totalMaq} máquinas atendidas`);
@@ -87,12 +90,15 @@ export function ExecutarRoteiro() {
         });
       });
       
-      setRoteiro(response.data);
+      setRoteiro(roteiroRes.data);
+      const pendSet = new Set((areceberRes.data || []).filter(r => !r.recebido).map(r => r.lojaId));
+      setAReceberPendentes(pendSet);
       setLastUpdate(Date.now());
     } catch (error) {
       setError("Erro ao carregar roteiro: " + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
+      console.log('✅ [ExecutarRoteiro] Loading=false aplicado');
     }
   };
 
@@ -115,6 +121,16 @@ export function ExecutarRoteiro() {
     const todasAtendidas = loja.maquinas.every(m => m.atendida === true);
     console.log(`🔍 Loja ${loja.nome}: ${loja.maquinas.filter(m => m.atendida).length}/${loja.maquinas.length} máquinas atendidas =`, todasAtendidas);
     return todasAtendidas;
+  };
+
+  const marcarLojaAReceber = async (lojaId) => {
+    try {
+      await api.post(`/roteiros/${id}/lojas/${lojaId}/areceber`);
+      setSuccess("Loja marcada como 'à receber'. Siga para o próximo atendimento.");
+      setAReceberPendentes(prev => new Set([...prev, lojaId]));
+    } catch (error) {
+      setError("Erro ao marcar 'à receber': " + (error.response?.data?.error || error.message));
+    }
   };
   
   const contarMaquinasAtendidas = () => {
@@ -173,8 +189,7 @@ export function ExecutarRoteiro() {
     }
   };
 
-  if (loading) return <PageLoader />;
-  if (!roteiro) return <div>Roteiro não encontrado</div>;
+  if (loading || !roteiro) return <PageLoader />;
 
   const totalLojas = roteiro.lojas?.length || 0;
   const lojasConcluidas = roteiro.lojas?.filter(l => l.concluida).length || 0;
@@ -203,28 +218,23 @@ export function ExecutarRoteiro() {
             <h3 className="text-lg font-bold text-gray-900 mb-2">Progresso Lojas</h3>
             <div className="flex items-center gap-2">
               <div className="flex-1 bg-gray-200 rounded-full h-4 overflow-hidden">
-                <div 
+                <div
                   className="bg-blue-600 h-full transition-all duration-500"
                   style={{ width: `${progressoPorcentagem}%` }}
                 ></div>
               </div>
-                  const [roteiroRes, areceberRes] = await Promise.all([
-                    api.get(`/roteiros/${id}`),
-                    api.get(`/roteiros/financeiro/areceber`)
-                  ]);
+              <span className="text-sm font-bold">{progressoPorcentagem.toFixed(0)}%</span>
             </div>
-                  console.log("📦 Roteiro carregado:", roteiroRes.data);
+            <p className="text-sm text-gray-700 mt-1">
               {lojasConcluidas} de {totalLojas} lojas concluídas
             </p>
             <div className="mt-3 pt-3 border-t border-blue-200">
               <h4 className="text-xs font-bold text-gray-600 mb-1">Máquinas (Limite: 1 mov/máquina)</h4>
               <div className="flex items-center gap-2">
                 <div className="flex-1 bg-gray-200 rounded-full h-3 overflow-hidden">
-                  <div 
+                  <div
                     className="bg-green-500 h-full transition-all duration-500"
-                  const setPend = new Set((areceberRes.data || []).filter(r => !r.recebido).map(r => r.lojaId));
-                  setAReceberPendentes(setPend);
-                  setRoteiro(roteiroRes.data);
+                    style={{ width: `${progressoMaquinas}%` }}
                   ></div>
                 </div>
                 <span className="text-xs font-bold">{progressoMaquinas.toFixed(0)}%</span>
@@ -232,16 +242,6 @@ export function ExecutarRoteiro() {
               <p className="text-xs text-gray-600 mt-1">
                 {maquinasAtendidas} de {totalMaquinas} máquinas com movimentação
               </p>
-
-              const marcarLojaAReceber = async (lojaId) => {
-                try {
-                  await api.post(`/roteiros/${id}/lojas/${lojaId}/areceber`);
-                  setSuccess("Loja marcada como 'à receber'. Siga para o próximo atendimento.");
-                  setAReceberPendentes(prev => new Set([...prev, lojaId]));
-                } catch (error) {
-                  setError("Erro ao marcar 'à receber': " + (error.response?.data?.error || error.message));
-                }
-              };
             </div>
           </div>
 
@@ -439,55 +439,34 @@ export function ExecutarRoteiro() {
                   </div>
                   
                   {!loja.concluida && (
-                    <button
-                      onClick={() => {
-                        if (todasAtendidas) {
-                          marcarLojaConcluida(loja.id);
-                        } else {
-                          setError(`Faltam ${totalMaquinas - maquinasAtendidas} máquina(s) para concluir esta loja!`);
-                        }
-                      }}
-                      disabled={!todasAtendidas}
-                      className={`${
-                        todasAtendidas 
-                          ? 'btn-success' 
-                          : 'btn-secondary opacity-50 cursor-not-allowed'
-                      }`}
-                      title={todasAtendidas ? 'Concluir loja' : 'Atenda todas as máquinas primeiro'}
-                    >
-                      ✓ Concluir Loja
-                                      {!loja.concluida && (
-                                        <div className="flex items-center gap-2">
-                                          <button
-                                            onClick={() => {
-                                              if (todasAtendidas) {
-                                                marcarLojaConcluida(loja.id);
-                                              } else {
-                                                setError(`Faltam ${totalMaquinas - maquinasAtendidas} máquina(s) para concluir esta loja!`);
-                                              }
-                                            }}
-                                            disabled={!todasAtendidas}
-                                            className={`${
-                                              todasAtendidas 
-                                                ? 'btn-success' 
-                                                : 'btn-secondary opacity-50 cursor-not-allowed'
-                                            }`}
-                                            title={todasAtendidas ? 'Concluir loja' : 'Atenda todas as máquinas primeiro'}
-                                          >
-                                            ✓ Concluir Loja
-                                          </button>
-
-                                          <button
-                                            onClick={() => marcarLojaAReceber(loja.id)}
-                                            disabled={!todasAtendidas || aReceberPendentes.has(loja.id)}
-                                            className={`btn-secondary ${(!todasAtendidas || aReceberPendentes.has(loja.id)) ? 'opacity-60 cursor-not-allowed' : ''}`}
-                                            title={aReceberPendentes.has(loja.id) ? 'Já há pendência "à receber" para esta loja' : 'Marcar que o recebimento será feito depois'}
-                                          >
-                                            💸 Deixar à Receber
-                                          </button>
-                                        </div>
-                                      )}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          if (todasAtendidas) {
+                            marcarLojaConcluida(loja.id);
+                          } else {
+                            setError(`Faltam ${totalMaquinas - maquinasAtendidas} máquina(s) para concluir esta loja!`);
+                          }
+                        }}
+                        disabled={!todasAtendidas}
+                        className={`${
+                          todasAtendidas 
+                            ? 'btn-success' 
+                            : 'btn-secondary opacity-50 cursor-not-allowed'
+                        }`}
+                        title={todasAtendidas ? 'Concluir loja' : 'Atenda todas as máquinas primeiro'}
+                      >
+                        ✓ Concluir Loja
+                      </button>
+                      <button
+                        onClick={() => marcarLojaAReceber(loja.id)}
+                        disabled={!todasAtendidas || aReceberPendentes.has(loja.id)}
+                        className={`btn-secondary ${(!todasAtendidas || aReceberPendentes.has(loja.id)) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                        title={aReceberPendentes.has(loja.id) ? 'Já há pendência "à receber" para esta loja' : 'Marcar que o recebimento será feito depois'}
+                      >
+                        💸 Deixar à Receber
+                      </button>
+                    </div>
                   )}
                   {loja.concluida && (
                     <Badge type="success">Loja Concluída ✓</Badge>
