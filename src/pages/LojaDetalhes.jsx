@@ -513,7 +513,9 @@ export function LojaDetalhes() {
                                 <p className="font-semibold text-purple-600">
                                   {(mov.totalPre || 0) +
                                     (mov.abastecidas || 0) -
-                                    (mov.sairam || 0)}
+                                    (Array.isArray(mov.detalhesProdutos)
+                                      ? mov.detalhesProdutos.reduce((sum, dp) => sum + (dp.quantidadeSaiu || 0), 0)
+                                      : mov.sairam || 0)}
                                 </p>
                               </div>
                               <div>
