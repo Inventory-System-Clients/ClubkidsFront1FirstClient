@@ -333,7 +333,8 @@ export function Graficos() {
               <div className="card bg-gradient-to-br from-red-500 to-red-600 text-white">
                 <div className="text-3xl mb-2">📤</div>
                 <div className="text-2xl font-bold">
-                  {dadosProcessados.totais.totalSaidas}
+                  {/* Preferir o valor do backend se disponível */}
+                  {dadosProcessados.totalProdutosSairam ?? dadosProcessados.totais.totalSaidas}
                 </div>
                 <div className="text-sm opacity-90">Produtos Vendidos</div>
               </div>
