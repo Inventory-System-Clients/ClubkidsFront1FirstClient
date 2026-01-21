@@ -214,7 +214,7 @@ export function Relatorios() {
                 <div className="card bg-gradient-to-br from-blue-500 to-blue-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">🎫</div>
                   <div className="text-xl sm:text-2xl font-bold">
-                    {(relatorio.totais?.moedas || 0).toLocaleString("pt-BR")}
+                    {typeof relatorio.totais?.moedas === "number" ? relatorio.totais.moedas.toLocaleString("pt-BR") : "0"}
                   </div>
                   <div className="text-sm opacity-90">Total de Moedas</div>
                 </div>
@@ -222,9 +222,7 @@ export function Relatorios() {
                 <div className="card bg-gradient-to-br from-red-500 to-red-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">📤</div>
                   <div className="text-xl sm:text-2xl font-bold">
-                    {(relatorio.totais?.produtosSairam || 0).toLocaleString(
-                      "pt-BR"
-                    )}
+                    {typeof relatorio.totais?.produtosSairam === "number" ? relatorio.totais.produtosSairam.toLocaleString("pt-BR") : "0"}
                   </div>
                   <div className="text-xs sm:text-sm opacity-90">
                     Produtos Saíram
@@ -234,9 +232,7 @@ export function Relatorios() {
                 <div className="card bg-gradient-to-br from-green-500 to-green-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">📥</div>
                   <div className="text-xl sm:text-2xl font-bold">
-                    {(relatorio.totais?.produtosEntraram || 0).toLocaleString(
-                      "pt-BR"
-                    )}
+                    {typeof relatorio.totais?.produtosEntraram === "number" ? relatorio.totais.produtosEntraram.toLocaleString("pt-BR") : "0"}
                   </div>
                   <div className="text-xs sm:text-sm opacity-90">
                     Produtos Entraram
@@ -246,9 +242,7 @@ export function Relatorios() {
                 <div className="card bg-gradient-to-br from-purple-500 to-purple-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">🔄</div>
                   <div className="text-xl sm:text-2xl font-bold">
-                    {(relatorio.totais?.movimentacoes || 0).toLocaleString(
-                      "pt-BR"
-                    )}
+                    {typeof relatorio.totais?.movimentacoes === "number" ? relatorio.totais.movimentacoes.toLocaleString("pt-BR") : "0"}
                   </div>
                   <div className="text-xs sm:text-sm opacity-90">
                     Total de Movimentações
@@ -358,7 +352,7 @@ export function Relatorios() {
                             🎫
                           </div>
                           <div className="text-xl sm:text-3xl font-bold text-center">
-                            {maquina.totais.moedas.toLocaleString("pt-BR")}
+                            {typeof maquina.totais.moedas === "number" ? maquina.totais.moedas.toLocaleString("pt-BR") : "0"}
                           </div>
                           <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
                             Total de Moedas
@@ -369,9 +363,7 @@ export function Relatorios() {
                             📤
                           </div>
                           <div className="text-xl sm:text-3xl font-bold text-center">
-                            {maquina.totais.produtosSairam.toLocaleString(
-                              "pt-BR"
-                            )}
+                            {typeof maquina.totais.produtosSairam === "number" ? maquina.totais.produtosSairam.toLocaleString("pt-BR") : "0"}
                           </div>
                           <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
                             Produtos Saíram
@@ -382,9 +374,7 @@ export function Relatorios() {
                             📥
                           </div>
                           <div className="text-xl sm:text-3xl font-bold text-center">
-                            {maquina.totais.produtosEntraram.toLocaleString(
-                              "pt-BR"
-                            )}
+                            {typeof maquina.totais.produtosEntraram === "number" ? maquina.totais.produtosEntraram.toLocaleString("pt-BR") : "0"}
                           </div>
                           <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
                             Produtos Entraram
@@ -505,9 +495,7 @@ export function Relatorios() {
                                       </div>
                                     </div>
                                     <div className="bg-red-500 text-white px-3 sm:px-5 py-2 sm:py-3 rounded-xl font-bold text-base sm:text-xl shrink-0">
-                                      {produto.quantidade.toLocaleString(
-                                        "pt-BR"
-                                      )}
+                                      {typeof produto.quantidade === "number" ? produto.quantidade.toLocaleString("pt-BR") : "0"}
                                     </div>
                                   </div>
                                 </div>
@@ -562,9 +550,7 @@ export function Relatorios() {
                                       </div>
                                     </div>
                                     <div className="bg-green-500 text-white px-3 sm:px-5 py-2 sm:py-3 rounded-xl font-bold text-base sm:text-xl shrink-0">
-                                      {produto.quantidade.toLocaleString(
-                                        "pt-BR"
-                                      )}
+                                      {typeof produto.quantidade === "number" ? produto.quantidade.toLocaleString("pt-BR") : "0"}
                                     </div>
                                   </div>
                                 </div>
@@ -636,7 +622,7 @@ export function Relatorios() {
                                 </div>
                               </div>
                               <span className="bg-red-500 text-white px-3 py-1 rounded-full font-bold">
-                                {produto.quantidade.toLocaleString("pt-BR")}
+                                {typeof produto.quantidade === "number" ? produto.quantidade.toLocaleString("pt-BR") : "0"}
                               </span>
                             </div>
                           </div>
@@ -681,7 +667,7 @@ export function Relatorios() {
                                 </div>
                               </div>
                               <span className="bg-green-500 text-white px-3 py-1 rounded-full font-bold">
-                                {produto.quantidade.toLocaleString("pt-BR")}
+                                {typeof produto.quantidade === "number" ? produto.quantidade.toLocaleString("pt-BR") : "0"}
                               </span>
                             </div>
                           </div>
