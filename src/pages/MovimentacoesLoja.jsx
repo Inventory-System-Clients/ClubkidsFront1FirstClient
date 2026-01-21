@@ -31,7 +31,6 @@ export function MovimentacoesLoja() {
     contadorOut: "",
     valor_entrada_maquininha_pix: "",
     numeroBag: "",
-    valorEntradaMoedas: "",
     valorEntradaNotas: "",
     valorEntradaCartao: "",
     observacao: "",
@@ -88,13 +87,11 @@ export function MovimentacoesLoja() {
         totalPre: parseInt(formData.quantidadeAtualMaquina) || 0,
         sairam: 0, // Calculado no backend baseado no produto
         abastecidas: parseInt(formData.quantidadeAdicionada) || 0,
-        moedas: 0,
         contadorIn: parseInt(formData.contadorIn) || 0,
         contadorOut: parseInt(formData.contadorOut) || 0,
         quantidade_notas_entrada: 0,
         valor_entrada_maquininha_pix: parseFloat(formData.valor_entrada_maquininha_pix) || 0,
         numeroBag: formData.numeroBag || null,
-        valorEntradaMoedas: formData.valorEntradaMoedas ? parseFloat(formData.valorEntradaMoedas) : null,
         valorEntradaNotas: formData.valorEntradaNotas ? parseFloat(formData.valorEntradaNotas) : null,
         valorEntradaCartao: formData.valorEntradaCartao ? parseFloat(formData.valorEntradaCartao) : null,
         observacoes: formData.observacao || "",
@@ -224,7 +221,7 @@ export function MovimentacoesLoja() {
               </div>
               <div className="w-full bg-gray-200 rounded-full h-4">
                 <div
-                  className="bg-gradient-to-r from-blue-500 to-blue-600 h-4 rounded-full transition-all duration-500"
+                  className="bg-linear-to-r from-blue-500 to-blue-600 h-4 rounded-full transition-all duration-500"
                   style={{ width: `${progresso}%` }}
                 ></div>
               </div>
@@ -437,23 +434,7 @@ export function MovimentacoesLoja() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      💰 Valor Entrada Moedas (R$){!formData.numeroBag && " *"}
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.valorEntradaMoedas}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          valorEntradaMoedas: e.target.value,
-                        })
-                      }
-                      className="input-field"
-                      min="0"
-                      placeholder="0.00"
-                    />
+
                   </div>
 
                   <div>

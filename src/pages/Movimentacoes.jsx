@@ -49,11 +49,9 @@ export function Movimentacoes() {
   // Edição
   const [editandoMovimentacao, setEditandoMovimentacao] = useState(null);
   const [formEdicao, setFormEdicao] = useState({
-    moedas: "",
     abastecidas: "",
     quantidade_notas_entrada: "",
     valor_entrada_maquininha_pix: "",
-    valorEntradaMoedas: "",
     valorEntradaNotas: "",
     valorEntradaCartao: "",
   });
@@ -64,12 +62,10 @@ export function Movimentacoes() {
     produto_id: "",
     quantidadeAtualMaquina: "",
     quantidadeAdicionada: "",
-    moedas: "",
     contadorIn: "",
     contadorOut: "",
     quantidade_notas_entrada: "",
     valor_entrada_maquininha_pix: "",
-    valorEntradaMoedas: "",
     valorEntradaNotas: "",
     valorEntradaCartao: "",
     observacao: "",
@@ -163,7 +159,6 @@ export function Movimentacoes() {
       // Converter valores do formulário
       const totalPre = parseInt(formData.quantidadeAtualMaquina) || 0; // valor digitado pelo usuário
       const quantidadeAdicionada = parseInt(formData.quantidadeAdicionada) || 0;
-      const moedas = parseInt(formData.moedas) || 0;
 
       // totalPos = totalPre + abastecidas
       const totalPos = totalPre + quantidadeAdicionada;
@@ -216,7 +211,6 @@ export function Movimentacoes() {
         sairam: quantidadeSaiu,
         abastecidas: quantidadeAdicionada,
         totalPos: totalPos,
-        moedas: moedas,
         contadorIn: parseInt(formData.contadorIn) || null,
         contadorOut: parseInt(formData.contadorOut) || null,
         quantidade_notas_entrada: formData.quantidade_notas_entrada
@@ -224,9 +218,6 @@ export function Movimentacoes() {
           : null,
         valor_entrada_maquininha_pix: formData.valor_entrada_maquininha_pix
           ? parseFloat(formData.valor_entrada_maquininha_pix)
-          : null,
-        valorEntradaMoedas: formData.valorEntradaMoedas
-          ? parseFloat(formData.valorEntradaMoedas)
           : null,
         valorEntradaNotas: formData.valorEntradaNotas
           ? parseFloat(formData.valorEntradaNotas)
@@ -268,12 +259,10 @@ export function Movimentacoes() {
         produto_id: "",
         quantidadeAtualMaquina: "",
         quantidadeAdicionada: "",
-        moedas: "",
         contadorIn: "",
         contadorOut: "",
         quantidade_notas_entrada: "",
         valor_entrada_maquininha_pix: "",
-        valorEntradaMoedas: "",
         valorEntradaNotas: "",
         valorEntradaCartao: "",
         observacao: "",
@@ -300,12 +289,10 @@ export function Movimentacoes() {
   const iniciarEdicao = (movimentacao) => {
     setEditandoMovimentacao(movimentacao);
     setFormEdicao({
-      moedas: movimentacao.moedas || 0,
       abastecidas: movimentacao.abastecidas || 0,
       quantidade_notas_entrada: movimentacao.quantidade_notas_entrada || "",
       valor_entrada_maquininha_pix:
         movimentacao.valor_entrada_maquininha_pix || "",
-      valorEntradaMoedas: movimentacao.valorEntradaMoedas || "",
       valorEntradaNotas: movimentacao.valorEntradaNotas || "",
       valorEntradaCartao: movimentacao.valorEntradaCartao || "",
     });
@@ -314,11 +301,9 @@ export function Movimentacoes() {
   const cancelarEdicao = () => {
     setEditandoMovimentacao(null);
     setFormEdicao({
-      moedas: "",
       abastecidas: "",
       quantidade_notas_entrada: "",
       valor_entrada_maquininha_pix: "",
-      valorEntradaMoedas: "",
       valorEntradaNotas: "",
       valorEntradaCartao: "",
     });
@@ -327,7 +312,6 @@ export function Movimentacoes() {
   const salvarEdicao = async () => {
     try {
       await api.put(`/movimentacoes/${editandoMovimentacao.id}`, {
-        moedas: parseInt(formEdicao.moedas) || 0,
         abastecidas: parseInt(formEdicao.abastecidas) || 0,
         quantidade_notas_entrada:
           formEdicao.quantidade_notas_entrada !== ""
@@ -336,10 +320,6 @@ export function Movimentacoes() {
         valor_entrada_maquininha_pix:
           formEdicao.valor_entrada_maquininha_pix !== ""
             ? parseFloat(formEdicao.valor_entrada_maquininha_pix)
-            : null,
-        valorEntradaMoedas:
-          formEdicao.valorEntradaMoedas !== ""
-            ? parseFloat(formEdicao.valorEntradaMoedas)
             : null,
         valorEntradaNotas:
           formEdicao.valorEntradaNotas !== ""
@@ -550,12 +530,11 @@ export function Movimentacoes() {
       ),
     },
     {
-      key: "moedas",
-      label: "Moedas",
+      // Removido campo de moedas
       render: (mov) => (
         <div className="flex items-center gap-1">
           <span className="text-lg">🎫</span>
-          <span className="font-semibold text-blue-600">{mov.moedas || 0}</span>
+          {/* Removido campo de moedas */}
         </div>
       ),
     },
@@ -630,40 +609,32 @@ export function Movimentacoes() {
 
         {/* Filtro por Loja - Apenas para ADMIN */}
         {usuario?.role === "ADMIN" && (
-          <div className="card-gradient mb-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <span className="text-2xl">🔍</span>
-              Filtrar Movimentações
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  🏪 Filtrar por Loja
-                </label>
-                <select
-                  value={filtroLojaListagem}
-                  onChange={(e) => setFiltroLojaListagem(e.target.value)}
-                  className="input-field"
-                >
-                  <option value="">Todas as lojas</option>
-                  {lojas.map((loja) => (
-                    <option key={loja.id} value={loja.id}>
-                      {loja.nome}
-                    </option>
-                  ))}
-                </select>
+          <>
+            <div className="card-gradient mb-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <span className="text-2xl">🔍</span>
+                Filtrar Movimentações
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    🏪 Filtrar por Loja
+                  </label>
+                  <select
+                    value={filtroLojaListagem}
+                    onChange={(e) => setFiltroLojaListagem(e.target.value)}
+                    className="input-field"
+                  >
+                    <option value="">Todas as lojas</option>
+                    {lojas.map((loja) => (
+                      <option key={loja.id} value={loja.id}>
+                        {loja.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {showForm && (
-          <div className="card-gradient mb-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <span className="text-2xl">📝</span>
-              Registrar Movimentação
-            </h3>
-
             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800 flex items-center gap-2">
                 <svg
@@ -682,11 +653,10 @@ export function Movimentacoes() {
                 informe quantos foram adicionados.
               </p>
             </div>
-
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Indicador de Estoque Anterior */}
               {formData.maquina_id && (
-                <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg">
+                <div className="p-4 bg-linear-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-semibold text-blue-900">
@@ -763,24 +733,7 @@ export function Movimentacoes() {
                     )}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    🪙 Quantidade de Moedas
-                  </label>
-                  <input
-                    type="number"
-                    name="moedas"
-                    value={formData.moedas}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="0"
-                    min="0"
-                    disabled={formData.retiradaEstoque}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Moedas coletadas da máquina
-                  </p>
-                </div>
+
               </div>
 
               {/* Valores de Entrada */}
@@ -788,24 +741,7 @@ export function Movimentacoes() {
                 💰 Valores de Entrada (Arrecadação)
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    💰 Valor Entrada Moedas (R$)
-                  </label>
-                  <input
-                    type="number"
-                    name="valorEntradaMoedas"
-                    value={formData.valorEntradaMoedas}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="0.00"
-                    min="0"
-                    step="0.01"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Valor total arrecadado em moedas
-                  </p>
-                </div>
+
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     💵 Valor Entrada Notas (R$)
@@ -923,7 +859,7 @@ export function Movimentacoes() {
               </div>
 
               {/* Checkbox de Retirada de Estoque */}
-              <div className="p-4 bg-gradient-to-r from-orange-50 to-yellow-50 border-2 border-orange-200 rounded-lg">
+              <div className="p-4 bg-linear-to-r from-orange-50 to-yellow-50 border-2 border-orange-200 rounded-lg">
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
                     type="checkbox"
@@ -939,7 +875,7 @@ export function Movimentacoes() {
                     <p className="text-xs text-orange-700 mt-1">
                       Marque esta opção quando estiver retirando produtos da
                       máquina sem que seja uma venda (exemplo: produtos
-                      danificados, devolução, transferência). As moedas serão
+                      danificados, devolução, transferência).
                       automaticamente zeradas.
                     </p>
                   </div>
@@ -1100,7 +1036,7 @@ export function Movimentacoes() {
                 </button>
               </div>
             </form>
-          </div>
+          </>
         )}
 
         {/* Histórico de Movimentações - Apenas para ADMIN */}
@@ -1233,21 +1169,7 @@ export function Movimentacoes() {
                   </p>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    🪙 Quantidade de Moedas
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formEdicao.moedas}
-                    onChange={(e) =>
-                      setFormEdicao({ ...formEdicao, moedas: e.target.value })
-                    }
-                    className="input-field"
-                    placeholder="0"
-                  />
-                </div>
+
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -1272,25 +1194,7 @@ export function Movimentacoes() {
                   💰 Valores de Entrada
                 </h4>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    💰 Valor Entrada Moedas (R$)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formEdicao.valorEntradaMoedas}
-                    onChange={(e) =>
-                      setFormEdicao({
-                        ...formEdicao,
-                        valorEntradaMoedas: e.target.value,
-                      })
-                    }
-                    className="input-field"
-                    placeholder="0.00"
-                  />
-                </div>
+
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -1461,7 +1365,7 @@ export function Movimentacoes() {
                       key={prod.id || idx}
                       className="flex gap-2 mb-2 items-center"
                     >
-                      <span className="min-w-[120px]">
+                      <span className="min-w-30">
                         {prod.produto?.nome || prod.produtoId}
                       </span>
                       <input

@@ -190,7 +190,7 @@ export function ProdutoForm() {
                     Emoji do Produto
                   </label>
                   <div className="flex items-center gap-4 mb-2">
-                    <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center text-5xl">
+                    <div className="w-20 h-20 rounded-xl bg-linear-to-br from-primary/20 to-secondary/20 flex items-center justify-center text-5xl">
                       {formData.emoji}
                     </div>
                     <div className="flex-1">
@@ -327,88 +327,7 @@ export function ProdutoForm() {
                 </div>
               </div>
 
-              {/* Análise de Lucro por Moeda */}
-              {formData.preco && (
-                <div className="mt-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg">
-                  <h4 className="text-sm font-bold text-green-900 mb-3 flex items-center gap-2">
-                    <span className="text-xl">🎯</span>
-                    Análise de Jogadas para Lucro
-                  </h4>
-                  <p className="text-xs text-green-700 mb-4">
-                    Quantidade mínima de jogadas necessárias para ter lucro
-                    neste produto
-                  </p>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Moeda R$ 2,50 */}
-                    <div className="bg-white p-4 rounded-lg border border-green-300">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-semibold text-gray-700">
-                          🪙 Moeda R$ 2,50
-                        </span>
-                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full font-bold">
-                          Econômica
-                        </span>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-3xl font-bold text-green-600">
-                          {Math.ceil(parseFloat(formData.preco) / 2.5)}
-                        </p>
-                        <p className="text-xs text-gray-600 mt-1">
-                          {Math.ceil(parseFloat(formData.preco) / 2.5) === 1
-                            ? "jogada mínima"
-                            : "jogadas mínimas"}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-2">
-                          Faturamento: R${" "}
-                          {(
-                            Math.ceil(parseFloat(formData.preco) / 2.5) * 2.5
-                          ).toFixed(2)}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Moeda R$ 5,00 */}
-                    <div className="bg-white p-4 rounded-lg border border-green-300">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-semibold text-gray-700">
-                          💎 Moeda R$ 5,00
-                        </span>
-                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-bold">
-                          Premium
-                        </span>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-3xl font-bold text-blue-600">
-                          {Math.ceil(parseFloat(formData.preco) / 5)}
-                        </p>
-                        <p className="text-xs text-gray-600 mt-1">
-                          {Math.ceil(parseFloat(formData.preco) / 5) === 1
-                            ? "jogada mínima"
-                            : "jogadas mínimas"}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-2">
-                          Faturamento: R${" "}
-                          {(
-                            Math.ceil(parseFloat(formData.preco) / 5) * 5
-                          ).toFixed(2)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                    <p className="text-xs text-yellow-800 flex items-center gap-2">
-                      <span>💡</span>
-                      <span>
-                        <strong>Dica:</strong> Quanto menor o número de jogadas,
-                        mais rápido você recupera o investimento. Com moeda de
-                        R$ 5,00, o lucro é mais rápido!
-                      </span>
-                    </p>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Estoque */}

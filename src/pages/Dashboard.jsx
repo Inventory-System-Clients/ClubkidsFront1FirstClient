@@ -28,14 +28,14 @@ export function Dashboard() {
   // Removido movimentacaoSucesso, feedback só via alert externo
   // Estado para lista de produtos da movimentação
   const [produtosMovimentacao, setProdutosMovimentacao] = useState([
-    { produtoId: "", quantidade: "", tipoMovimentacao: "entrada" },
+    { produtoId: "", quantidade: "", tipoMovimentacao: "" },
   ]);
 
   // Sempre deve haver pelo menos um produto na lista
   const handleAddProduto = () => {
     setProdutosMovimentacao((prev) => [
       ...prev,
-      { produtoId: "", quantidade: "", tipoMovimentacao: "entrada" },
+      { produtoId: "", quantidade: "", tipoMovimentacao: "" },
     ]);
   };
 
@@ -103,7 +103,7 @@ export function Dashboard() {
       setMostrarModalMovimentacao(false);
       setMovimentacaoLojaId("");
       setProdutosMovimentacao([
-        { produtoId: "", quantidade: "", tipoMovimentacao: "entrada" },
+        { produtoId: "", quantidade: "", tipoMovimentacao: "" },
       ]);
       setTimeout(() => {
         if (typeof carregarDados === "function") carregarDados();
@@ -184,14 +184,13 @@ export function Dashboard() {
                   className="input-field w-24"
                 />
                 <select
-                  value={p.tipoMovimentacao || "entrada"}
+                  value={p.tipoMovimentacao || ""}
                   onChange={(e) =>
                     handleProdutoChange(idx, "tipoMovimentacao", e.target.value)
                   }
                   className="input-field w-28"
                 >
                   <option value="saida">Saída</option>
-                  <option value="entrada">Entrada</option>
                 </select>
                 {produtosMovimentacao.length > 1 && (
                   <button
@@ -343,7 +342,7 @@ export function Dashboard() {
       if (isAdmin) {
         console.log("Balanço semanal:", balancoRes.data);
         console.log("Estrutura completa de totais:", balancoRes.data?.totais);
-        console.log("Total de Moedas:", balancoRes.data?.totais?.totalFichas);
+        // Removido: console.log de moedas
         console.log(
           "Total de Faturamento:",
           balancoRes.data?.totais?.totalFaturamento
@@ -668,228 +667,7 @@ export function Dashboard() {
   };
 
   // Função para imprimir relatório individual de uma loja
-  const imprimirRelatorioLoja = (loja) => {
-    const itensParaComprar = loja.estoque.filter(
-      (item) => item.quantidade < item.estoqueMinimo
-    );
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Relatório de Estoque - ${loja.nome}</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              padding: 20px;
-              max-width: 800px;
-              margin: 0 auto;
-            }
-            .header {
-              text-align: center;
-              margin-bottom: 30px;
-              border-bottom: 3px solid #FF69B4;
-              padding-bottom: 20px;
-            }
-            .header h1 {
-              color: #FF69B4;
-              margin: 0;
-              font-size: 28px;
-            }
-            .header p {
-              color: #666;
-              margin: 5px 0;
-            }
-            .info-box {
-              background: #f8f9fa;
-              padding: 15px;
-              border-radius: 8px;
-              margin-bottom: 20px;
-            }
-            .section-title {
-              color: #333;
-              font-size: 20px;
-              margin: 25px 0 15px 0;
-              padding-bottom: 8px;
-              border-bottom: 2px solid #ddd;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-bottom: 20px;
-            }
-            th {
-              background: #FF69B4;
-              color: white;
-              padding: 12px;
-              text-align: left;
-              font-weight: bold;
-            }
-            td {
-              padding: 10px 12px;
-              border-bottom: 1px solid #ddd;
-            }
-            tr:nth-child(even) {
-              background: #f8f9fa;
-            }
-            .alerta {
-              background: #fee;
-              color: #c00;
-              font-weight: bold;
-            }
-            .footer {
-              margin-top: 30px;
-              text-align: center;
-              color: #666;
-              font-size: 12px;
-              border-top: 1px solid #ddd;
-              padding-top: 15px;
-            }
-            @media print {
-              body { padding: 10px; }
-              .no-print { display: none; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>📦 Relatório de Estoque</h1>
-            <p><strong>Loja:</strong> ${loja.nome}</p>
-            <p><strong>Endereço:</strong> ${
-              loja.endereco || "Não informado"
-            }</p>
-            <p><strong>Data:</strong> ${new Date().toLocaleDateString(
-              "pt-BR"
-            )} às ${new Date().toLocaleTimeString("pt-BR")}</p>
-          </div>
-
-          <div class="info-box">
-            <p><strong>Total de Produtos:</strong> ${loja.totalProdutos}</p>
-            <p><strong>Total de Unidades:</strong> ${loja.totalUnidades}</p>
-            <p><strong>Produtos Abaixo do Mínimo:</strong> ${
-              itensParaComprar.length
-            }</p>
-          </div>
-
-          <h2 class="section-title">📋 Estoque Atual</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Produto</th>
-                <th>Código</th>
-                <th>Qtd Atual</th>
-                <th>Qtd Mínima</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${loja.estoque
-                .map((item) => {
-                  const abaixo = item.quantidade < item.estoqueMinimo;
-                  return `
-                    <tr ${abaixo ? 'class="alerta"' : ""}>
-                      <td>${item.produto.emoji || "📦"} ${
-                    item.produto.nome
-                  }</td>
-                      <td>${item.produto.codigo || "-"}</td>
-                      <td>${item.quantidade}</td>
-                      <td>${item.estoqueMinimo}</td>
-                      <td>${abaixo ? "⚠️ ABAIXO DO MÍNIMO" : "✅ OK"}</td>
-                    </tr>
-                  `;
-                })
-                .join("")}
-            </tbody>
-          </table>
-
-          ${
-            itensParaComprar.length > 0
-              ? `
-            <h2 class="section-title">🛒 Produtos para Comprar</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>Produto</th>
-                  <th>Qtd Atual</th>
-                  <th>Qtd Mínima</th>
-                  <th>Quantidade Sugerida</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${itensParaComprar
-                  .map((item) => {
-                    const sugestao = item.estoqueMinimo - item.quantidade;
-                    return `
-                      <tr>
-                        <td>${item.produto.emoji || "📦"} ${
-                      item.produto.nome
-                    }</td>
-                        <td>${item.quantidade}</td>
-                        <td>${item.estoqueMinimo}</td>
-                        <td><strong>${sugestao} unidades</strong></td>
-                      </tr>
-                    `;
-                  })
-                  .join("")}
-              </tbody>
-            </table>
-          `
-              : '<p style="text-align: center; color: #28a745; font-size: 18px; padding: 20px;">✅ Todos os produtos estão com estoque adequado!</p>'
-          }
-
-          <div class="footer">
-            <p>Relatório gerado automaticamente pelo Sistema ClubeKids</p>
-          </div>
-        </body>
-      </html>
-    `;
-
-    // Detectar se é mobile
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
-    
-    if (isMobile) {
-      // Mobile: Mostrar alerta e opção de imprimir
-      Swal.fire({
-        title: 'Relatório de Estoque',
-        html: '<p>Relatório gerado com sucesso! Clique em Imprimir para visualizar.</p>',
-        icon: 'success',
-        showCancelButton: true,
-        confirmButtonText: '🖨️ Imprimir',
-        cancelButtonText: 'Fechar',
-        confirmButtonColor: '#1e40af'
-      }).then((result) => {
-        if (result.isConfirmed) {
-          const blob = new Blob([htmlContent], { type: 'text/html' });
-          const url = URL.createObjectURL(blob);
-          const printWindow = window.open(url, '_blank');
-          if (printWindow) {
-            printWindow.onload = () => {
-              setTimeout(() => {
-                printWindow.print();
-                URL.revokeObjectURL(url);
-              }, 500);
-            };
-          } else {
-            Swal.fire('Pop-up Bloqueado', 'Permita pop-ups para imprimir.', 'warning');
-          }
-        }
-      });
-    } else {
-      const printWindow = window.open("", "_blank");
-      if (printWindow) {
-        printWindow.document.write(htmlContent);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => {
-          printWindow.print();
-        }, 250);
-      } else {
-        Swal.fire('Pop-up Bloqueado', 'Permita pop-ups para visualizar.', 'warning');
-      }
-    }
-  };
+  // ...existing code...
 
   // Função para imprimir relatório consolidado de todas as lojas
   const imprimirRelatorioConsolidado = () => {
@@ -1666,7 +1444,7 @@ export function Dashboard() {
       totalPre: mov.totalPre || 0,
       sairam: mov.produtosVendidos || mov.sairam || 0,
       abastecidas: mov.abastecidas || 0,
-      fichas: mov.fichas || 0,
+      // Removido: fichas
     });
   };
 
@@ -1677,7 +1455,7 @@ export function Dashboard() {
         totalPre: parseInt(movimentacaoEditando.totalPre),
         sairam: parseInt(movimentacaoEditando.sairam), // mantém para compatibilidade, mas backend já calcula corretamente
         abastecidas: parseInt(movimentacaoEditando.abastecidas),
-        fichas: parseInt(movimentacaoEditando.fichas),
+        // Removido: fichas
       });
       
       Swal.fire({
@@ -1755,7 +1533,7 @@ export function Dashboard() {
   }
 
   console.log("Estado stats no render:", stats);
-  console.log("Moedas no render:", stats.balanco?.totais?.totalFichas);
+  // Removido: moedas no render
 
   return (
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
@@ -1828,34 +1606,7 @@ export function Dashboard() {
               </div>
             </div>
 
-            <div className="stat-card bg-linear-to-br from-blue-500 to-blue-600 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30">
-              <div className="relative z-10">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-medium opacity-90">
-                    Moedas Inseridas
-                  </h3>
-                  <svg
-                    className="w-8 h-8 opacity-80"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                    />
-                  </svg>
-                </div>
-                <p className="text-3xl font-bold">
-                  {stats.balanco?.totais?.totalFichas || 0}
-                </p>
-                <p className="text-xs opacity-75 mt-1">
-                  🎫 Moedas que entraram
-                </p>
-              </div>
-            </div>
+            {/* Removido: Card de Moedas Inseridas */}
 
             <div className="stat-card bg-linear-to-br from-green-500 to-green-600 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30">
               <div className="relative z-10">
@@ -2172,28 +1923,7 @@ export function Dashboard() {
                       </p>
                     </div>
                   )}
-                  {maquinaSelecionada.valorFicha && (
-                    <div>
-                      <p className="text-sm text-gray-600">Valor da Moeda</p>
-                      <p className="text-lg font-semibold">
-                        R${" "}
-                        {parseFloat(maquinaSelecionada.valorFicha).toFixed(2)}
-                      </p>
-                    </div>
-                  )}
-                  {maquinaSelecionada.fichasNecessarias && (
-                    <div>
-                      <p className="text-sm text-gray-600">
-                        🎫 Moedas para Jogar
-                      </p>
-                      <p className="text-lg font-semibold">
-                        {maquinaSelecionada.fichasNecessarias}{" "}
-                        {maquinaSelecionada.fichasNecessarias === 1
-                          ? "Moeda"
-                          : "Moedas"}
-                      </p>
-                    </div>
-                  )}
+                  {/* Removido: valorFicha, fichasNecessarias, moedas para jogar */}
                   {maquinaSelecionada.forcaForte !== null &&
                     maquinaSelecionada.forcaForte !== undefined && (
                       <div>
@@ -2387,14 +2117,7 @@ export function Dashboard() {
                                   {(mov.totalPre || 0) + (mov.abastecidas || 0)}
                                 </p>
                               </div>
-                              <div>
-                                <p className="text-gray-600 flex items-center gap-1">
-                                  <span>🎫</span> Moedas
-                                </p>
-                                <p className="font-semibold text-blue-600">
-                                  {mov.fichas || 0}
-                                </p>
-                              </div>
+                              {/* Removido: coluna de moedas/fichas */}
                             </div>
 
                             {/* Contadores da Máquina */}
@@ -2822,23 +2545,7 @@ export function Dashboard() {
                         Loja
                       </div>
                     </th>
-                    <th>
-                      <div className="flex items-center gap-2">
-                        <svg
-                          className="w-4 h-4 text-blue-600"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-                          <path
-                            fillRule="evenodd"
-                            d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                        Moedas
-                      </div>
-                    </th>
+                    {/* Removido: coluna Moedas do resumo por loja */}
                     <th>
                       <div className="flex items-center gap-2">
                         <svg
@@ -2903,11 +2610,7 @@ export function Dashboard() {
                           {loja.nome}
                         </div>
                       </td>
-                      <td>
-                        <span className="badge bg-blue-50 text-blue-700 border-blue-200">
-                          {loja.fichas}
-                        </span>
-                      </td>
+                      {/* Removido: valor de fichas/moedas por loja */}
                       <td>
                         <span className="badge bg-green-50 text-green-700 border-green-200">
                           {loja.produtosVendidos ?? loja.sairam ?? 0}
@@ -2918,11 +2621,7 @@ export function Dashboard() {
                           R$ {loja.faturamento.toFixed(2)}
                         </span>
                       </td>
-                      <td>
-                        <span className="badge bg-purple-50 text-purple-700 border-purple-200">
-                          {loja.mediaFichasPremio}
-                        </span>
-                      </td>
+                      {/* Removido: média fichas/prêmio */}
                       <td>
                         <span className="badge bg-pink-50 text-pink-700 border-pink-200">
                           {loja.produtosVendidos ?? loja.sairam ?? 0} unidades
@@ -3340,23 +3039,7 @@ export function Dashboard() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  🎫 Moedas
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={movimentacaoEditando.fichas}
-                  onChange={(e) =>
-                    setMovimentacaoEditando({
-                      ...movimentacaoEditando,
-                      fichas: e.target.value,
-                    })
-                  }
-                  className="w-full input-field text-lg"
-                />
-              </div>
+              {/* Removido: campo de edição de moedas/fichas */}
             </div>
 
             {/* Total Atual Calculado */}

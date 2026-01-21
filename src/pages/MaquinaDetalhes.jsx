@@ -335,7 +335,7 @@ export function MaquinaDetalhes() {
   const totalVendido = parseFloat(maquina.totalVendido) || 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100">
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <PageHeader
@@ -386,14 +386,7 @@ export function MaquinaDetalhes() {
                 {maquina.ativo ? "Ativa" : "Inativa"}
               </Badge>
             </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-600 mb-1">Valor da Moeda</label>
-              <p className="text-lg text-gray-900">R$ {parseFloat(maquina.valorFicha || 0).toFixed(2)}</p>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-600 mb-1">Moedas Necessárias</label>
-              <p className="text-lg text-gray-900">{maquina.fichasNecessarias || 'N/A'}</p>
-            </div>
+
             <div>
               <label className="block text-sm font-semibold text-gray-600 mb-1">Estoque Atual</label>
               <p className="text-lg text-gray-900">{maquina.estoqueAtual || 0} unidades</p>
@@ -406,35 +399,35 @@ export function MaquinaDetalhes() {
           <h2 className="text-2xl font-bold text-gray-900 mb-6">💰 Dados de Vendas e Comissão</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="card bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-500">
+            <div className="card bg-linear-to-br from-green-50 to-green-100 border-2 border-green-500">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-semibold text-green-700">💵 Venda em Dinheiro</h3>
               </div>
               <p className="text-3xl font-bold text-green-900">R$ {vendaDinheiro.toFixed(2)}</p>
             </div>
 
-            <div className="card bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-500">
+            <div className="card bg-linear-to-br from-blue-50 to-blue-100 border-2 border-blue-500">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-semibold text-blue-700">💳 Venda em Cartão</h3>
               </div>
               <p className="text-3xl font-bold text-blue-900">R$ {vendaCartao.toFixed(2)}</p>
             </div>
 
-            <div className="card bg-gradient-to-br from-yellow-50 to-yellow-100 border-2 border-yellow-500">
+            <div className="card bg-linear-to-br from-yellow-50 to-yellow-100 border-2 border-yellow-500">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-semibold text-yellow-700">📊 Comissão</h3>
               </div>
               <p className="text-3xl font-bold text-yellow-900">R$ {comissao.toFixed(2)}</p>
             </div>
 
-            <div className="card bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-500">
+            <div className="card bg-linear-to-br from-purple-50 to-purple-100 border-2 border-purple-500">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-semibold text-purple-700">💰 Valor Líquido</h3>
               </div>
               <p className="text-3xl font-bold text-purple-900">R$ {liquido.toFixed(2)}</p>
             </div>
 
-            <div className="card bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-500 md:col-span-2">
+            <div className="card bg-linear-to-br from-red-50 to-red-100 border-2 border-red-500 md:col-span-2">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-semibold text-red-700">🎯 Total Vendido</h3>
               </div>

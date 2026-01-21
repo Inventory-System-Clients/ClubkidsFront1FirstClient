@@ -15,7 +15,6 @@ export function Financeiro() {
   const [success, setSuccess] = useState("");
   const [editando, setEditando] = useState(null);
   const [valores, setValores] = useState({
-    valorEntradaMoedas: "",
     valorEntradaNotas: "",
     valorEntradaCartao: "",
   });
@@ -43,7 +42,6 @@ export function Financeiro() {
   const iniciarEdicao = (movimentacao) => {
     setEditando(movimentacao.id);
     setValores({
-      valorEntradaMoedas: movimentacao.valorEntradaMoedas || "",
       valorEntradaNotas: movimentacao.valorEntradaNotas || "",
       valorEntradaCartao: movimentacao.valorEntradaCartao || "",
     });
@@ -52,7 +50,6 @@ export function Financeiro() {
   const cancelarEdicao = () => {
     setEditando(null);
     setValores({
-      valorEntradaMoedas: "",
       valorEntradaNotas: "",
       valorEntradaCartao: "",
     });
@@ -65,7 +62,7 @@ export function Financeiro() {
       setSuccess("Valores financeiros salvos com sucesso!");
       setEditando(null);
       setValores({
-        valorEntradaMoedas: "",
+        // Removido valorEntradaMoedas
         valorEntradaNotas: "",
         valorEntradaCartao: "",
       });
@@ -78,7 +75,7 @@ export function Financeiro() {
   if (loading) return <PageLoader />;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100">
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <PageHeader
@@ -152,7 +149,6 @@ export function Financeiro() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loja</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Máquina</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nº Bag</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Moedas</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Funcionário</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valores (R$)</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
@@ -165,12 +161,10 @@ export function Financeiro() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{mov.maquina?.loja?.nome || "N/A"}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{mov.maquina?.codigo} - {mov.maquina?.nome}</td>
                         <td className="px-6 py-4 whitespace-nowrap"><span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">{mov.numeroBag}</span></td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{mov.moedas || 0}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{mov.usuario?.nome || "N/A"}</td>
                         <td className="px-6 py-4 text-sm text-gray-900">
                           {editando === mov.id ? (
                             <div className="space-y-2">
-                              <input type="number" step="0.01" placeholder="Moedas" value={valores.valorEntradaMoedas} onChange={(e) => setValores({ ...valores, valorEntradaMoedas: e.target.value })} className="w-full px-2 py-1 border rounded text-sm" />
                               <input type="number" step="0.01" placeholder="Notas" value={valores.valorEntradaNotas} onChange={(e) => setValores({ ...valores, valorEntradaNotas: e.target.value })} className="w-full px-2 py-1 border rounded text-sm" />
                               <input type="number" step="0.01" placeholder="Digital" value={valores.valorEntradaCartao} onChange={(e) => setValores({ ...valores, valorEntradaCartao: e.target.value })} className="w-full px-2 py-1 border rounded text-sm" />
                             </div>

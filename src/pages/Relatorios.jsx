@@ -217,13 +217,6 @@ export function Relatorios() {
                 Resumo Geral da Loja
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <div className="card bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-                  <div className="text-2xl sm:text-3xl mb-2">🎫</div>
-                  <div className="text-xl sm:text-2xl font-bold">
-                    {typeof totais.moedas === "number" ? totais.moedas.toLocaleString("pt-BR") : "0"}
-                  </div>
-                  <div className="text-sm opacity-90">Total de Moedas</div>
-                </div>
 
                 <div className="card bg-gradient-to-br from-red-500 to-red-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">📤</div>
@@ -262,13 +255,6 @@ export function Relatorios() {
                 Valores de Entrada (Lucro)
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <div className="card bg-gradient-to-br from-yellow-400 to-yellow-500 text-white">
-                  <div className="text-2xl sm:text-3xl mb-2">🪙</div>
-                  <div className="text-xl sm:text-2xl font-bold">
-                    R$ {typeof totais.valoresEntrada?.moedas === "number" ? totais.valoresEntrada.moedas.toFixed(2) : "0.00"}
-                  </div>
-                  <div className="text-sm opacity-90">Entrada em Moedas</div>
-                </div>
 
                 <div className="card bg-gradient-to-br from-green-400 to-green-500 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">💵</div>
@@ -353,17 +339,6 @@ export function Relatorios() {
                         </span>
                       </h4>
                       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-                        <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-3 sm:p-5 rounded-xl shadow-lg">
-                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
-                            🎫
-                          </div>
-                          <div className="text-xl sm:text-3xl font-bold text-center">
-                            {typeof maquina.totais?.moedas === "number" ? maquina.totais.moedas.toLocaleString("pt-BR") : "0"}
-                          </div>
-                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
-                            Total de Moedas
-                          </div>
-                        </div>
                         <div className="bg-gradient-to-br from-red-500 to-red-600 text-white p-3 sm:p-5 rounded-xl shadow-lg">
                           <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
                             📤
@@ -407,17 +382,6 @@ export function Relatorios() {
                         </span>
                       </h4>
                       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-                        <div className="bg-gradient-to-br from-yellow-400 to-yellow-500 text-white p-3 sm:p-5 rounded-xl shadow-lg">
-                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
-                            🪙
-                          </div>
-                          <div className="text-xl sm:text-3xl font-bold text-center">
-                            R$ {(maquina.valoresEntrada?.moedas || 0).toFixed(2)}
-                          </div>
-                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
-                            Entrada em Moedas
-                          </div>
-                        </div>
                         <div className="bg-gradient-to-br from-green-400 to-green-500 text-white p-3 sm:p-5 rounded-xl shadow-lg">
                           <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
                             💵
@@ -447,10 +411,9 @@ export function Relatorios() {
                           <div className="text-xl sm:text-3xl font-bold text-center">
                             R${" "}
                             {(() => {
-                              const moedas = maquina.valoresEntrada?.moedas || 0;
                               const notas = maquina.valoresEntrada?.notas || 0;
                               const cartao = maquina.valoresEntrada?.cartao || 0;
-                              return (moedas + notas + cartao).toFixed(2);
+                              return (notas + cartao).toFixed(2);
                             })()}
                           </div>
                           <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">

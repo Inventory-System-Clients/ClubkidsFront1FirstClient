@@ -99,25 +99,8 @@ export function Graficos() {
         (sum, mov) => sum + (mov.abastecidas || 0),
         0
       );
-      const totalFichas = movsMaquina.reduce(
-        (sum, mov) => sum + (mov.fichas || 0),
-        0
-      );
-      
-      // Calcular valores de entrada separados
-      const valorEntradaFichas = movsMaquina.reduce(
-        (sum, mov) => sum + parseFloat(mov.valorEntradaFichas || 0),
-        0
-      );
-      const valorEntradaNotas = movsMaquina.reduce(
-        (sum, mov) => sum + parseFloat(mov.valorEntradaNotas || 0),
-        0
-      );
-      const valorEntradaCartao = movsMaquina.reduce(
-        (sum, mov) => sum + parseFloat(mov.valorEntradaCartao || 0),
-        0
-      );
-      const faturamento = valorEntradaFichas + valorEntradaNotas + valorEntradaCartao;
+      // Removido totalFichas, valorEntradaFichas, valorEntradaNotas, valorEntradaCartao, faturamento relacionados a moedas
+      const faturamento = 0;
 
       // Calcular estoque atual baseado nas movimentações
       const ultimaMov =
@@ -158,11 +141,7 @@ export function Graficos() {
         codigo: maquina.codigo,
         totalSaidas,
         totalEntradas,
-        totalFichas,
         faturamento,
-        valorEntradaFichas,
-        valorEntradaNotas,
-        valorEntradaCartao,
         estoqueAtual,
         capacidade: maquina.capacidadePadrao || 0,
         numeroMovimentacoes: movsMaquina.length,
@@ -207,27 +186,8 @@ export function Graficos() {
     // Dados totais
     const totais = {
       totalSaidas: dadosPorMaquina.reduce((sum, m) => sum + m.totalSaidas, 0),
-      totalEntradas: dadosPorMaquina.reduce(
-        (sum, m) => sum + m.totalEntradas,
-        0
-      ),
-      totalFichas: dadosPorMaquina.reduce((sum, m) => sum + m.totalFichas, 0),
-      faturamentoTotal: dadosPorMaquina.reduce(
-        (sum, m) => sum + m.faturamento,
-        0
-      ),
-      valorTotalFichas: dadosPorMaquina.reduce(
-        (sum, m) => sum + m.valorEntradaFichas,
-        0
-      ),
-      valorTotalNotas: dadosPorMaquina.reduce(
-        (sum, m) => sum + m.valorEntradaNotas,
-        0
-      ),
-      valorTotalCartao: dadosPorMaquina.reduce(
-        (sum, m) => sum + m.valorEntradaCartao,
-        0
-      ),
+      totalEntradas: dadosPorMaquina.reduce((sum, m) => sum + m.totalEntradas, 0),
+      faturamentoTotal: 0,
       numeroMaquinas: maquinasLista.length,
       numeroMovimentacoes: movimentacoesLista.length,
     };
@@ -240,12 +200,10 @@ export function Graficos() {
         movimentacoesPorDia[dia] = {
           saidas: 0,
           entradas: 0,
-          fichas: 0,
         };
       }
       movimentacoesPorDia[dia].saidas += mov.sairam || 0;
       movimentacoesPorDia[dia].entradas += mov.abastecidas || 0;
-      movimentacoesPorDia[dia].fichas += mov.fichas || 0;
     });
 
     setDadosProcessados({
@@ -330,7 +288,7 @@ export function Graficos() {
           <div className="space-y-6">
             {/* Cards de Resumo */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="card bg-gradient-to-br from-red-500 to-red-600 text-white">
+              <div className="card bg-linear-to-br from-red-500 to-red-600 text-white">
                 <div className="text-3xl mb-2">📤</div>
                 <div className="text-2xl font-bold">
                   {/* Preferir o valor do backend se disponível */}
@@ -339,15 +297,9 @@ export function Graficos() {
                 <div className="text-sm opacity-90">Produtos Vendidos</div>
               </div>
 
-              <div className="card bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-                <div className="text-3xl mb-2">🎫</div>
-                <div className="text-2xl font-bold">
-                  {dadosProcessados.totais.totalFichas}
-                </div>
-                <div className="text-sm opacity-90">Total de Moedas</div>
-              </div>
 
-              <div className="card bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+
+              <div className="card bg-linear-to-br from-purple-500 to-purple-600 text-white">
                 <div className="text-3xl mb-2">🔄</div>
                 <div className="text-2xl font-bold">
                   {dadosProcessados.totais.numeroMovimentacoes}
@@ -355,7 +307,7 @@ export function Graficos() {
                 <div className="text-sm opacity-90">Movimentações</div>
               </div>
 
-              <div className="card bg-gradient-to-br from-orange-500 to-red-600 text-white">
+              <div className="card bg-linear-to-br from-orange-500 to-red-600 text-white">
                 <div className="text-3xl mb-2">💰</div>
                 <div className="text-2xl font-bold">
                   R$ {dadosProcessados.totais.faturamentoTotal.toFixed(2)}
@@ -364,47 +316,7 @@ export function Graficos() {
               </div>
             </div>
 
-            {/* Cards de Valores de Entrada */}
-            <div className="card bg-gradient-to-r from-purple-50 to-blue-100 border-2 border-purple-300">
-              <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <span className="text-2xl">💸</span>
-                Detalhamento do Lucro por Tipo de Pagamento
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="card bg-gradient-to-br from-yellow-400 to-yellow-500 text-white">
-                  <div className="text-3xl mb-2">🪙</div>
-                  <div className="text-2xl font-bold">
-                    R$ {dadosProcessados.totais.valorTotalFichas.toFixed(2)}
-                  </div>
-                  <div className="text-sm opacity-90">Entrada em Moedas</div>
-                  <div className="text-xs opacity-75 mt-1">
-                    {((dadosProcessados.totais.valorTotalFichas / dadosProcessados.totais.faturamentoTotal) * 100).toFixed(1)}% do total
-                  </div>
-                </div>
 
-                <div className="card bg-gradient-to-br from-green-400 to-green-500 text-white">
-                  <div className="text-3xl mb-2">💵</div>
-                  <div className="text-2xl font-bold">
-                    R$ {dadosProcessados.totais.valorTotalNotas.toFixed(2)}
-                  </div>
-                  <div className="text-sm opacity-90">Entrada em Notas</div>
-                  <div className="text-xs opacity-75 mt-1">
-                    {((dadosProcessados.totais.valorTotalNotas / dadosProcessados.totais.faturamentoTotal) * 100).toFixed(1)}% do total
-                  </div>
-                </div>
-
-                <div className="card bg-gradient-to-br from-blue-400 to-blue-500 text-white">
-                  <div className="text-3xl mb-2">💳</div>
-                  <div className="text-2xl font-bold">
-                    R$ {dadosProcessados.totais.valorTotalCartao.toFixed(2)}
-                  </div>
-                  <div className="text-sm opacity-90">Entrada Digital/Cartão</div>
-                  <div className="text-xs opacity-75 mt-1">
-                    {((dadosProcessados.totais.valorTotalCartao / dadosProcessados.totais.faturamentoTotal) * 100).toFixed(1)}% do total
-                  </div>
-                </div>
-              </div>
-            </div>
 
             {/* Gráfico de Barras - Saídas por Máquina */}
             <div className="card">
@@ -740,13 +652,7 @@ export function Graficos() {
                     strokeWidth={2}
                     name="Entradas"
                   />
-                  <Line
-                    type="monotone"
-                    dataKey="fichas"
-                    stroke="#3b82f6"
-                    strokeWidth={2}
-                    name="Moedas"
-                  />
+
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -769,9 +675,6 @@ export function Graficos() {
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Abastecidos
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        Moedas
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Faturamento
@@ -810,9 +713,7 @@ export function Graficos() {
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-green-600 font-semibold">
                             {maquina.totalEntradas}
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-blue-600 font-semibold">
-                            {maquina.totalFichas}
-                          </td>
+
                           <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
                             R$ {maquina.faturamento.toFixed(2)}
                           </td>

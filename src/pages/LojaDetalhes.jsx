@@ -234,7 +234,7 @@ export function LojaDetalhes() {
 
           {/* Estatísticas */}
           <div className="space-y-4">
-            <div className="stat-card bg-gradient-to-br from-primary/10 to-primary/5">
+            <div className="stat-card bg-linear-to-br from-primary/10 to-primary/5">
               <div className="text-3xl mb-2">🎰</div>
               <div className="text-2xl font-bold text-gray-900">
                 {maquinas.length}
@@ -242,7 +242,7 @@ export function LojaDetalhes() {
               <div className="text-sm text-gray-600">Total de Máquinas</div>
             </div>
 
-            <div className="stat-card bg-gradient-to-br from-green-500/10 to-green-500/5">
+            <div className="stat-card bg-linear-to-br from-green-500/10 to-green-500/5">
               <div className="text-3xl mb-2">✅</div>
               <div className="text-2xl font-bold text-gray-900">
                 {maquinasAtivas}
@@ -250,7 +250,7 @@ export function LojaDetalhes() {
               <div className="text-sm text-gray-600">Máquinas Ativas</div>
             </div>
 
-            <div className="stat-card bg-gradient-to-br from-secondary/10 to-secondary/5">
+            <div className="stat-card bg-linear-to-br from-secondary/10 to-secondary/5">
               <div className="text-3xl mb-2">📊</div>
               <div className="text-2xl font-bold text-gray-900">
                 {ocupacaoMedia}%
@@ -517,16 +517,7 @@ export function LojaDetalhes() {
                                       : mov.sairam || 0)}
                                   </p>
                                 </div>
-                                <div>
-                                  <p className="text-gray-600 flex items-center gap-1">
-                                    <span>🎫</span> Moedas
-                                  </p>
-                                  <p className="font-semibold text-blue-600">
-                                    {typeof mov.valorEntradaFichas !== 'undefined' && mov.valorEntradaFichas !== null
-                                      ? mov.valorEntradaFichas
-                                      : (mov.fichas || 0)}
-                                  </p>
-                                </div>
+
                               </div>
                               {mov.observacoes && (
                                 <p className="text-sm text-gray-600 mt-3 italic">💬 {mov.observacoes}</p>

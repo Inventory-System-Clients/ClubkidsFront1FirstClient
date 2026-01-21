@@ -17,8 +17,6 @@ export function MaquinaForm() {
     loja_id: "",
     tipo: "",
     capacidadePadrao: "",
-    valorMoeda: "",
-    moedasNecessarias: "",
     forcaForte: "",
     forcaFraca: "",
     forcaPremium: "",
@@ -67,8 +65,7 @@ export function MaquinaForm() {
         loja_id: response.data.lojaId ? String(response.data.lojaId) : "",
         tipo: response.data.tipo || "",
         capacidadePadrao: response.data.capacidadePadrao || "",
-        valorMoeda: response.data.valorMoeda || "",
-        moedasNecessarias: response.data.moedasNecessarias || "",
+        // Removido valorMoeda e moedasNecessarias
         forcaForte: response.data.forcaForte || "",
         forcaFraca: response.data.forcaFraca || "",
         forcaPremium: response.data.forcaPremium || "",
@@ -131,8 +128,7 @@ export function MaquinaForm() {
         lojaId: formData.loja_id,
         tipo: formData.tipo?.trim() || null,
         capacidadePadrao: parseInt(formData.capacidadePadrao, 10) || 0,
-        valorMoeda: parseFloat(formData.valorMoeda) || 0,
-        moedasNecessarias: parseInt(formData.moedasNecessarias, 10) || null,
+        // Removido valorMoeda e moedasNecessarias
         forcaForte: parseInt(formData.forcaForte, 10) || null,
         forcaFraca: parseInt(formData.forcaFraca, 10) || null,
         forcaPremium: parseInt(formData.forcaPremium, 10) || null,
@@ -321,42 +317,7 @@ export function MaquinaForm() {
                   </p>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Valor da Moeda (R$)
-                  </label>
-                  <input
-                    type="number"
-                    name="valorMoeda"
-                    value={formData.valorMoeda}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="Ex: 2.00"
-                    min="0"
-                    step="0.01"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Valor cobrado por moeda
-                  </p>
-                </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    🪙 Moedas para Jogar
-                  </label>
-                  <input
-                    type="number"
-                    name="moedasNecessarias"
-                    value={formData.moedasNecessarias}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="Ex: 1"
-                    min="1"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Quantas moedas são necessárias para liberar uma jogada
-                  </p>
-                </div>
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
