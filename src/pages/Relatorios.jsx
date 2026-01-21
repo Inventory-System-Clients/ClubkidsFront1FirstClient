@@ -111,6 +111,12 @@ export function Relatorios() {
 
   if (loadingLojas) return <PageLoader />;
 
+  // Proteções extras para evitar erros de undefined/null
+  const totais = relatorio && typeof relatorio.totais === 'object' ? relatorio.totais : {};
+  const maquinas = relatorio && Array.isArray(relatorio.maquinas) ? relatorio.maquinas : [];
+  const produtosSairam = relatorio && Array.isArray(relatorio.produtosSairam) ? relatorio.produtosSairam : [];
+  const produtosEntraram = relatorio && Array.isArray(relatorio.produtosEntraram) ? relatorio.produtosEntraram : [];
+
   return (
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
       <Navbar />
@@ -214,7 +220,7 @@ export function Relatorios() {
                 <div className="card bg-gradient-to-br from-blue-500 to-blue-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">🎫</div>
                   <div className="text-xl sm:text-2xl font-bold">
-                    {typeof relatorio.totais?.moedas === "number" ? relatorio.totais.moedas.toLocaleString("pt-BR") : "0"}
+                    {typeof totais.moedas === "number" ? totais.moedas.toLocaleString("pt-BR") : "0"}
                   </div>
                   <div className="text-sm opacity-90">Total de Moedas</div>
                 </div>
@@ -222,7 +228,7 @@ export function Relatorios() {
                 <div className="card bg-gradient-to-br from-red-500 to-red-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">📤</div>
                   <div className="text-xl sm:text-2xl font-bold">
-                    {typeof relatorio.totais?.produtosSairam === "number" ? relatorio.totais.produtosSairam.toLocaleString("pt-BR") : "0"}
+                    {typeof totais.produtosSairam === "number" ? totais.produtosSairam.toLocaleString("pt-BR") : "0"}
                   </div>
                   <div className="text-xs sm:text-sm opacity-90">
                     Produtos Saíram
@@ -232,7 +238,7 @@ export function Relatorios() {
                 <div className="card bg-gradient-to-br from-green-500 to-green-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">📥</div>
                   <div className="text-xl sm:text-2xl font-bold">
-                    {typeof relatorio.totais?.produtosEntraram === "number" ? relatorio.totais.produtosEntraram.toLocaleString("pt-BR") : "0"}
+                    {typeof totais.produtosEntraram === "number" ? totais.produtosEntraram.toLocaleString("pt-BR") : "0"}
                   </div>
                   <div className="text-xs sm:text-sm opacity-90">
                     Produtos Entraram
@@ -242,7 +248,7 @@ export function Relatorios() {
                 <div className="card bg-gradient-to-br from-purple-500 to-purple-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">🔄</div>
                   <div className="text-xl sm:text-2xl font-bold">
-                    {typeof relatorio.totais?.movimentacoes === "number" ? relatorio.totais.movimentacoes.toLocaleString("pt-BR") : "0"}
+                    {typeof totais.movimentacoes === "number" ? totais.movimentacoes.toLocaleString("pt-BR") : "0"}
                   </div>
                   <div className="text-xs sm:text-sm opacity-90">
                     Total de Movimentações
@@ -259,7 +265,7 @@ export function Relatorios() {
                 <div className="card bg-gradient-to-br from-yellow-400 to-yellow-500 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">🪙</div>
                   <div className="text-xl sm:text-2xl font-bold">
-                    R$ {(relatorio.totais?.valoresEntrada?.moedas || 0).toFixed(2)}
+                    R$ {typeof totais.valoresEntrada?.moedas === "number" ? totais.valoresEntrada.moedas.toFixed(2) : "0.00"}
                   </div>
                   <div className="text-sm opacity-90">Entrada em Moedas</div>
                 </div>
@@ -267,7 +273,7 @@ export function Relatorios() {
                 <div className="card bg-gradient-to-br from-green-400 to-green-500 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">💵</div>
                   <div className="text-xl sm:text-2xl font-bold">
-                    R$ {(relatorio.totais?.valoresEntrada?.notas || 0).toFixed(2)}
+                    R$ {typeof totais.valoresEntrada?.notas === "number" ? totais.valoresEntrada.notas.toFixed(2) : "0.00"}
                   </div>
                   <div className="text-sm opacity-90">Entrada em Notas</div>
                 </div>
@@ -275,7 +281,7 @@ export function Relatorios() {
                 <div className="card bg-gradient-to-br from-blue-400 to-blue-500 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">💳</div>
                   <div className="text-xl sm:text-2xl font-bold">
-                    R$ {(relatorio.totais?.valoresEntrada?.cartao || 0).toFixed(2)}
+                    R$ {typeof totais.valoresEntrada?.cartao === "number" ? totais.valoresEntrada.cartao.toFixed(2) : "0.00"}
                   </div>
                   <div className="text-sm opacity-90">Entrada Digital/Cartão</div>
                 </div>
@@ -283,7 +289,7 @@ export function Relatorios() {
                 <div className="card bg-gradient-to-br from-orange-500 to-red-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">💰</div>
                   <div className="text-xl sm:text-2xl font-bold">
-                    R$ {(relatorio.totais?.valoresEntrada?.total || 0).toFixed(2)}
+                    R$ {typeof totais.valoresEntrada?.total === "number" ? totais.valoresEntrada.total.toFixed(2) : "0.00"}
                   </div>
                   <div className="text-sm opacity-90">Lucro Total da Loja</div>
                 </div>
@@ -291,7 +297,7 @@ export function Relatorios() {
             </div>
 
             {/* DETALHAMENTO POR MÁQUINA - PRINCIPAL */}
-            {relatorio.maquinas && relatorio.maquinas.length > 0 && (
+            {maquinas.length > 0 && (
               <div className="space-y-6">
                 <div className="card bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
                   <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold flex items-center gap-2 sm:gap-3">
@@ -306,7 +312,7 @@ export function Relatorios() {
                   </p>
                 </div>
 
-                {relatorio.maquinas.map((maquina, index) => (
+                {maquinas.map((maquina, index) => (
                   <div
                     key={maquina.maquina.id}
                     className="card border-4 border-indigo-300 shadow-2xl page-break-before"
@@ -352,7 +358,7 @@ export function Relatorios() {
                             🎫
                           </div>
                           <div className="text-xl sm:text-3xl font-bold text-center">
-                            {typeof maquina.totais.moedas === "number" ? maquina.totais.moedas.toLocaleString("pt-BR") : "0"}
+                            {typeof maquina.totais?.moedas === "number" ? maquina.totais.moedas.toLocaleString("pt-BR") : "0"}
                           </div>
                           <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
                             Total de Moedas
@@ -363,7 +369,7 @@ export function Relatorios() {
                             📤
                           </div>
                           <div className="text-xl sm:text-3xl font-bold text-center">
-                            {typeof maquina.totais.produtosSairam === "number" ? maquina.totais.produtosSairam.toLocaleString("pt-BR") : "0"}
+                            {typeof maquina.totais?.produtosSairam === "number" ? maquina.totais.produtosSairam.toLocaleString("pt-BR") : "0"}
                           </div>
                           <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
                             Produtos Saíram
@@ -374,7 +380,7 @@ export function Relatorios() {
                             📥
                           </div>
                           <div className="text-xl sm:text-3xl font-bold text-center">
-                            {typeof maquina.totais.produtosEntraram === "number" ? maquina.totais.produtosEntraram.toLocaleString("pt-BR") : "0"}
+                            {typeof maquina.totais?.produtosEntraram === "number" ? maquina.totais.produtosEntraram.toLocaleString("pt-BR") : "0"}
                           </div>
                           <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
                             Produtos Entraram
@@ -470,7 +476,7 @@ export function Relatorios() {
                         {maquina.produtosSairam &&
                         maquina.produtosSairam.length > 0 ? (
                           <div className="space-y-2 sm:space-y-3">
-                            {maquina.produtosSairam
+                            {(Array.isArray(maquina.produtosSairam) ? maquina.produtosSairam : [])
                               .sort((a, b) => b.quantidade - a.quantidade)
                               .map((produto) => (
                                 <div
@@ -525,7 +531,7 @@ export function Relatorios() {
                         {maquina.produtosEntraram &&
                         maquina.produtosEntraram.length > 0 ? (
                           <div className="space-y-2 sm:space-y-3">
-                            {maquina.produtosEntraram
+                            {(Array.isArray(maquina.produtosEntraram) ? maquina.produtosEntraram : [])
                               .sort((a, b) => b.quantidade - a.quantidade)
                               .map((produto) => (
                                 <div
@@ -597,10 +603,9 @@ export function Relatorios() {
                     <span className="text-2xl">📤</span>
                     Produtos que Saíram (Total Geral)
                   </h4>
-                  {relatorio.produtosSairam &&
-                  relatorio.produtosSairam.length > 0 ? (
+                  {produtosSairam.length > 0 ? (
                     <div className="space-y-2">
-                      {relatorio.produtosSairam
+                      {produtosSairam
                         .sort((a, b) => b.quantidade - a.quantidade)
                         .map((produto) => (
                           <div
@@ -642,10 +647,9 @@ export function Relatorios() {
                     <span className="text-2xl">📥</span>
                     Produtos que Entraram (Total Geral)
                   </h4>
-                  {relatorio.produtosEntraram &&
-                  relatorio.produtosEntraram.length > 0 ? (
+                  {produtosEntraram.length > 0 ? (
                     <div className="space-y-2">
-                      {relatorio.produtosEntraram
+                      {produtosEntraram
                         .sort((a, b) => b.quantidade - a.quantidade)
                         .map((produto) => (
                           <div
