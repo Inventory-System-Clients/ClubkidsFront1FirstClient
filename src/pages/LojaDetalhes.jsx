@@ -495,7 +495,9 @@ export function LojaDetalhes() {
                               <div>
                                 <p className="text-gray-600">Saíram</p>
                                 <p className="font-semibold text-red-600">
-                                  {mov.sairam || 0}
+                                  {Array.isArray(mov.detalhesProdutos)
+                                    ? mov.detalhesProdutos.reduce((sum, dp) => sum + (dp.quantidadeSaiu || 0), 0)
+                                    : mov.sairam || 0}
                                 </p>
                               </div>
                               <div>
@@ -519,7 +521,9 @@ export function LojaDetalhes() {
                                   <span>🎫</span> Moedas
                                 </p>
                                 <p className="font-semibold text-blue-600">
-                                  {mov.fichas || 0}
+                                  {typeof mov.valorEntradaFichas !== 'undefined' && mov.valorEntradaFichas !== null
+                                    ? mov.valorEntradaFichas
+                                    : (mov.fichas || 0)}
                                 </p>
                               </div>
                             </div>
