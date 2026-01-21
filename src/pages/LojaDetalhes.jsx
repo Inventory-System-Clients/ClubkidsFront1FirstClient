@@ -455,87 +455,86 @@ export function LojaDetalhes() {
                     </div>
                   ) : movimentacoes.length > 0 ? (
                     <div className="space-y-3 max-h-96 overflow-y-auto">
-                      {movimentacoes
-                        .filter((mov) => {
-                          const movData = new Date(mov.createdAt);
-                          const inicio = dataInicio
-                            ? new Date(dataInicio)
-                            : null;
-                          const fim = dataFim
-                            ? new Date(dataFim + "T23:59:59")
-                            : null;
+                      {(() => {
+                        // Filtrar e ordenar movimentações por data
+                        const movs = movimentacoes
+                          .filter((mov) => {
+                            const movData = new Date(mov.createdAt);
+                            const inicio = dataInicio ? new Date(dataInicio) : null;
+                            const fim = dataFim ? new Date(dataFim + "T23:59:59") : null;
+                            if (inicio && movData < inicio) return false;
+                            if (fim && movData > fim) return false;
+                            return true;
+                          })
+                          .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)); // crescente
 
-                          if (inicio && movData < inicio) return false;
-                          if (fim && movData > fim) return false;
-                          return true;
-                        })
-                        .map((mov) => (
-                          <div
-                            key={mov.id}
-                            className="p-4 border border-gray-200 rounded-lg bg-white hover:bg-gray-50"
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-sm text-gray-600">
-                                {new Date(mov.createdAt).toLocaleDateString(
-                                  "pt-BR"
-                                )}{" "}
-                                às{" "}
-                                {new Date(mov.createdAt).toLocaleTimeString(
-                                  "pt-BR"
-                                )}
-                              </span>
-                            </div>
-                            <div className="grid grid-cols-5 gap-4 mt-3 text-sm">
-                              <div>
-                                <p className="text-gray-600">Total Pré</p>
-                                <p className="font-semibold">
-                                  {mov.totalPre || 0}
-                                </p>
+                        return movs.map((mov, idx) => {
+                          // Calcular totalAtual da movimentação anterior
+                          let saidaCalculada = 0;
+                          if (idx > 0) {
+                            const prev = movs[idx - 1];
+                            const prevTotalAtual = (prev.totalPre || 0) + (prev.abastecidas || 0) - (Array.isArray(prev.detalhesProdutos)
+                              ? prev.detalhesProdutos.reduce((sum, dp) => sum + (dp.quantidadeSaiu || 0), 0)
+                              : prev.sairam || 0);
+                            saidaCalculada = Math.max(0, prevTotalAtual - (mov.totalPre || 0));
+                          }
+                          // Se for a primeira, mostrar 0 ou o valor do backend
+                          else {
+                            saidaCalculada = Array.isArray(mov.detalhesProdutos)
+                              ? mov.detalhesProdutos.reduce((sum, dp) => sum + (dp.quantidadeSaiu || 0), 0)
+                              : mov.sairam || 0;
+                          }
+                          return (
+                            <div
+                              key={mov.id}
+                              className="p-4 border border-gray-200 rounded-lg bg-white hover:bg-gray-50"
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm text-gray-600">
+                                  {new Date(mov.createdAt).toLocaleDateString("pt-BR")} às {new Date(mov.createdAt).toLocaleTimeString("pt-BR")}
+                                </span>
                               </div>
-                              <div>
-                                <p className="text-gray-600">Saíram</p>
-                                <p className="font-semibold text-red-600">
-                                  {Array.isArray(mov.detalhesProdutos)
-                                    ? mov.detalhesProdutos.reduce((sum, dp) => sum + (dp.quantidadeSaiu || 0), 0)
-                                    : mov.sairam || 0}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-gray-600">Abastecidas</p>
-                                <p className="font-semibold text-green-600">
-                                  {mov.abastecidas || 0}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-gray-600 flex items-center gap-1">
-                                  <span>📦</span> Total Atual
-                                </p>
-                                <p className="font-semibold text-purple-600">
-                                  {(mov.totalPre || 0) +
-                                    (mov.abastecidas || 0) -
-                                    (Array.isArray(mov.detalhesProdutos)
+                              <div className="grid grid-cols-5 gap-4 mt-3 text-sm">
+                                <div>
+                                  <p className="text-gray-600">Total Pré</p>
+                                  <p className="font-semibold">{mov.totalPre || 0}</p>
+                                </div>
+                                <div>
+                                  <p className="text-gray-600">Saíram</p>
+                                  <p className="font-semibold text-red-600">{saidaCalculada}</p>
+                                </div>
+                                <div>
+                                  <p className="text-gray-600">Abastecidas</p>
+                                  <p className="font-semibold text-green-600">{mov.abastecidas || 0}</p>
+                                </div>
+                                <div>
+                                  <p className="text-gray-600 flex items-center gap-1">
+                                    <span>📦</span> Total Atual
+                                  </p>
+                                  <p className="font-semibold text-purple-600">
+                                    {(mov.totalPre || 0) + (mov.abastecidas || 0) - (Array.isArray(mov.detalhesProdutos)
                                       ? mov.detalhesProdutos.reduce((sum, dp) => sum + (dp.quantidadeSaiu || 0), 0)
                                       : mov.sairam || 0)}
-                                </p>
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-gray-600 flex items-center gap-1">
+                                    <span>🎫</span> Moedas
+                                  </p>
+                                  <p className="font-semibold text-blue-600">
+                                    {typeof mov.valorEntradaFichas !== 'undefined' && mov.valorEntradaFichas !== null
+                                      ? mov.valorEntradaFichas
+                                      : (mov.fichas || 0)}
+                                  </p>
+                                </div>
                               </div>
-                              <div>
-                                <p className="text-gray-600 flex items-center gap-1">
-                                  <span>🎫</span> Moedas
-                                </p>
-                                <p className="font-semibold text-blue-600">
-                                  {typeof mov.valorEntradaFichas !== 'undefined' && mov.valorEntradaFichas !== null
-                                    ? mov.valorEntradaFichas
-                                    : (mov.fichas || 0)}
-                                </p>
-                              </div>
+                              {mov.observacoes && (
+                                <p className="text-sm text-gray-600 mt-3 italic">💬 {mov.observacoes}</p>
+                              )}
                             </div>
-                            {mov.observacoes && (
-                              <p className="text-sm text-gray-600 mt-3 italic">
-                                💬 {mov.observacoes}
-                              </p>
-                            )}
-                          </div>
-                        ))}
+                          );
+                        });
+                      })()}
                     </div>
                   ) : (
                     <div className="text-center py-12">
