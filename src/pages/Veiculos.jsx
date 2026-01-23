@@ -19,8 +19,6 @@ const initialFormState = {
   nivelLimpeza: "está limpo",
 };
 
-// teate
-
 export default function Veiculos() {
   const navigate = useNavigate();
   const [modalCadastro, setModalCadastro] = useState(false);
@@ -28,8 +26,6 @@ export default function Veiculos() {
   const [form, setForm] = useState(initialFormState);
   const [veiculos, setVeiculos] = useState([]);
   const [loading, setLoading] = useState(true);
-  // Adiciona contexto do usuário
-  const { usuario } = require("../contexts/AuthContext");
 
   // Estado armazena YYYY-MM-DD para compatibilidade com input type="date"
   const [filtroDataInicio, setFiltroDataInicio] = useState("");
@@ -76,13 +72,7 @@ export default function Veiculos() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Adiciona usuarioId e dataMovimentacao se for movimentação de veículo
-      const body = {
-        ...form,
-        usuarioId: usuario?.id,
-        dataMovimentacao: new Date().toISOString(),
-      };
-      await api.post("/veiculos", body);
+      await api.post("/veiculos", form);
       fetchVeiculos();
       fecharModal();
       alert("Veículo cadastrado com sucesso!");
@@ -100,7 +90,7 @@ export default function Veiculos() {
 //   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-0 md:p-8">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-blue-50 p-0 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-wrap justify-between items-center mb-8 gap-4 bg-white/80 rounded-xl shadow p-4 border border-gray-100 backdrop-blur-sm">
