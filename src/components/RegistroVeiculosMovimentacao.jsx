@@ -137,7 +137,7 @@ export default function RegistroVeiculos({
                       </span>
                     </td>
                     <td className="px-4 py-2 border-b whitespace-nowrap">
-                      {new Date(mov.dataHora).toLocaleString("pt-BR")}
+                      {mov.dataMovimentacao ? new Date(mov.dataMovimentacao).toLocaleString("pt-BR") : "-"}
                     </td>
                     <td className="px-4 py-2 border-b">
                       {mov.gasolina || "-"}
