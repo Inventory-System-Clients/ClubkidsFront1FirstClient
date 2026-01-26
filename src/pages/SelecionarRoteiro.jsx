@@ -10,7 +10,7 @@ import { useAuth } from "../contexts/AuthContext";
 export function SelecionarRoteiro() {
   const { usuario } = useAuth();
   const navigate = useNavigate();
-  
+
   const [roteiros, setRoteiros] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -20,7 +20,8 @@ export function SelecionarRoteiro() {
   const [funcionarios, setFuncionarios] = useState([]);
   const [todasLojas, setTodasLojas] = useState([]);
   const [showModalAdicionarLoja, setShowModalAdicionarLoja] = useState(false);
-  const [roteiroSelecionadoParaAdicionar, setRoteiroSelecionadoParaAdicionar] = useState(null);
+  const [roteiroSelecionadoParaAdicionar, setRoteiroSelecionadoParaAdicionar] =
+    useState(null);
   const [filtroLoja, setFiltroLoja] = useState("");
 
   useEffect(() => {
@@ -35,7 +36,10 @@ export function SelecionarRoteiro() {
       const response = await api.get("/roteiros");
       setRoteiros(response.data || []);
     } catch (error) {
-      setError("Erro ao carregar roteiros: " + (error.response?.data?.error || error.message));
+      setError(
+        "Erro ao carregar roteiros: " +
+          (error.response?.data?.error || error.message),
+      );
     } finally {
       setLoading(false);
     }
@@ -61,19 +65,25 @@ export function SelecionarRoteiro() {
 
   const selecionarRoteiro = (roteiroId) => {
     // Verificar se o roteiro está concluído
-    const roteiro = roteiros.find(r => r.id === roteiroId);
-    
+    const roteiro = roteiros.find((r) => r.id === roteiroId);
+
     if (roteiro) {
       const totalLojas = roteiro.lojas?.length || 0;
-      const lojasConcluidas = roteiro.lojas?.filter(l => l.concluida).length || 0;
-      
+      const lojasConcluidas =
+        roteiro.lojas?.filter((l) => l.concluida).length || 0;
+
       // Se todas as lojas estão concluídas ou status é 'concluido'
-      if ((totalLojas > 0 && lojasConcluidas === totalLojas) || roteiro.status === 'concluido') {
-        setError("Este roteiro já foi concluído hoje e não pode mais ser acessado!");
+      if (
+        (totalLojas > 0 && lojasConcluidas === totalLojas) ||
+        roteiro.status === "concluido"
+      ) {
+        setError(
+          "Este roteiro já foi concluído hoje e não pode mais ser acessado!",
+        );
         return;
       }
     }
-    
+
     navigate(`/roteiros/${roteiroId}/executar`);
   };
 
@@ -91,7 +101,7 @@ export function SelecionarRoteiro() {
   const handleDrop = async (e, roteiroDestinoId) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (!draggedLoja || !draggedFromRoteiro) return;
 
     // Se é o mesmo roteiro, não fazer nada
@@ -103,7 +113,7 @@ export function SelecionarRoteiro() {
 
     try {
       setError("");
-      
+
       // Mover loja entre roteiros
       await api.post("/roteiros/mover-loja", {
         lojaId: draggedLoja.id,
@@ -114,7 +124,9 @@ export function SelecionarRoteiro() {
       setSuccess(`Loja "${draggedLoja.nome}" movida com sucesso!`);
       await carregarRoteiros();
     } catch (error) {
-      setError("Erro ao mover loja: " + (error.response?.data?.error || error.message));
+      setError(
+        "Erro ao mover loja: " + (error.response?.data?.error || error.message),
+      );
     } finally {
       setDraggedLoja(null);
       setDraggedFromRoteiro(null);
@@ -125,11 +137,14 @@ export function SelecionarRoteiro() {
     try {
       setError("");
       await api.put(`/roteiros/${roteiroId}`, { funcionarioId });
-      
+
       setSuccess("Funcionário atribuído com sucesso!");
       await carregarRoteiros();
     } catch (error) {
-      setError("Erro ao atribuir funcionário: " + (error.response?.data?.error || error.message));
+      setError(
+        "Erro ao atribuir funcionário: " +
+          (error.response?.data?.error || error.message),
+      );
     }
   };
 
@@ -137,11 +152,14 @@ export function SelecionarRoteiro() {
     try {
       setError("");
       await api.post(`/roteiros/${roteiroId}/lojas`, { lojaId });
-      
+
       setSuccess("Loja adicionada ao roteiro com sucesso!");
       await carregarRoteiros();
     } catch (error) {
-      setError("Erro ao adicionar loja: " + (error.response?.data?.error || error.message));
+      setError(
+        "Erro ao adicionar loja: " +
+          (error.response?.data?.error || error.message),
+      );
     }
   };
 
@@ -163,7 +181,7 @@ export function SelecionarRoteiro() {
     // Se a loja já está em um roteiro, confirmar a movimentação
     if (jaEstaEmRoteiro) {
       const confirmar = window.confirm(
-        `A loja "${loja.nome}" já está no roteiro "${jaEstaEmRoteiro.zona}".\n\nDeseja movê-la para "${roteiroSelecionadoParaAdicionar.zona}"?`
+        `A loja "${loja.nome}" já está no roteiro "${jaEstaEmRoteiro.zona}".\n\nDeseja movê-la para "${roteiroSelecionadoParaAdicionar.zona}"?`,
       );
       if (!confirmar) return;
 
@@ -180,7 +198,10 @@ export function SelecionarRoteiro() {
         await carregarRoteiros();
         fecharModalAdicionarLoja();
       } catch (error) {
-        setError("Erro ao mover loja: " + (error.response?.data?.error || error.message));
+        setError(
+          "Erro ao mover loja: " +
+            (error.response?.data?.error || error.message),
+        );
       }
     } else {
       // Adicionar loja que não está em nenhum roteiro
@@ -190,52 +211,52 @@ export function SelecionarRoteiro() {
   };
 
   // Filtrar roteiros do dia atual
-  const hoje = new Date().toISOString().split('T')[0];
-  const roteirosHoje = roteiros.filter(r => r.data?.startsWith(hoje));
-  
+  const hoje = new Date().toISOString().split("T")[0];
+  const roteirosHoje = roteiros.filter((r) => r.data?.startsWith(hoje));
+
   // Separar roteiros pendentes/em andamento e concluídos
   // Se todas as lojas de um roteiro estão concluídas, considerar como concluído
-  const roteirosPendentes = roteirosHoje.filter(r => {
+  const roteirosPendentes = roteirosHoje.filter((r) => {
     // Se o status já é concluído, não mostrar aqui
-    if (r.status === 'concluido') return false;
-    
+    if (r.status === "concluido") return false;
+
     // Se tem lojas e todas estão concluídas, não mostrar aqui (vai para concluídos)
     const totalLojas = r.lojas?.length || 0;
-    const lojasConcluidas = r.lojas?.filter(l => l.concluida).length || 0;
-    
+    const lojasConcluidas = r.lojas?.filter((l) => l.concluida).length || 0;
+
     if (totalLojas > 0 && lojasConcluidas === totalLojas) {
       return false; // Roteiro com todas lojas concluídas vai para "concluídos"
     }
-    
+
     return true; // Pendente ou em andamento com lojas pendentes
   });
-  
-  const roteirosConcluidos = roteirosHoje.filter(r => {
+
+  const roteirosConcluidos = roteirosHoje.filter((r) => {
     // Se o status já é concluído, mostrar aqui
-    if (r.status === 'concluido') return true;
-    
+    if (r.status === "concluido") return true;
+
     // Se tem lojas e todas estão concluídas, considerar concluído
     const totalLojas = r.lojas?.length || 0;
-    const lojasConcluidas = r.lojas?.filter(l => l.concluida).length || 0;
-    
+    const lojasConcluidas = r.lojas?.filter((l) => l.concluida).length || 0;
+
     return totalLojas > 0 && lojasConcluidas === totalLojas;
   });
-  
+
   // Verificar se usuário é admin
   const isAdmin = usuario?.role === "ADMIN";
 
   // Função helper para verificar se uma loja já está em um roteiro
   const obterRoteiroAtualDaLoja = (lojaId) => {
-    return roteirosHoje.find(roteiro => 
-      roteiro.lojas?.some(loja => loja.id === lojaId)
+    return roteirosHoje.find((roteiro) =>
+      roteiro.lojas?.some((loja) => loja.id === lojaId),
     );
   };
 
   // Filtrar lojas para o modal
-  const lojasFiltradas = todasLojas.filter(loja => {
+  const lojasFiltradas = todasLojas.filter((loja) => {
     if (!loja.ativo) return false;
     if (!filtroLoja) return true;
-    
+
     const searchTerm = filtroLoja.toLowerCase();
     return (
       loja.nome.toLowerCase().includes(searchTerm) ||
@@ -306,24 +327,33 @@ export function SelecionarRoteiro() {
                   key={roteiro.id}
                   className={`card-gradient hover:shadow-xl transition-all duration-300 ${
                     isAdmin && draggedLoja && draggedFromRoteiro !== roteiro.id
-                      ? 'ring-2 ring-blue-400 ring-offset-2'
-                      : ''
+                      ? "ring-2 ring-blue-400 ring-offset-2"
+                      : ""
                   }`}
                   onDragOver={isAdmin ? handleDragOver : undefined}
-                  onDrop={isAdmin ? (e) => handleDrop(e, roteiro.id) : undefined}
+                  onDrop={
+                    isAdmin ? (e) => handleDrop(e, roteiro.id) : undefined
+                  }
                 >
                   <div className="flex flex-col mb-4">
                     <h3 className="text-xl font-bold text-primary mb-2">
                       {roteiro.zona}
                     </h3>
-                    
+
                     <div className="flex items-center justify-between">
                       {isAdmin && (
                         <div className="flex-1 mr-2">
-                          <label className="text-xs text-gray-600 block mb-1">Funcionário:</label>
+                          <label className="text-xs text-gray-600 block mb-1">
+                            Funcionário:
+                          </label>
                           <select
                             value={roteiro.funcionarioId || ""}
-                            onChange={(e) => atribuirFuncionario(roteiro.id, e.target.value || null)}
+                            onChange={(e) =>
+                              atribuirFuncionario(
+                                roteiro.id,
+                                e.target.value || null,
+                              )
+                            }
                             onClick={(e) => e.stopPropagation()}
                             className="w-full text-sm px-2 py-1 border-2 border-gray-300 hover:border-blue-400 focus:border-blue-500 rounded outline-none"
                           >
@@ -338,11 +368,18 @@ export function SelecionarRoteiro() {
                       )}
                       {!isAdmin && roteiro.funcionarioNome && (
                         <p className="text-sm text-gray-600 mb-2">
-                          <strong>Funcionário:</strong> {roteiro.funcionarioNome}
+                          <strong>Funcionário:</strong>{" "}
+                          {roteiro.funcionarioNome}
                         </p>
                       )}
-                      <Badge variant={roteiro.status === 'em_andamento' ? 'warning' : 'info'}>
-                        {roteiro.status === 'em_andamento' ? 'Em Andamento' : 'Pendente'}
+                      <Badge
+                        variant={
+                          roteiro.status === "em_andamento" ? "warning" : "info"
+                        }
+                      >
+                        {roteiro.status === "em_andamento"
+                          ? "Em Andamento"
+                          : "Pendente"}
                       </Badge>
                     </div>
                   </div>
@@ -351,9 +388,11 @@ export function SelecionarRoteiro() {
                     <div className="flex items-center text-gray-700">
                       <span className="text-2xl mr-3">📍</span>
                       <div>
-                        <div className="font-semibold">Estado: {roteiro.estado || 'N/A'}</div>
+                        <div className="font-semibold">
+                          Estado: {roteiro.estado || "N/A"}
+                        </div>
                         <div className="text-sm text-gray-600">
-                          {roteiro.cidade || 'N/A'}
+                          {roteiro.cidade || "N/A"}
                         </div>
                       </div>
                     </div>
@@ -365,7 +404,9 @@ export function SelecionarRoteiro() {
                           {roteiro.lojas?.length || 0} Lojas
                         </div>
                         <div className="text-sm text-gray-600">
-                          {roteiro.lojas?.filter(l => l.concluida).length || 0} concluídas
+                          {roteiro.lojas?.filter((l) => l.concluida).length ||
+                            0}{" "}
+                          concluídas
                         </div>
                       </div>
                     </div>
@@ -373,7 +414,9 @@ export function SelecionarRoteiro() {
                     {/* Lista de lojas (arrastáveis para admin) */}
                     {roteiro.lojas && roteiro.lojas.length > 0 && (
                       <div className="mb-3 space-y-1 max-h-32 overflow-y-auto">
-                        <p className="text-xs font-semibold text-gray-700 mb-1">Lojas neste roteiro:</p>
+                        <p className="text-xs font-semibold text-gray-700 mb-1">
+                          Lojas neste roteiro:
+                        </p>
                         {roteiro.lojas.map((loja) => (
                           <div
                             key={loja.id}
@@ -388,19 +431,20 @@ export function SelecionarRoteiro() {
                             onClick={(e) => e.stopPropagation()}
                             className={`text-xs p-2 rounded border transition-all ${
                               loja.concluida
-                                ? 'bg-green-50 border-green-400 text-green-800'
-                                : 'bg-white border-gray-300'
+                                ? "bg-green-50 border-green-400 text-green-800"
+                                : "bg-white border-gray-300"
                             } ${
-                              draggedLoja?.id === loja.id 
-                                ? 'border-blue-500 opacity-50 shadow-lg' 
-                                : ''
+                              draggedLoja?.id === loja.id
+                                ? "border-blue-500 opacity-50 shadow-lg"
+                                : ""
                             } ${
-                              isAdmin 
-                                ? 'cursor-move hover:border-blue-400 hover:shadow-md select-none' 
-                                : ''
+                              isAdmin
+                                ? "cursor-move hover:border-blue-400 hover:shadow-md select-none"
+                                : ""
                             }`}
                           >
-                            {loja.concluida ? '✅' : '🏪'} {loja.nome || 'Loja sem nome'}
+                            {loja.concluida ? "✅" : "🏪"}{" "}
+                            {loja.nome || "Loja sem nome"}
                           </div>
                         ))}
                       </div>
@@ -419,16 +463,19 @@ export function SelecionarRoteiro() {
                       <div className="flex items-center text-gray-700">
                         <span className="text-2xl mr-3">👤</span>
                         <div>
-                          <div className="font-semibold">{roteiro.funcionarioNome}</div>
+                          <div className="font-semibold">
+                            {roteiro.funcionarioNome}
+                          </div>
                         </div>
                       </div>
                     )}
 
-                    {roteiro.status === 'em_andamento' && (
+                    {roteiro.status === "em_andamento" && (
                       <div className="mt-4 bg-yellow-100 border-l-4 border-yellow-500 p-3 rounded">
                         <div className="flex items-center">
                           <span className="text-yellow-700 font-semibold">
-                            Progresso: {roteiro.maquinasConcluidas || 0}/{roteiro.totalMaquinas || 0}
+                            Progresso: {roteiro.maquinasConcluidas || 0}/
+                            {roteiro.totalMaquinas || 0}
                           </span>
                         </div>
                         <div className="w-full bg-yellow-200 rounded-full h-2 mt-2">
@@ -459,14 +506,31 @@ export function SelecionarRoteiro() {
                         ➕ Adicionar Loja Manualmente
                       </button>
                     )}
-                    <button 
+                    <button
                       className="btn-primary w-full"
                       onClick={(e) => {
                         e.stopPropagation();
                         selecionarRoteiro(roteiro.id);
                       }}
+                      disabled={(() => {
+                        const totalLojas = roteiro.lojas?.length || 0;
+                        const lojasConcluidas =
+                          roteiro.lojas?.filter((l) => l.concluida).length || 0;
+                        return totalLojas > 0 && lojasConcluidas === totalLojas;
+                      })()}
                     >
-                      {roteiro.status === 'em_andamento' ? 'Continuar Roteiro' : 'Iniciar Roteiro'}
+                      {(() => {
+                        const totalLojas = roteiro.lojas?.length || 0;
+                        const lojasConcluidas =
+                          roteiro.lojas?.filter((l) => l.concluida).length || 0;
+                        if (totalLojas > 0 && lojasConcluidas === totalLojas) {
+                          return "Roteiro Concluído";
+                        } else if (lojasConcluidas > 0) {
+                          return "Continuar Roteiro";
+                        } else {
+                          return "Iniciar Roteiro";
+                        }
+                      })()}
                     </button>
                   </div>
                 </div>
@@ -500,10 +564,8 @@ export function SelecionarRoteiro() {
                   className="card-gradient bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-500 relative"
                 >
                   {/* Ícone de bloqueio */}
-                  <div className="absolute top-4 right-4 text-3xl">
-                    🔒
-                  </div>
-                  
+                  <div className="absolute top-4 right-4 text-3xl">🔒</div>
+
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-xl font-bold text-green-700">
                       {roteiro.zona}
@@ -515,8 +577,12 @@ export function SelecionarRoteiro() {
                     <div className="flex items-center">
                       <span className="text-2xl mr-2">📍</span>
                       <div>
-                        <div className="font-semibold">Estado: {roteiro.estado || 'N/A'}</div>
-                        <div className="text-sm text-gray-600">{roteiro.cidade || 'N/A'}</div>
+                        <div className="font-semibold">
+                          Estado: {roteiro.estado || "N/A"}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {roteiro.cidade || "N/A"}
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center">
@@ -556,7 +622,9 @@ export function SelecionarRoteiro() {
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold">Adicionar Loja ao Roteiro</h2>
+                  <h2 className="text-2xl font-bold">
+                    Adicionar Loja ao Roteiro
+                  </h2>
                   <p className="text-blue-100 mt-1">
                     {roteiroSelecionadoParaAdicionar.zona}
                   </p>
@@ -593,8 +661,9 @@ export function SelecionarRoteiro() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {lojasFiltradas.map((loja) => {
                     const roteiroAtual = obterRoteiroAtualDaLoja(loja.id);
-                    const jaEstaNesteRoteiro = roteiroAtual?.id === roteiroSelecionadoParaAdicionar.id;
-                    
+                    const jaEstaNesteRoteiro =
+                      roteiroAtual?.id === roteiroSelecionadoParaAdicionar.id;
+
                     return (
                       <div
                         key={loja.id}
@@ -602,8 +671,8 @@ export function SelecionarRoteiro() {
                           jaEstaNesteRoteiro
                             ? "bg-gray-100 border-gray-300"
                             : roteiroAtual
-                            ? "bg-yellow-50 border-yellow-300 hover:border-yellow-500"
-                            : "bg-white border-gray-200 hover:border-blue-500 hover:shadow-md"
+                              ? "bg-yellow-50 border-yellow-300 hover:border-yellow-500"
+                              : "bg-white border-gray-200 hover:border-blue-500 hover:shadow-md"
                         }`}
                       >
                         <div className="flex items-start justify-between">
@@ -617,44 +686,49 @@ export function SelecionarRoteiro() {
                             <p className="text-sm text-gray-600">
                               {loja.cidade} - {loja.estado}
                             </p>
-                            
+
                             {roteiroAtual && (
                               <div className="mt-2">
-                                <Badge variant={jaEstaNesteRoteiro ? "default" : "warning"}>
-                                  {jaEstaNesteRoteiro 
-                                    ? "✓ Já está neste roteiro"
-                                    : `No roteiro: ${roteiroAtual.zona}`
+                                <Badge
+                                  variant={
+                                    jaEstaNesteRoteiro ? "default" : "warning"
                                   }
+                                >
+                                  {jaEstaNesteRoteiro
+                                    ? "✓ Já está neste roteiro"
+                                    : `No roteiro: ${roteiroAtual.zona}`}
                                 </Badge>
                               </div>
                             )}
-                            
+
                             {!roteiroAtual && (
                               <div className="mt-2">
-                                <Badge variant="info">
-                                  📦 Disponível
-                                </Badge>
+                                <Badge variant="info">📦 Disponível</Badge>
                               </div>
                             )}
                           </div>
-                          
+
                           <button
-                            onClick={() => adicionarLojaSelecionadaAoRoteiro(loja, roteiroAtual)}
+                            onClick={() =>
+                              adicionarLojaSelecionadaAoRoteiro(
+                                loja,
+                                roteiroAtual,
+                              )
+                            }
                             disabled={jaEstaNesteRoteiro}
                             className={`ml-3 px-4 py-2 rounded-lg font-medium transition-colors ${
                               jaEstaNesteRoteiro
                                 ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                                 : roteiroAtual
-                                ? "bg-yellow-600 hover:bg-yellow-700 text-white"
-                                : "bg-blue-600 hover:bg-blue-700 text-white"
+                                  ? "bg-yellow-600 hover:bg-yellow-700 text-white"
+                                  : "bg-blue-600 hover:bg-blue-700 text-white"
                             }`}
                           >
                             {jaEstaNesteRoteiro
                               ? "✓ Já está aqui"
                               : roteiroAtual
-                              ? "Mover ↔️"
-                              : "Adicionar ➕"
-                            }
+                                ? "Mover ↔️"
+                                : "Adicionar ➕"}
                           </button>
                         </div>
                       </div>
@@ -668,7 +742,10 @@ export function SelecionarRoteiro() {
             <div className="p-4 border-t border-gray-200 bg-gray-50">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-gray-600">
-                  {lojasFiltradas.length} {lojasFiltradas.length === 1 ? 'loja encontrada' : 'lojas encontradas'}
+                  {lojasFiltradas.length}{" "}
+                  {lojasFiltradas.length === 1
+                    ? "loja encontrada"
+                    : "lojas encontradas"}
                 </p>
                 <button
                   onClick={fecharModalAdicionarLoja}
