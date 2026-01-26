@@ -74,7 +74,7 @@ export function SelecionarRoteiro() {
       }
     }
     
-    navigate(`/movimentacoes/roteiro/${roteiroId}`);
+    navigate(`/roteiros/${roteiroId}/executar`);
   };
 
   const handleDragStart = (e, loja, roteiroId) => {
