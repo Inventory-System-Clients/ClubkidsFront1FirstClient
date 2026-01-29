@@ -354,6 +354,7 @@ export default function ControleVeiculos({
                 value={form.estado}
                 onChange={handleFormChange}
                 className="w-full border rounded p-1"
+                required
               >
                 <option value="Bom">Sem avaria</option>
                 <option value="Ruim">Com avaria</option>
@@ -378,6 +379,7 @@ export default function ControleVeiculos({
                 onChange={handleFormChange}
                 className="w-full border rounded p-1"
                 min="0"
+                required
                 onWheel={(e) => e.target.blur()}
               />
             </div>
@@ -388,6 +390,7 @@ export default function ControleVeiculos({
                 value={form.modo}
                 onChange={handleFormChange}
                 className="w-full border rounded p-1"
+                required
               >
                 <option value="trabalho">Trabalho</option>
                 <option value="emprestado">Emprestado</option>
@@ -402,6 +405,7 @@ export default function ControleVeiculos({
                 value={form.combustivel}
                 onChange={handleFormChange}
                 className="w-full border rounded p-1"
+                required
               >
                 <option value="5">5 palzinhos</option>
                 <option value="4">4 palzinhos</option>
@@ -420,6 +424,7 @@ export default function ControleVeiculos({
                 value={form.limpeza}
                 onChange={handleFormChange}
                 className="w-full border rounded p-1"
+                required
               >
                 <option value="esta limpo">Está limpo</option>
                 <option value="precisa limpar">Precisa limpar</option>
