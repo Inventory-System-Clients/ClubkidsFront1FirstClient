@@ -28,6 +28,7 @@ export default function ControleVeiculos({
     combustivel: "5",
     limpeza: "esta limpo",
   });
+  const [finalizando, setFinalizando] = useState(false);
 
   const abrirModal = (veiculo) => {
     setVeiculoSelecionado(veiculo);
@@ -79,6 +80,7 @@ export default function ControleVeiculos({
       await api.put(`/veiculos/${veiculoSelecionado.id}`, {
         ...veiculoSelecionado,
         emUso: true,
+        km: Number.isNaN(parseInt(form.km)) ? 0 : parseInt(form.km),
       });
       // Registrar movimentação de retirada
       await api.post("/movimentacao-veiculos", {
@@ -102,12 +104,14 @@ export default function ControleVeiculos({
   };
 
   const finalizarVeiculo = async () => {
-    if (!veiculoSelecionado) return;
+    if (!veiculoSelecionado || finalizando) return;
+    setFinalizando(true);
     try {
       await api.put(`/veiculos/${veiculoSelecionado.id}`, {
         ...veiculoSelecionado,
         emUso: false,
         nivelCombustivel: getCombustivelLabel(formFinalizar.combustivel),
+        km: Number.isNaN(parseInt(formFinalizar.km)) ? 0 : parseInt(formFinalizar.km),
       });
       // Registrar movimentação de devolução
       await api.post("/movimentacao-veiculos", {
@@ -133,6 +137,7 @@ export default function ControleVeiculos({
       console.error("Erro ao finalizar:", error);
       Swal.fire("Erro", "Não foi possível finalizar o veículo.", "error");
     }
+    setFinalizando(false);
     fecharModalFinalizar();
   };
 
@@ -328,10 +333,11 @@ export default function ControleVeiculos({
                 Cancelar
               </button>
               <button
-                className="px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                className={`px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700${finalizando ? ' opacity-50 cursor-not-allowed' : ''}`}
                 onClick={finalizarVeiculo}
+                disabled={finalizando}
               >
-                Finalizar
+                {finalizando ? 'Finalizando...' : 'Finalizar'}
               </button>
             </div>
           </div>
