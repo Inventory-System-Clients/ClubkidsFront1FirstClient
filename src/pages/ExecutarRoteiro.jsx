@@ -495,65 +495,83 @@ export function ExecutarRoteiro() {
                 </div>
                 
                 <div className="space-y-3">
-                  {maquinasDaLoja.map((maquina) => (
-                    <div 
-                      key={maquina.id} 
-                      className={`p-4 rounded-lg border-2 transition-all ${
-                        maquina.atendida 
-                          ? 'bg-green-50 border-green-300' 
-                          : 'bg-white border-gray-200'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-bold text-gray-900 mb-1 flex items-center gap-2">
-                            {maquina.nome}
-                            {maquina.atendida && (
-                              <span className="inline-flex items-center px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-full">
-                                ✓ 1/1 mov
-                              </span>
+                  {maquinasDaLoja.map((maquina) => {
+                    // Filtra manutenções desta máquina
+                    const manutencoesMaquina = Array.isArray(roteiro.manutencoes)
+                      ? roteiro.manutencoes.filter(m => m.maquinaId === maquina.id)
+                      : [];
+                    return (
+                      <div 
+                        key={maquina.id} 
+                        className={`p-4 rounded-lg border-2 transition-all ${
+                          maquina.atendida 
+                            ? 'bg-green-50 border-green-300' 
+                            : 'bg-white border-gray-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-bold text-gray-900 mb-1 flex items-center gap-2">
+                              {maquina.nome}
+                              {maquina.atendida && (
+                                <span className="inline-flex items-center px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-full">
+                                  ✓ 1/1 mov
+                                </span>
+                              )}
+                              {!maquina.atendida && (
+                                <span className="inline-flex items-center px-2 py-1 bg-gray-300 text-gray-700 text-xs font-bold rounded-full">
+                                  0/1 mov
+                                </span>
+                              )}
+                            </h4>
+                            <p className="text-sm text-gray-600">
+                              Código: {maquina.codigo} | Tipo: {maquina.tipo}
+                            </p>
+                            {/* Manutenções desta máquina */}
+                            {manutencoesMaquina.length > 0 && (
+                              <div className="mt-2">
+                                <div className="font-semibold text-red-700 text-xs mb-1 flex items-center gap-1">
+                                  <span>🔧</span> Manutenções registradas:
+                                </div>
+                                <ul className="pl-4 list-disc text-xs text-red-800">
+                                  {manutencoesMaquina.map((m, idx) => (
+                                    <li key={m.id || idx}>{m.descricao}</li>
+                                  ))}
+                                </ul>
+                              </div>
                             )}
-                            {!maquina.atendida && (
-                              <span className="inline-flex items-center px-2 py-1 bg-gray-300 text-gray-700 text-xs font-bold rounded-full">
-                                0/1 mov
-                              </span>
+                          </div>
+                          <div className="flex gap-2">
+                            {!loja.concluida && (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setManutencaoMaquina(maquina.id);
+                                    setMostrarFormManutencao(true);
+                                  }}
+                                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                                  title="Registrar Manutenção"
+                                >
+                                  🔧
+                                </button>
+                                <button
+                                  onClick={() => navigate(`/movimentacoes/roteiro/${id}/loja/${loja.id}`)}
+                                  className={`px-4 py-2 rounded-lg transition-colors ${
+                                    maquina.atendida
+                                      ? 'bg-green-600 text-white hover:bg-green-700'
+                                      : 'bg-blue-500 text-white hover:bg-blue-600'
+                                  }`}
+                                  title={maquina.atendida ? 'Limite atingido (1/1)' : 'Registrar movimentação'}
+                                >
+                                  {maquina.atendida ? '✓ Limite OK' : '📝 Registrar Movimentação'}
+                                </button>
+                              </>
                             )}
-                          </h4>
-                          <p className="text-sm text-gray-600">
-                            Código: {maquina.codigo} | Tipo: {maquina.tipo}
-                          </p>
-                        </div>
-                        
-                        <div className="flex gap-2">
-                          {!loja.concluida && (
-                            <>
-                              <button
-                                onClick={() => {
-                                  setManutencaoMaquina(maquina.id);
-                                  setMostrarFormManutencao(true);
-                                }}
-                                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-                                title="Registrar Manutenção"
-                              >
-                                🔧
-                              </button>
-                              <button
-                                onClick={() => navigate(`/movimentacoes/roteiro/${id}/loja/${loja.id}`)}
-                                className={`px-4 py-2 rounded-lg transition-colors ${
-                                  maquina.atendida
-                                    ? 'bg-green-600 text-white hover:bg-green-700'
-                                    : 'bg-blue-500 text-white hover:bg-blue-600'
-                                }`}
-                                title={maquina.atendida ? 'Limite atingido (1/1)' : 'Registrar movimentação'}
-                              >
-                                {maquina.atendida ? '✓ Limite OK' : '📝 Registrar Movimentação'}
-                              </button>
-                            </>
-                          )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             );
