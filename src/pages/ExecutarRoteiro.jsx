@@ -416,6 +416,27 @@ export function ExecutarRoteiro() {
                       🏪 {loja.nome}
                       <Badge type="info">{loja.cidade}</Badge>
                     </h3>
+                    {/* Manutenções salvas para esta loja */}
+                    {Array.isArray(roteiro.manutencoes) && roteiro.manutencoes.filter(m => {
+                      // A manutenção pertence a uma máquina desta loja
+                      return loja.maquinas?.some(maq => maq.id === m.maquinaId);
+                    }).length > 0 && (
+                      <div className="mt-2">
+                        <div className="font-semibold text-red-700 text-sm mb-1 flex items-center gap-1">
+                          <span>🔧</span> Manutenções registradas:
+                        </div>
+                        <ul className="pl-4 list-disc text-xs text-red-800">
+                          {roteiro.manutencoes.filter(m => loja.maquinas?.some(maq => maq.id === m.maquinaId)).map((m, idx) => {
+                            const maq = loja.maquinas?.find(maq => maq.id === m.maquinaId);
+                            return (
+                              <li key={m.id || idx}>
+                                <span className="font-bold">{maq?.nome || 'Máquina'}</span>: {m.descricao}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    )}
                     <p className="text-sm text-gray-600 mt-1">
                       {maquinasAtendidas} de {totalMaquinas} máquina{totalMaquinas !== 1 ? 's' : ''} atendida{maquinasAtendidas !== 1 ? 's' : ''}
                       <span className="text-xs text-gray-500 ml-1">(Limite: 1 mov/máquina)</span>
