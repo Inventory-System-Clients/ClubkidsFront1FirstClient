@@ -36,7 +36,7 @@ export function AlertaRoteirosPendentes() {
       // Verificar se já passou das 20h
       const hora = hoje.getHours();
       // Mostrar alerta se for após 20h e tiver roteiros pendentes
-      if (hora >= 11 && pendentes.length > 0) {
+      if (hora >= 20 && pendentes.length > 0) {
         setRoteirosPendentes(pendentes);
         setMostrarAlerta(true);
       } else {
