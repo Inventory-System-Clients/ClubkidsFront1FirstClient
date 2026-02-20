@@ -22,21 +22,21 @@ export function AlertaRoteirosPendentes() {
       setLoading(true);
       
       // Buscar roteiros do dia atual
-      const hoje = new Date().toISOString().split('T')[0];
-      const response = await api.get(`/roteiros?data=${hoje}`);
+      const hoje = new Date();
+      const dataHoje = hoje.toISOString().split('T')[0];
+      const diaSemana = hoje.toLocaleDateString('pt-BR', { weekday: 'long' }).toLowerCase();
+      // Exemplo: sexta-feira, segunda-feira, etc.
+      // Buscar roteiros do dia
+      const response = await api.get(`/roteiros?data=${dataHoje}`);
       const roteiros = response.data || [];
-      
       // Filtrar roteiros pendentes ou em andamento
       const pendentes = roteiros.filter(
-        r => r.status === 'pendente' || r.status === 'em_andamento'
+        r => (r.status === 'pendente' || r.status === 'em_andamento') && r.nome?.toLowerCase().includes(diaSemana.split('-')[0])
       );
-      
       // Verificar se já passou das 20h
-      const agora = new Date();
-      const hora = agora.getHours();
-      
+      const hora = hoje.getHours();
       // Mostrar alerta se for após 20h e tiver roteiros pendentes
-      if (hora >= 20 && pendentes.length > 0) {
+      if (hora >= 11 && pendentes.length > 0) {
         setRoteirosPendentes(pendentes);
         setMostrarAlerta(true);
       } else {
@@ -67,7 +67,7 @@ export function AlertaRoteirosPendentes() {
 
   return (
     <div className="fixed bottom-4 right-4 z-50 max-w-md">
-      <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl shadow-2xl p-6 animate-pulse">
+      <div className="bg-linear-to-r from-orange-500 to-red-500 text-white rounded-xl shadow-2xl p-6 animate-pulse">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
             <span className="text-4xl">⚠️</span>
@@ -93,12 +93,11 @@ export function AlertaRoteirosPendentes() {
               className="bg-white bg-opacity-20 rounded-lg p-3"
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="font-bold text-lg">{roteiro.zona}</span>
+                <span className="font-bold text-lg">{roteiro.nome || roteiro.zona}</span>
                 <span className="text-xs bg-white bg-opacity-30 px-2 py-1 rounded">
                   {roteiro.status === 'pendente' ? 'Não Iniciado' : 'Em Andamento'}
                 </span>
               </div>
-              
               <div className="text-sm space-y-1">
                 <p>📍 {roteiro.estado} - {roteiro.cidade}</p>
                 <p>🏪 {roteiro.lojas?.length || 0} lojas</p>
@@ -106,7 +105,6 @@ export function AlertaRoteirosPendentes() {
                   <p>👤 {roteiro.funcionarioNome}</p>
                 )}
               </div>
-
               {isAdmin && roteiro.funcionarioId && roteiro.funcionarioNome && (
                 <div className="mt-3 pt-3 border-t border-white border-opacity-30">
                   <p className="text-xs font-semibold">
