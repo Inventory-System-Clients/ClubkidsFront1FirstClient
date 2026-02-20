@@ -118,7 +118,7 @@ export function AlertaRoteirosPendentes() {
                 </span>
               </div>
               <div className="text-sm space-y-1">
-                <p>Zona do roteiro: <b>{roteiro.zona}</b></p>
+                <p>Zona do roteiro: <b style={{ color: '#222' }}>{roteiro.zona}</b></p>
                 {roteiro.estado && <p>📍 {roteiro.estado} - {roteiro.cidade}</p>}
                 {roteiro.lojas && <p>🏪 {roteiro.lojas?.length || 0} lojas</p>}
                 {roteiro.funcionarioNome && (
