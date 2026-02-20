@@ -32,7 +32,7 @@ export function AlertaRoteirosPendentes() {
       // Filtrar roteiros pendentes ou em andamento
       const nomeDia = diaSemana.split('-')[0].trim();
       const pendentes = roteiros.filter(r => {
-        const nomeRoteiro = (r.nome || '').toLowerCase().trim();
+        const nomeRoteiro = (r.nome || r.zona || '').toLowerCase().trim();
         // Aceita "sexta", "sexta 1", "sexta 2", ...
         return (
           (r.status === 'pendente' || r.status === 'em_andamento') &&
