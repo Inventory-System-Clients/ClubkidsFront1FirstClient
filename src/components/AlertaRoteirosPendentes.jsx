@@ -20,7 +20,6 @@ export function AlertaRoteirosPendentes() {
   const verificarRoteirosPendentes = async () => {
     try {
       setLoading(true);
-      
       // Buscar roteiros do dia atual
       const hoje = new Date();
       const dataHoje = hoje.toISOString().split('T')[0];
@@ -29,18 +28,23 @@ export function AlertaRoteirosPendentes() {
       // Buscar roteiros do dia
       const response = await api.get(`/roteiros?data=${dataHoje}`);
       const roteiros = response.data || [];
+      console.log('[ALERTA] Roteiros retornados da API:', roteiros);
       // Filtrar roteiros pendentes ou em andamento
       const pendentes = roteiros.filter(
         r => (r.status === 'pendente' || r.status === 'em_andamento') && r.nome?.toLowerCase().includes(diaSemana.split('-')[0])
       );
+      console.log('[ALERTA] Dia da semana:', diaSemana, '| Nome esperado no roteiro:', diaSemana.split('-')[0]);
+      console.log('[ALERTA] Roteiros pendentes filtrados:', pendentes);
       // Verificar se já passou das 11h
       const hora = hoje.getHours();
       // Mostrar alerta se for após 11h e tiver roteiros pendentes
       if (hora >= 11 && pendentes.length > 0) {
         setRoteirosPendentes(pendentes);
         setMostrarAlerta(true);
+        console.log('[ALERTA] Mostrando alerta de roteiros pendentes:', pendentes);
       } else {
         setMostrarAlerta(false);
+        console.log('[ALERTA] Não há roteiros pendentes para mostrar ou ainda não passou das 11h.');
       }
     } catch (error) {
       console.error("Erro ao verificar roteiros pendentes:", error);
