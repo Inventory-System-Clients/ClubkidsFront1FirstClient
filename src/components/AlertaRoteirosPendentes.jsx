@@ -48,16 +48,16 @@ export function AlertaRoteirosPendentes() {
       });
       console.log('[ALERTA] Dia da semana:', diaSemana, '| Nome esperado no roteiro:', nomeDia);
       console.log('[ALERTA] Roteiros pendentes filtrados (sem duplicados):', pendentes);
-      // Verificar se já passou das 11h
+      // Verificar se já passou das 20h
       const hora = hoje.getHours();
-      // Mostrar alerta se for após 11h e tiver roteiros pendentes
-      if (hora >= 11 && pendentes.length > 0) {
+      // Mostrar alerta se for após 20h e tiver roteiros pendentes
+      if (hora >= 20 && pendentes.length > 0) {
         setRoteirosPendentes(pendentes);
         setMostrarAlerta(true);
         console.log('[ALERTA] Mostrando alerta de roteiros pendentes:', pendentes);
       } else {
         setMostrarAlerta(false);
-        console.log('[ALERTA] Não há roteiros pendentes para mostrar ou ainda não passou das 11h.');
+        console.log('[ALERTA] Não há roteiros pendentes para mostrar ou ainda não passou das 20h.');
       }
     } catch (error) {
       console.error("Erro ao verificar roteiros pendentes:", error);
