@@ -31,16 +31,23 @@ export function AlertaRoteirosPendentes() {
       console.log('[ALERTA] Roteiros retornados da API:', roteiros);
       // Filtrar roteiros pendentes ou em andamento
       const nomeDia = diaSemana.split('-')[0].trim();
-      const pendentes = roteiros.filter(r => {
+      let pendentes = roteiros.filter(r => {
         const nomeRoteiro = (r.nome || r.zona || '').toLowerCase().trim();
-        // Aceita "sexta", "sexta 1", "sexta 2", ...
         return (
           (r.status === 'pendente' || r.status === 'em_andamento') &&
           nomeRoteiro.startsWith(nomeDia)
         );
       });
+      // Remover duplicados pelo nome/zona
+      const vistos = new Set();
+      pendentes = pendentes.filter(r => {
+        const nome = (r.nome || r.zona || '').toLowerCase().trim();
+        if (vistos.has(nome)) return false;
+        vistos.add(nome);
+        return true;
+      });
       console.log('[ALERTA] Dia da semana:', diaSemana, '| Nome esperado no roteiro:', nomeDia);
-      console.log('[ALERTA] Roteiros pendentes filtrados:', pendentes);
+      console.log('[ALERTA] Roteiros pendentes filtrados (sem duplicados):', pendentes);
       // Verificar se já passou das 11h
       const hora = hoje.getHours();
       // Mostrar alerta se for após 11h e tiver roteiros pendentes
@@ -91,6 +98,8 @@ export function AlertaRoteirosPendentes() {
           <button
             onClick={() => setMostrarAlerta(false)}
             className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-2 transition-colors"
+            style={{ fontSize: 24, fontWeight: 'bold', marginLeft: 16 }}
+            aria-label="Fechar alerta"
           >
             ✕
           </button>
@@ -99,7 +108,7 @@ export function AlertaRoteirosPendentes() {
         <div className="space-y-3">
           {roteirosDoUsuario.map((roteiro) => (
             <div
-              key={roteiro.id}
+              key={(roteiro.nome || roteiro.zona || '').toLowerCase().trim()}
               className="bg-white bg-opacity-20 rounded-lg p-3"
             >
               <div className="flex items-center justify-between mb-2">
@@ -109,8 +118,9 @@ export function AlertaRoteirosPendentes() {
                 </span>
               </div>
               <div className="text-sm space-y-1">
-                <p>📍 {roteiro.estado} - {roteiro.cidade}</p>
-                <p>🏪 {roteiro.lojas?.length || 0} lojas</p>
+                <p>Zona do roteiro: <b>{roteiro.zona}</b></p>
+                {roteiro.estado && <p>📍 {roteiro.estado} - {roteiro.cidade}</p>}
+                {roteiro.lojas && <p>🏪 {roteiro.lojas?.length || 0} lojas</p>}
                 {roteiro.funcionarioNome && (
                   <p>👤 {roteiro.funcionarioNome}</p>
                 )}
