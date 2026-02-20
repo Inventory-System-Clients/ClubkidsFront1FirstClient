@@ -109,7 +109,7 @@ export function AlertaRoteirosPendentes() {
           {roteirosDoUsuario.map((roteiro) => (
             <div
               key={(roteiro.nome || roteiro.zona || '').toLowerCase().trim()}
-              className="bg-white bg-opacity-20 rounded-lg p-3"
+              className="bg-white bg-opacity-20 rounded-lg p-3 text-black"
             >
               <div className="flex items-center justify-between mb-2">
                 <span className="font-bold text-lg">{roteiro.nome || roteiro.zona}</span>
@@ -118,7 +118,7 @@ export function AlertaRoteirosPendentes() {
                 </span>
               </div>
               <div className="text-sm space-y-1">
-                <p>Zona do roteiro: <b style={{ color: '#222' }}>{roteiro.zona}</b></p>
+                <p>Zona do roteiro: <b className="text-black">{roteiro.zona}</b></p>
                 {roteiro.estado && <p>📍 {roteiro.estado} - {roteiro.cidade}</p>}
                 {roteiro.lojas && <p>🏪 {roteiro.lojas?.length || 0} lojas</p>}
                 {roteiro.funcionarioNome && (
