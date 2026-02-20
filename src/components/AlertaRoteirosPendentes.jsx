@@ -30,10 +30,16 @@ export function AlertaRoteirosPendentes() {
       const roteiros = response.data || [];
       console.log('[ALERTA] Roteiros retornados da API:', roteiros);
       // Filtrar roteiros pendentes ou em andamento
-      const pendentes = roteiros.filter(
-        r => (r.status === 'pendente' || r.status === 'em_andamento') && r.nome?.toLowerCase().includes(diaSemana.split('-')[0])
-      );
-      console.log('[ALERTA] Dia da semana:', diaSemana, '| Nome esperado no roteiro:', diaSemana.split('-')[0]);
+      const nomeDia = diaSemana.split('-')[0].trim();
+      const pendentes = roteiros.filter(r => {
+        const nomeRoteiro = (r.nome || '').toLowerCase().trim();
+        // Aceita "sexta", "sexta 1", "sexta 2", ...
+        return (
+          (r.status === 'pendente' || r.status === 'em_andamento') &&
+          nomeRoteiro.startsWith(nomeDia)
+        );
+      });
+      console.log('[ALERTA] Dia da semana:', diaSemana, '| Nome esperado no roteiro:', nomeDia);
       console.log('[ALERTA] Roteiros pendentes filtrados:', pendentes);
       // Verificar se já passou das 11h
       const hora = hoje.getHours();
