@@ -33,10 +33,10 @@ export function AlertaRoteirosPendentes() {
       const pendentes = roteiros.filter(
         r => (r.status === 'pendente' || r.status === 'em_andamento') && r.nome?.toLowerCase().includes(diaSemana.split('-')[0])
       );
-      // Verificar se já passou das 20h
+      // Verificar se já passou das 11h
       const hora = hoje.getHours();
-      // Mostrar alerta se for após 20h e tiver roteiros pendentes
-      if (hora >= 20 && pendentes.length > 0) {
+      // Mostrar alerta se for após 11h e tiver roteiros pendentes
+      if (hora >= 11 && pendentes.length > 0) {
         setRoteirosPendentes(pendentes);
         setMostrarAlerta(true);
       } else {
