@@ -69,6 +69,7 @@ export function SelecionarRoteiro() {
     const roteiro = roteiros.find((r) => r.id === roteiroId);
 
     if (roteiro) {
+
       const totalLojas = roteiro.lojas?.length || 0;
       const lojasConcluidas =
         roteiro.lojas?.filter((l) => l.concluida).length || 0;
