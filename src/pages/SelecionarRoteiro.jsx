@@ -20,9 +20,10 @@ export function SelecionarRoteiro() {
   const [funcionarios, setFuncionarios] = useState([]);
   const [todasLojas, setTodasLojas] = useState([]);
   const [showModalAdicionarLoja, setShowModalAdicionarLoja] = useState(false);
-  const [roteiroSelecionadoParaAdicionar, setRoteiroSelecionadoParaAdicionar] =
-    useState(null);
+  const [roteiroSelecionadoParaAdicionar, setRoteiroSelecionadoParaAdicionar] = useState(null);
   const [filtroLoja, setFiltroLoja] = useState("");
+  // Novo filtro de roteiros por zona
+  const [filtroZona, setFiltroZona] = useState("");
 
   useEffect(() => {
     carregarRoteiros();
@@ -212,7 +213,11 @@ export function SelecionarRoteiro() {
 
   // Filtrar roteiros do dia atual
   const hoje = new Date().toISOString().split("T")[0];
-  const roteirosHoje = roteiros.filter((r) => r.data?.startsWith(hoje));
+  let roteirosHoje = roteiros.filter((r) => r.data?.startsWith(hoje));
+  // Aplicar filtro de zona se preenchido
+  if (filtroZona) {
+    roteirosHoje = roteirosHoje.filter(r => (r.zona || "").toLowerCase().includes(filtroZona.toLowerCase()));
+  }
 
   // Separar roteiros pendentes/em andamento e concluídos
   // Se todas as lojas de um roteiro estão concluídas, considerar como concluído
@@ -273,11 +278,23 @@ export function SelecionarRoteiro() {
       <Navbar />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <PageHeader
-          title="Selecionar Roteiro"
-          subtitle="Escolha um roteiro para iniciar as movimentações"
-          icon="🗺️"
-        />
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
+          <PageHeader
+            title="Selecionar Roteiro"
+            subtitle="Escolha um roteiro para iniciar as movimentações"
+            icon="🗺️"
+          />
+          <div className="flex items-center gap-2 mt-2 md:mt-0">
+            <input
+              type="text"
+              className="input-field border-2 border-blue-300 focus:border-blue-500 rounded px-3 py-2"
+              placeholder="Filtrar por zona..."
+              value={filtroZona}
+              onChange={e => setFiltroZona(e.target.value)}
+              style={{ minWidth: 220 }}
+            />
+          </div>
+        </div>
 
         {error && (
           <AlertBox type="error" message={error} onClose={() => setError("")} />
@@ -325,7 +342,11 @@ export function SelecionarRoteiro() {
               {roteirosPendentes.map((roteiro) => (
                 <div
                   key={roteiro.id}
-                  className={`card-gradient hover:shadow-xl transition-all duration-300 ${
+                  className={`transition-all duration-300 ${
+                    (roteiro.zona || "").toLowerCase().startsWith("bolinha")
+                      ? "bg-blue-100 border-2 border-blue-400"
+                      : "card-gradient"
+                  } hover:shadow-xl ${
                     isAdmin && draggedLoja && draggedFromRoteiro !== roteiro.id
                       ? "ring-2 ring-blue-400 ring-offset-2"
                       : ""

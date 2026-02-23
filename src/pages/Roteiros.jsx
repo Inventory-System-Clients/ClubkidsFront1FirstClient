@@ -234,6 +234,10 @@ export function Roteiros() {
     );
   });
 
+  // --- ROTEIROS BOLINHA ---
+  const bolinhaRoteiros = roteirosHoje.filter(r => r.tipo === 'bolinha');
+  const roteirosNormais = roteirosHoje.filter(r => r.tipo !== 'bolinha');
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <Navbar />

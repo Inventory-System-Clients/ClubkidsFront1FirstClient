@@ -547,6 +547,46 @@ export function Movimentacoes() {
     },
   ];
 
+
+  // --- ROTEIROS BOLINHA ---
+  const [bolinhaRoteiros, setBolinhaRoteiros] = useState([]);
+  const [filtroBolinha, setFiltroBolinha] = useState("");
+
+  // Carregar roteiros bolinha do backend (filtrar por zona)
+  useEffect(() => {
+    const fetchBolinha = async () => {
+      try {
+        const res = await api.get("/roteiros");
+        // Filtra roteiros cuja zona começa com 'Bolinha'
+        const bolinhas = (res.data || []).filter(r => (r.zona || "").toLowerCase().startsWith("bolinha"));
+        setBolinhaRoteiros(bolinhas.map(r => ({ ...r, editando: false })));
+      } catch (err) {
+        setBolinhaRoteiros([]);
+      }
+    };
+    fetchBolinha();
+  }, []);
+
+  // Editar nome do roteiro bolinha (apenas frontend, ajuste para persistir se backend permitir)
+  const handleEditBolinhaNome = (id, nome) => {
+    setBolinhaRoteiros(prev => prev.map(r => r.id === id ? { ...r, nome, editando: false } : r));
+    // TODO: Se backend permitir edição, faça um PUT aqui
+  };
+  const handleStartEditBolinha = (id) => {
+    setBolinhaRoteiros(prev => prev.map(r => r.id === id ? { ...r, editando: true } : r));
+  };
+  const handleZoneChangeBolinha = (id, zona) => {
+    setBolinhaRoteiros(prev => prev.map(r => r.id === id ? { ...r, zona } : r));
+    // TODO: Se backend permitir edição, faça um PUT aqui
+  };
+
+  // Filtragem por zona/nome
+  const bolinhaFiltrados = bolinhaRoteiros.filter(
+    (r) =>
+      (r.nome || "").toLowerCase().includes(filtroBolinha.toLowerCase()) ||
+      (r.zona || "").toLowerCase().includes(filtroBolinha.toLowerCase())
+  );
+
   if (usuario?.role === "ADMIN") {
     columns.push({
       key: "acoes",
@@ -1431,3 +1471,60 @@ export function Movimentacoes() {
     </div>
   );
 }
+
+{/* Roteiros Bolinha */}
+<div className="mt-12">
+  <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+    <span className="text-3xl">🔵</span>
+    Roteiros Bolinha
+  </h2>
+  <div className="mb-4 flex flex-wrap gap-4">
+    <input
+      type="text"
+      className="input-field"
+      placeholder="Filtrar por zona ou nome..."
+      value={filtroBolinha}
+      onChange={(e) => setFiltroBolinha(e.target.value)}
+    />
+  </div>
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {bolinhaFiltrados.map((roteiro) => (
+      <div
+        key={roteiro.id}
+        className="bg-blue-100 border-2 border-blue-300 rounded-lg p-4 shadow-md mb-4"
+      >
+        <div className="flex items-center gap-2 mb-2">
+          <span className="font-bold text-blue-700 text-lg">{roteiro.id}</span>
+          {roteiro.editando ? (
+            <input
+              type="text"
+              value={roteiro.nome}
+              onChange={(e) => handleEditBolinhaNome(roteiro.id, e.target.value)}
+              onBlur={() => handleEditBolinhaNome(roteiro.id, roteiro.nome)}
+              className="text-lg font-bold text-blue-700 bg-white border-b-2 border-blue-300 focus:border-blue-500 outline-none w-full"
+              autoFocus
+            />
+          ) : (
+            <span
+              className="text-lg font-bold text-blue-700 cursor-pointer"
+              onClick={() => handleStartEditBolinha(roteiro.id)}
+            >
+              {roteiro.nome}
+            </span>
+          )}
+        </div>
+        <div className="mb-2">
+          <label className="block text-sm font-semibold text-blue-700 mb-1">Zona:</label>
+          <input
+            type="text"
+            value={roteiro.zona}
+            onChange={(e) => handleZoneChangeBolinha(roteiro.id, e.target.value)}
+            className="input-field bg-blue-50 border-blue-300"
+            placeholder="Digite a zona..."
+          />
+        </div>
+        <div className="text-xs text-blue-600">Filtre por zona ou nome acima para encontrar rapidamente.</div>
+      </div>
+    ))}
+  </div>
+</div>
