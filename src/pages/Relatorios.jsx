@@ -6,19 +6,35 @@ import { PageHeader } from "../components/UIComponents";
 import { PageLoader } from "../components/Loading";
 
 export function Relatorios() {
+  const [roteiros, setRoteiros] = useState([]);
+  const [roteiroSelecionado, setRoteiroSelecionado] = useState("");
   const [lojas, setLojas] = useState([]);
   const [lojaSelecionada, setLojaSelecionada] = useState("");
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingRoteiros, setLoadingRoteiros] = useState(true);
   const [loadingLojas, setLoadingLojas] = useState(true);
   const [relatorio, setRelatorio] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    carregarRoteiros();
     carregarLojas();
     definirDatasDefault();
   }, []);
+
+  const carregarLojas = async () => {
+    try {
+      setLoadingLojas(true);
+      const response = await api.get("/lojas");
+      setLojas(response.data || []);
+    } catch (error) {
+      setError("Erro ao carregar lojas");
+    } finally {
+      setLoadingLojas(false);
+    }
+  };
 
   const definirDatasDefault = () => {
     const hoje = new Date();
@@ -29,22 +45,22 @@ export function Relatorios() {
     setDataInicio(seteDiasAtras.toISOString().split("T")[0]);
   };
 
-  const carregarLojas = async () => {
+  const carregarRoteiros = async () => {
     try {
-      setLoadingLojas(true);
-      const response = await api.get("/lojas");
-      setLojas(response.data || []);
+      setLoadingRoteiros(true);
+      const response = await api.get("/roteiros");
+      setRoteiros(response.data || []);
     } catch (error) {
-      console.error("Erro ao carregar lojas:", error);
-      setError("Erro ao carregar lojas");
+      console.error("Erro ao carregar roteiros:", error);
+      setError("Erro ao carregar roteiros");
     } finally {
-      setLoadingLojas(false);
+      setLoadingRoteiros(false);
     }
   };
 
   const gerarRelatorio = async () => {
-    if (!lojaSelecionada || !dataInicio || !dataFim) {
-      setError("Por favor, preencha todos os campos");
+    if ((!roteiroSelecionado && !lojaSelecionada) || !dataInicio || !dataFim) {
+      setError("Por favor, selecione um roteiro ou uma loja e preencha as datas.");
       return;
     }
 
@@ -62,13 +78,24 @@ export function Relatorios() {
       setError("");
       setRelatorio(null); // Limpar relatório anterior
 
-      const response = await api.get("/relatorios/impressao", {
-        params: {
-          lojaId: lojaSelecionada,
-          dataInicio,
-          dataFim,
-        },
-      });
+      let response;
+      if (roteiroSelecionado) {
+        response = await api.get("/relatorios/roteiro", {
+          params: {
+            roteiroId: roteiroSelecionado,
+            dataInicio,
+            dataFim,
+          },
+        });
+      } else if (lojaSelecionada) {
+        response = await api.get("/relatorios/impressao", {
+          params: {
+            lojaId: lojaSelecionada,
+            dataInicio,
+            dataFim,
+          },
+        });
+      }
 
       setRelatorio(response.data);
     } catch (error) {
@@ -83,11 +110,11 @@ export function Relatorios() {
 
       if (error.response?.status === 404) {
         errorMessage =
-          "⚠️ Endpoint não encontrado. O servidor pode estar atualizando. Aguarde alguns minutos e tente novamente.";
+          "⚠️ Endpoint não encontrado. O servidor pode estar atualizando ou o endpoint de relatório de roteiro/loja não existe.";
       } else if (error.response?.status === 500) {
         errorMessage = `⚠️ Erro no servidor: ${
           error.response?.data?.error || "Erro interno no servidor"
-        }. Verifique se a loja existe e se há dados para o período selecionado.`;
+        }. Verifique se o roteiro/loja existe e se há dados para o período selecionado.`;
       } else if (error.response?.status === 400) {
         errorMessage = `⚠️ Requisição inválida: ${
           error.response?.data?.error || "Verifique os campos preenchidos"
@@ -109,7 +136,7 @@ export function Relatorios() {
     window.print();
   };
 
-  if (loadingLojas) return <PageLoader />;
+  if (loadingRoteiros || loadingLojas) return <PageLoader />;
 
   // Proteções extras para evitar erros de undefined/null
   const totais = relatorio && typeof relatorio.totais === 'object' ? relatorio.totais : {};
@@ -131,28 +158,43 @@ export function Relatorios() {
         {/* Formulário de Filtros */}
         <div className="card mb-6 no-print">
           <h3 className="text-lg font-bold text-gray-900 mb-4">Filtros</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                🏪 Loja *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">🚚 Roteiro</label>
               <select
-                value={lojaSelecionada}
-                onChange={(e) => setLojaSelecionada(e.target.value)}
+                value={roteiroSelecionado}
+                onChange={e => {
+                  setRoteiroSelecionado(e.target.value);
+                  setLojaSelecionada("");
+                }}
                 className="input-field w-full"
               >
-                <option value="">Selecione uma loja</option>
-                {lojas.map((loja) => (
-                  <option key={loja.id} value={loja.id}>
-                    {loja.nome}
+                <option value="">Selecione um roteiro (opcional)</option>
+                {roteiros.map((roteiro) => (
+                  <option key={roteiro.id} value={roteiro.id}>
+                    {roteiro.nome} {roteiro.zona ? `- Zona: ${roteiro.zona}` : ''}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                📅 Data Inicial *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">🏪 Loja</label>
+              <select
+                value={lojaSelecionada}
+                onChange={e => {
+                  setLojaSelecionada(e.target.value);
+                  setRoteiroSelecionado("");
+                }}
+                className="input-field w-full"
+              >
+                <option value="">Selecione uma loja (opcional)</option>
+                {lojas.map((loja) => (
+                  <option key={loja.id} value={loja.id}>{loja.nome}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">📅 Data Inicial *</label>
               <input
                 type="date"
                 value={dataInicio}
@@ -161,9 +203,7 @@ export function Relatorios() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                📅 Data Final *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">📅 Data Final *</label>
               <input
                 type="date"
                 value={dataFim}
@@ -175,7 +215,7 @@ export function Relatorios() {
 
           {error && (
             <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-600">⚠️ {error}</p>
+              <p className="text-sm text-red-600">⚠️ {error.includes('Nenhuma loja encontrada para o roteiro') ? 'Este roteiro não possui nenhuma loja cadastrada. Selecione outro roteiro ou cadastre lojas para este roteiro.' : error}</p>
             </div>
           )}
 
@@ -210,11 +250,29 @@ export function Relatorios() {
           <div className="space-y-6">
             {/* Header do Relatório */}
 
-            {/* Cards de Totais Gerais */}
+            {/* Exibir lojas do roteiro, se filtrando por roteiro */}
+            {roteiroSelecionado && relatorio.lojas && relatorio.lojas.length > 0 && (
+              <div className="card bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-300">
+                <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+                  <span className="text-xl sm:text-2xl">🏪</span>
+                  Lojas deste roteiro
+                </h3>
+                <ul className="list-disc pl-6">
+                  {relatorio.lojas.map((l) => (
+                    <li key={l.loja.id} className="mb-1">
+                      <span className="font-bold">{l.loja.nome}</span>
+                      {l.loja.endereco ? ` — ${l.loja.endereco}` : ''}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="card bg-gradient-to-r from-purple-50 to-purple-100 border-2 border-purple-300">
               <h3 className="text-lg sm:text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <span className="text-2xl sm:text-3xl">📊</span>
-                Resumo Geral da Loja
+                {roteiroSelecionado && relatorio && relatorio.roteiro && relatorio.roteiro.zona
+                  ? `Resumo Geral do Roteiro (${relatorio.roteiro.zona})`
+                  : 'Resumo Geral da Loja'}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
 
