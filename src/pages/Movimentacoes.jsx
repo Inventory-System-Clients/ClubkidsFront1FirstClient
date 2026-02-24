@@ -550,7 +550,6 @@ export function Movimentacoes() {
 
   // --- ROTEIROS BOLINHA ---
   const [bolinhaRoteiros, setBolinhaRoteiros] = useState([]);
-  const [filtroTipoRoteiro, setFiltroTipoRoteiro] = useState("bolinha"); // 'bolinha' ou 'dias'
 
   // Carregar roteiros bolinha do backend (filtrar por zona)
   useEffect(() => {
@@ -580,16 +579,8 @@ export function Movimentacoes() {
     // TODO: Se backend permitir edição, faça um PUT aqui
   };
 
-  // Filtragem por tipo de roteiro
-  const bolinhaFiltrados = bolinhaRoteiros.filter((r) => {
-    const zona = (r.zona || "").toLowerCase();
-    if (filtroTipoRoteiro === "bolinha") {
-      return zona.startsWith("bolinha");
-    } else if (filtroTipoRoteiro === "dias") {
-      return ["segunda", "terça", "terca", "quarta", "quinta", "sexta"].includes(zona);
-    }
-    return true;
-  });
+  // Filtragem por zona/nome (mantém apenas se necessário)
+  const bolinhaFiltrados = bolinhaRoteiros;
 
   if (usuario?.role === "ADMIN") {
     columns.push({
