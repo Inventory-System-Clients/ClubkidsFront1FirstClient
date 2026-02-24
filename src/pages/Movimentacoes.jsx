@@ -550,7 +550,7 @@ export function Movimentacoes() {
 
   // --- ROTEIROS BOLINHA ---
   const [bolinhaRoteiros, setBolinhaRoteiros] = useState([]);
-  const [filtroBolinha, setFiltroBolinha] = useState("");
+  const [filtroTipoRoteiro, setFiltroTipoRoteiro] = useState("bolinha"); // 'bolinha' ou 'dias'
 
   // Carregar roteiros bolinha do backend (filtrar por zona)
   useEffect(() => {
@@ -580,12 +580,16 @@ export function Movimentacoes() {
     // TODO: Se backend permitir edição, faça um PUT aqui
   };
 
-  // Filtragem por zona/nome
-  const bolinhaFiltrados = bolinhaRoteiros.filter(
-    (r) =>
-      (r.nome || "").toLowerCase().includes(filtroBolinha.toLowerCase()) ||
-      (r.zona || "").toLowerCase().includes(filtroBolinha.toLowerCase())
-  );
+  // Filtragem por tipo de roteiro
+  const bolinhaFiltrados = bolinhaRoteiros.filter((r) => {
+    const zona = (r.zona || "").toLowerCase();
+    if (filtroTipoRoteiro === "bolinha") {
+      return zona.startsWith("bolinha");
+    } else if (filtroTipoRoteiro === "dias") {
+      return ["segunda", "terça", "terca", "quarta", "quinta", "sexta"].includes(zona);
+    }
+    return true;
+  });
 
   if (usuario?.role === "ADMIN") {
     columns.push({
@@ -1476,18 +1480,26 @@ export function Movimentacoes() {
 <div className="mt-12">
   <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
     <span className="text-3xl">🔵</span>
-    Roteiros Bolinha
+    Roteiros
   </h2>
   <div className="mb-4 flex flex-wrap gap-4">
-    <input
-      type="text"
-      className="input-field"
-      placeholder="Filtrar por zona ou nome..."
-      value={filtroBolinha}
-      onChange={(e) => setFiltroBolinha(e.target.value)}
-    />
+    <button
+      className={`px-4 py-2 rounded-lg font-semibold border-2 transition-colors ${filtroTipoRoteiro === "bolinha" ? "bg-blue-500 text-white border-blue-700" : "bg-white text-blue-700 border-blue-300 hover:bg-blue-100"}`}
+      onClick={() => setFiltroTipoRoteiro("bolinha")}
+    >
+      Bolinha
+    </button>
+    <button
+      className={`px-4 py-2 rounded-lg font-semibold border-2 transition-colors ${filtroTipoRoteiro === "dias" ? "bg-blue-500 text-white border-blue-700" : "bg-white text-blue-700 border-blue-300 hover:bg-blue-100"}`}
+      onClick={() => setFiltroTipoRoteiro("dias")}
+    >
+      Dias da Semana
+    </button>
   </div>
   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {bolinhaFiltrados.length === 0 && (
+      <div className="text-gray-500 col-span-full">Nenhum roteiro encontrado para o filtro selecionado.</div>
+    )}
     {bolinhaFiltrados.map((roteiro) => (
       <div
         key={roteiro.id}
@@ -1515,15 +1527,8 @@ export function Movimentacoes() {
         </div>
         <div className="mb-2">
           <label className="block text-sm font-semibold text-blue-700 mb-1">Zona:</label>
-          <input
-            type="text"
-            value={roteiro.zona}
-            onChange={(e) => handleZoneChangeBolinha(roteiro.id, e.target.value)}
-            className="input-field bg-blue-50 border-blue-300"
-            placeholder="Digite a zona..."
-          />
+          <span className="text-blue-900 font-semibold">{roteiro.zona}</span>
         </div>
-        <div className="text-xs text-blue-600">Filtre por zona ou nome acima para encontrar rapidamente.</div>
       </div>
     ))}
   </div>

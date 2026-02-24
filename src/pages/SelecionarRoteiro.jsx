@@ -22,8 +22,8 @@ export function SelecionarRoteiro() {
   const [showModalAdicionarLoja, setShowModalAdicionarLoja] = useState(false);
   const [roteiroSelecionadoParaAdicionar, setRoteiroSelecionadoParaAdicionar] = useState(null);
   const [filtroLoja, setFiltroLoja] = useState("");
-  // Novo filtro de roteiros por zona
-  const [filtroZona, setFiltroZona] = useState("");
+  // Filtro de tipo de roteiro: 'bolinha' ou 'dias'
+  const [filtroTipoRoteiro, setFiltroTipoRoteiro] = useState("todos");
 
   useEffect(() => {
     carregarRoteiros();
@@ -215,9 +215,15 @@ export function SelecionarRoteiro() {
   // Filtrar roteiros do dia atual
   const hoje = new Date().toISOString().split("T")[0];
   let roteirosHoje = roteiros.filter((r) => r.data?.startsWith(hoje));
-  // Aplicar filtro de zona se preenchido
-  if (filtroZona) {
-    roteirosHoje = roteirosHoje.filter(r => (r.zona || "").toLowerCase().includes(filtroZona.toLowerCase()));
+  // Aplicar filtro de tipo de roteiro
+  if (filtroTipoRoteiro === "bolinha") {
+    roteirosHoje = roteirosHoje.filter(r => (r.zona || "").toLowerCase().startsWith("bolinha"));
+  } else if (filtroTipoRoteiro === "dias") {
+    const dias = ["segunda", "terça", "terca", "quarta", "quinta", "sexta"];
+    roteirosHoje = roteirosHoje.filter(r => {
+      const zona = (r.zona || "").toLowerCase();
+      return dias.some(dia => zona.startsWith(dia));
+    });
   }
 
   // Separar roteiros pendentes/em andamento e concluídos
@@ -286,14 +292,24 @@ export function SelecionarRoteiro() {
             icon="🗺️"
           />
           <div className="flex items-center gap-2 mt-2 md:mt-0">
-            <input
-              type="text"
-              className="input-field border-2 border-blue-300 focus:border-blue-500 rounded px-3 py-2"
-              placeholder="Filtrar por zona..."
-              value={filtroZona}
-              onChange={e => setFiltroZona(e.target.value)}
-              style={{ minWidth: 220 }}
-            />
+            <button
+              className={`px-4 py-2 rounded-lg font-semibold border-2 transition-colors ${filtroTipoRoteiro === "bolinha" ? "bg-blue-500 text-white border-blue-700" : "bg-white text-blue-700 border-blue-300 hover:bg-blue-100"}`}
+              onClick={() => setFiltroTipoRoteiro("bolinha")}
+            >
+              Bolinha
+            </button>
+            <button
+              className={`px-4 py-2 rounded-lg font-semibold border-2 transition-colors ${filtroTipoRoteiro === "dias" ? "bg-blue-500 text-white border-blue-700" : "bg-white text-blue-700 border-blue-300 hover:bg-blue-100"}`}
+              onClick={() => setFiltroTipoRoteiro("dias")}
+            >
+              Dias da Semana
+            </button>
+            <button
+              className={`px-4 py-2 rounded-lg font-semibold border-2 transition-colors ${filtroTipoRoteiro === "todos" ? "bg-blue-500 text-white border-blue-700" : "bg-white text-blue-700 border-blue-300 hover:bg-blue-100"}`}
+              onClick={() => setFiltroTipoRoteiro("todos")}
+            >
+              Todos
+            </button>
           </div>
         </div>
 
