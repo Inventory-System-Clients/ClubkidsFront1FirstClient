@@ -1473,20 +1473,7 @@ export function Movimentacoes() {
     <span className="text-3xl">🔵</span>
     Roteiros
   </h2>
-  <div className="mb-4 flex flex-wrap gap-4">
-    <button
-      className={`px-4 py-2 rounded-lg font-semibold border-2 transition-colors ${filtroTipoRoteiro === "bolinha" ? "bg-blue-500 text-white border-blue-700" : "bg-white text-blue-700 border-blue-300 hover:bg-blue-100"}`}
-      onClick={() => setFiltroTipoRoteiro("bolinha")}
-    >
-      Bolinha
-    </button>
-    <button
-      className={`px-4 py-2 rounded-lg font-semibold border-2 transition-colors ${filtroTipoRoteiro === "dias" ? "bg-blue-500 text-white border-blue-700" : "bg-white text-blue-700 border-blue-300 hover:bg-blue-100"}`}
-      onClick={() => setFiltroTipoRoteiro("dias")}
-    >
-      Dias da Semana
-    </button>
-  </div>
+  {/* Filtros removidos, apenas exibe todos os roteiros bolinha */}
   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
     {bolinhaFiltrados.length === 0 && (
       <div className="text-gray-500 col-span-full">Nenhum roteiro encontrado para o filtro selecionado.</div>
