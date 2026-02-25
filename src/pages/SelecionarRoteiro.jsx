@@ -25,17 +25,28 @@ export function SelecionarRoteiro() {
   // Filtro de tipo de roteiro: 'bolinha' ou 'dias'
   const [filtroTipoRoteiro, setFiltroTipoRoteiro] = useState("todos");
 
+
   useEffect(() => {
     carregarRoteiros();
     carregarFuncionarios();
     carregarTodasLojas();
   }, []);
 
+  // Função para buscar roteiros do dia 24/02/2026 e bolinhas do dia atual
   const carregarRoteiros = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/roteiros");
-      setRoteiros(response.data || []);
+      // Buscar roteiros do dia 24/02/2026
+      const responseFixo = await api.get("/roteiros", { params: { data: "2026-02-24" } });
+      // Buscar roteiros bolinha do dia atual
+      const hoje = new Date().toISOString().split("T")[0];
+      const responseBolinha = await api.get("/roteiros", { params: { data: hoje } });
+      // Filtrar apenas os de bolinha do dia atual
+      const bolinhasHoje = (responseBolinha.data || []).filter(r => (r.zona || "").toLowerCase().startsWith("bolinha"));
+      // Juntar os dois arrays, evitando duplicidade de ids
+      const idsFixo = new Set((responseFixo.data || []).map(r => r.id));
+      const roteirosCombinados = [...(responseFixo.data || []), ...bolinhasHoje.filter(r => !idsFixo.has(r.id))];
+      setRoteiros(roteirosCombinados);
     } catch (error) {
       setError(
         "Erro ao carregar roteiros: " +
@@ -212,23 +223,22 @@ export function SelecionarRoteiro() {
     }
   };
 
-  // Filtrar roteiros do dia atual
-  const hoje = new Date().toISOString().split("T")[0];
-  let roteirosHoje = roteiros.filter((r) => r.data?.startsWith(hoje));
-  // Aplicar filtro de tipo de roteiro
+  // Exibir todos os roteiros carregados, aplicar filtro de tipo normalmente
+  let roteirosFiltrados = roteiros;
   if (filtroTipoRoteiro === "bolinha") {
-    roteirosHoje = roteirosHoje.filter(r => (r.zona || "").toLowerCase().startsWith("bolinha"));
+    roteirosFiltrados = roteirosFiltrados.filter(r => (r.zona || "").toLowerCase().startsWith("bolinha"));
   } else if (filtroTipoRoteiro === "dias") {
     const dias = ["segunda", "terça", "terca", "quarta", "quinta", "sexta"];
-    roteirosHoje = roteirosHoje.filter(r => {
+    roteirosFiltrados = roteirosFiltrados.filter(r => {
       const zona = (r.zona || "").toLowerCase();
       return dias.some(dia => zona.startsWith(dia));
     });
   }
 
+
   // Separar roteiros pendentes/em andamento e concluídos
   // Se todas as lojas de um roteiro estão concluídas, considerar como concluído
-  const roteirosPendentes = roteirosHoje.filter((r) => {
+  const roteirosPendentes = roteirosFiltrados.filter((r) => {
     // Se o status já é concluído, não mostrar aqui
     if (r.status === "concluido") return false;
 
@@ -243,7 +253,7 @@ export function SelecionarRoteiro() {
     return true; // Pendente ou em andamento com lojas pendentes
   });
 
-  const roteirosConcluidos = roteirosHoje.filter((r) => {
+  const roteirosConcluidos = roteirosFiltrados.filter((r) => {
     // Se o status já é concluído, mostrar aqui
     if (r.status === "concluido") return true;
 
@@ -258,8 +268,9 @@ export function SelecionarRoteiro() {
   const isAdmin = usuario?.role === "ADMIN";
 
   // Função helper para verificar se uma loja já está em um roteiro
+
   const obterRoteiroAtualDaLoja = (lojaId) => {
-    return roteirosHoje.find((roteiro) =>
+    return roteirosFiltrados.find((roteiro) =>
       roteiro.lojas?.some((loja) => loja.id === lojaId),
     );
   };
@@ -329,7 +340,7 @@ export function SelecionarRoteiro() {
           <div className="card-gradient text-center">
             <div className="text-4xl mb-2">📋</div>
             <div className="text-3xl font-bold text-primary mb-1">
-              {roteirosHoje.length}
+              {roteirosFiltrados.length}
             </div>
             <div className="text-gray-600 font-medium">Roteiros Hoje</div>
           </div>

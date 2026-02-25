@@ -1,3 +1,4 @@
+
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Veiculos from "./pages/Veiculos";
 import { Suspense, lazy } from "react";
@@ -5,6 +6,9 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { PrivateRoute } from "./components/PrivateRoute";
 import { PageLoader } from "./components/Loading";
 import { AlertaFinanceiro } from "./components/AlertaFinanceiro";
+
+// Lazy load das páginas para reduzir bundle inicial
+const Manutencoes = lazy(() => import("./pages/Manutencoes").then(m => ({ default: m.default })));
 
 // Lazy load das páginas para reduzir bundle inicial
 const Login = lazy(() => import("./pages/Login").then(m => ({ default: m.Login })));
@@ -218,11 +222,21 @@ function App() {
               </PrivateRoute>
             }
           />
+
           <Route
             path="/relatorios"
             element={
               <PrivateRoute adminOnly>
                 <Relatorios />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/manutencoes"
+            element={
+              <PrivateRoute>
+                <Manutencoes />
               </PrivateRoute>
             }
           />

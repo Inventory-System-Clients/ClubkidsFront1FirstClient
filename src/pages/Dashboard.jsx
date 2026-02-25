@@ -1598,7 +1598,15 @@ export function Dashboard() {
 
         {/* Cards de Resumo com design moderno - Apenas para ADMIN */}
         {usuario?.role === "ADMIN" && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6 mb-8">
+                        {/* Card de acesso para Manutenções */}
+                        <Link to="/manutencoes" className="stat-card bg-gradient-to-br from-blue-500 to-blue-700 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 hover:scale-105 transition-transform cursor-pointer">
+                          <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                            <span className="text-5xl mb-2">🛠️</span>
+                            <span className="font-bold text-lg text-center">Manutenções</span>
+                            <span className="text-xs text-blue-100 mt-1 text-center">Visualizar e gerenciar manutenções</span>
+                          </div>
+                        </Link>
             <div className="stat-card bg-linear-to-br from-yellow-500 to-orange-500 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30">
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-2">
