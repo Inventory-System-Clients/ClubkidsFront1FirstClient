@@ -459,36 +459,25 @@ export function ExecutarRoteiro() {
                     )}
                   </div>
                   
-                  {!loja.concluida && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          if (todasAtendidas) {
-                            marcarLojaConcluida(loja.id);
-                          } else {
-                            setError(`Faltam ${totalMaquinas - maquinasAtendidas} máquina(s) para concluir esta loja!`);
-                          }
-                        }}
-                        disabled={!todasAtendidas}
-                        className={`${
-                          todasAtendidas 
-                            ? 'btn-success' 
-                            : 'btn-secondary opacity-50 cursor-not-allowed'
-                        }`}
-                        title={todasAtendidas ? 'Concluir loja' : 'Atenda todas as máquinas primeiro'}
-                      >
-                        ✓ Concluir Loja
-                      </button>
-                      <button
-                        onClick={() => marcarLojaAReceber(loja.id)}
-                        disabled={!todasAtendidas || aReceberPendentes.has(loja.id)}
-                        className={`btn-secondary ${(!todasAtendidas || aReceberPendentes.has(loja.id)) ? 'opacity-60 cursor-not-allowed' : ''}`}
-                        title={aReceberPendentes.has(loja.id) ? 'Já há pendência "à receber" para esta loja' : 'Marcar que o recebimento será feito depois'}
-                      >
-                        💸 Deixar à Receber
-                      </button>
-                    </div>
-                  )}
+                    {!loja.concluida && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => marcarLojaConcluida(loja.id)}
+                          className="btn-success"
+                          title="Concluir loja"
+                        >
+                          ✓ Concluir Loja
+                        </button>
+                        <button
+                          onClick={() => marcarLojaAReceber(loja.id)}
+                          disabled={aReceberPendentes.has(loja.id)}
+                          className={`btn-secondary ${aReceberPendentes.has(loja.id) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                          title={aReceberPendentes.has(loja.id) ? 'Já há pendência "à receber" para esta loja' : 'Marcar que o recebimento será feito depois'}
+                        >
+                          💸 Deixar à Receber
+                        </button>
+                      </div>
+                    )}
                   {loja.concluida && (
                     <Badge type="success">Loja Concluída ✓</Badge>
                   )}
