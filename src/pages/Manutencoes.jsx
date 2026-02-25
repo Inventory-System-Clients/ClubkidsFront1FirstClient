@@ -69,24 +69,18 @@ function Manutencoes() {
       setLoading(true);
       setError("");
       setSuccess("");
-      const token = localStorage.getItem("token");
-      const resp = await fetch(`/api/manutencoes/${detalhe.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(editData),
-      });
-      if (!resp.ok) {
-        const text = await resp.text();
-        console.error("Erro ao atualizar manutenção:", resp.status, text);
-        setError(`Erro ao atualizar manutenção: ${resp.status} - ${text}`);
-        return;
+      try {
+        await api.put(`/manutencoes/${detalhe.id}`, editData);
+        setSuccess("Manutenção atualizada com sucesso!");
+        setEditando(false);
+        setDetalhe(null);
+        // Atualizar lista
+        const res = await api.get("/manutencoes");
+        setManutencoes(res.data);
+      } catch (err) {
+        console.error("Erro ao atualizar manutenção (axios):", err?.response?.status, err?.response?.data, err);
+        setError("Erro ao atualizar manutenção: " + (err?.response?.status ? `${err.response.status} - ${JSON.stringify(err.response.data)}` : err.message || err));
       }
-      setSuccess("Manutenção atualizada com sucesso!");
-      setEditando(false);
-      setDetalhe(null);
-      // Atualizar lista
-      const res = await api.get("/manutencoes");
-      setManutencoes(res.data);
     } catch (err) {
       console.error("Erro ao atualizar manutenção (catch):", err);
       setError("Erro ao atualizar manutenção: " + (err.message || err));
@@ -110,7 +104,7 @@ function Manutencoes() {
         setManutencoes(res.data);
       } catch (err) {
         console.error("Erro ao buscar manutenções:", err?.response?.status, err?.response?.data, err);
-        setError("Erro ao buscar manutenções: " + (err?.response?.status ? `${err.response.status} - ${JSON.stringify(err.response.data)}` : err.message || err));
+        setError("Erro ao buscar manutenções: troque api" + (err?.response?.status ? `${err.response.status} - ${JSON.stringify(err.response.data)}` : err.message || err));
       } finally {
         setLoading(false);
       }
@@ -121,10 +115,50 @@ function Manutencoes() {
   const lojas = Array.from(new Set(manutencoes.map(m => m.loja?.nome).filter(Boolean)));
   const statusList = Array.from(new Set(manutencoes.map(m => m.status).filter(Boolean)));
 
-  const filtradas = manutencoes.filter(m =>
-    (!filtroLoja || m.loja?.nome === filtroLoja) &&
-    (!filtroStatus || m.status === filtroStatus)
-  );
+  // Se não for admin, mostrar apenas manutenções atribuídas ao usuário logado
+  const isAdmin = usuario?.role === "ADMIN";
+  let filtradas = manutencoes.filter(m => {
+    if (!isAdmin) {
+      // Funcionário só vê as suas e apenas as que não estão feitas
+      if (m.funcionarioId !== usuario?.id) return false;
+      if (m.status === "feito" || m.status === "concluida") return false;
+    }
+    return (!filtroLoja || m.loja?.nome === filtroLoja) &&
+      (!filtroStatus || m.status === filtroStatus);
+  });
+
+  // Para admin, limitar as últimas 10 manutenções feitas
+  if (isAdmin && (!filtroStatus || filtroStatus === "feito" || filtroStatus === "concluida")) {
+    const feitas = filtradas.filter(m => m.status === "feito" || m.status === "concluida");
+    const outras = filtradas.filter(m => m.status !== "feito" && m.status !== "concluida");
+    // Ordenar por data decrescente
+    feitas.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    filtradas = outras.concat(feitas.slice(0, 10));
+  }
+
+  // ALERTA DE MANUTENÇÕES FREQUENTES
+  let alertasFrequentes = [];
+  if (isAdmin && manutencoes.length > 0) {
+    const agora = new Date();
+    const seteDiasAtras = new Date(agora.getTime() - 7 * 24 * 60 * 60 * 1000);
+    // Agrupar por máquina
+    const porMaquina = {};
+    manutencoes.forEach(m => {
+      if (!m.maquina?.id) return;
+      const data = new Date(m.createdAt);
+      if (data >= seteDiasAtras) {
+        if (!porMaquina[m.maquina.id]) porMaquina[m.maquina.id] = [];
+        porMaquina[m.maquina.id].push(m);
+      }
+    });
+    alertasFrequentes = Object.values(porMaquina)
+      .filter(arr => arr.length >= 2)
+      .map(arr => {
+        const maquina = arr[0].maquina;
+        const loja = arr[0].loja;
+        return `Manutenções frequentes na máquina ${maquina?.nome || ''} da loja ${loja?.nome || ''}`;
+      });
+  }
 
   return (
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
@@ -133,6 +167,13 @@ function Manutencoes() {
         <PageHeader title="Manutenções" subtitle="Acompanhe todas as manutenções registradas" icon="🛠️" />
         {error && <AlertBox type="error" message={error} onClose={() => setError("")} />}
         {success && <AlertBox type="success" message={success} onClose={() => setSuccess("")} />}
+        {isAdmin && alertasFrequentes.length > 0 && (
+          <div className="mb-4">
+            {alertasFrequentes.map((msg, idx) => (
+              <AlertBox key={idx} type="warning" message={msg} />
+            ))}
+          </div>
+        )}
         <div className="mb-4 flex flex-wrap gap-4">
           <select className="input-field" value={filtroLoja} onChange={e => setFiltroLoja(e.target.value)}>
             <option value="">Todas as lojas</option>
@@ -158,13 +199,24 @@ function Manutencoes() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filtradas.map(m => (
-                  <tr key={m.id} className="hover:bg-blue-50 cursor-pointer" onClick={() => setDetalhe(m)}>
+                  <tr
+                    key={m.id}
+                    className={
+                      `hover:bg-blue-50 cursor-pointer` +
+                      (isAdmin && (m.status === "feito" || m.status === "concluida") ? " bg-green-100" : "")
+                    }
+                    onClick={() => setDetalhe(m)}
+                  >
                     <td className="px-4 py-2">{m.descricao}</td>
                     <td className="px-4 py-2">{new Date(m.createdAt).toLocaleString("pt-BR")}</td>
                     <td className="px-4 py-2">{m.loja?.nome || '-'}</td>
                     {/* Coluna de roteiro removida */}
                     <td className="px-4 py-2">{m.maquina?.nome || '-'}</td>
-                    <td className="px-4 py-2">{m.status}</td>
+                    <td className="px-4 py-2 font-bold">
+                      {m.status === "feito" || m.status === "concluida" ? (
+                        <span className="text-green-700">{m.status}</span>
+                      ) : m.status}
+                    </td>
                   </tr>
                 ))}
                 {filtradas.length === 0 && (
@@ -186,12 +238,34 @@ function Manutencoes() {
                 <div><strong>Data/Hora:</strong> {new Date(detalhe.createdAt).toLocaleString("pt-BR")}</div>
                 <div><strong>Status:</strong> {detalhe.status}</div>
                 <div><strong>Loja:</strong> {detalhe.loja?.nome || '-'} </div>
-                {/* Detalhe de roteiro removido */}
                 <div><strong>Máquina:</strong> {detalhe.maquina?.nome || '-'} </div>
               </div>
               <div className="flex gap-2 mt-6">
-                <button className="btn-primary" onClick={handleEditOpen}>Editar</button>
-                <button className="btn-danger" onClick={handleDelete}>Excluir</button>
+                {isAdmin && <button className="btn-primary" onClick={handleEditOpen}>Editar</button>}
+                {isAdmin && <button className="btn-danger" onClick={handleDelete}>Excluir</button>}
+                {!isAdmin && detalhe.status !== "feito" && (
+                  <button className="btn-success" onClick={async () => {
+                    try {
+                      setLoading(true);
+                      setError("");
+                      setSuccess("");
+                      const url = `/manutencoes/${detalhe.id}`;
+                      const payload = { status: "feito" };
+                      console.log("[DEBUG] PUT para marcar manutenção como feita:", url, payload);
+                      const response = await api.put(url, payload);
+                      console.log("[DEBUG] Resposta do PUT:", response);
+                      setSuccess("Manutenção marcada como feita!");
+                      setDetalhe(null);
+                      const res = await api.get("/manutencoes");
+                      setManutencoes(res.data);
+                    } catch (err) {
+                      console.error("[DEBUG] Erro ao marcar manutenção como feita:", err?.response?.status, err?.response?.data, err);
+                      setError("Erro ao marcar manutenção como feita: " + (err?.response?.status ? `${err.response.status} - ${JSON.stringify(err.response.data)}` : err.message || err));
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}>Marcar como Feita</button>
+                )}
               </div>
             </div>
           </div>

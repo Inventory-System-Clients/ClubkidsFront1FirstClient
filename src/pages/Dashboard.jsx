@@ -7,6 +7,7 @@ import { Footer } from "../components/Footer";
 import { PageLoader } from "../components/Loading";
 import { Badge } from "../components/UIComponents";
 import { AlertaRoteirosPendentes } from "../components/AlertaRoteirosPendentes";
+import { ManutencoesBadgeAlert } from "./ManutencoesBadgeAlert";
 import { useAuth } from "../contexts/AuthContext";
 
 import Swal from "sweetalert2";
@@ -417,6 +418,16 @@ export function Dashboard() {
     }
   };
 
+
+  // Função utilitária para dividir array em lotes
+  function dividirEmLotes(array, tamanhoLote) {
+    const lotes = [];
+    for (let i = 0; i < array.length; i += tamanhoLote) {
+      lotes.push(array.slice(i, i + tamanhoLote));
+    }
+    return lotes;
+  }
+
   const carregarEstoqueDasLojas = async () => {
     try {
       setLoadingEstoque(true);
@@ -425,33 +436,38 @@ export function Dashboard() {
       const lojasRes = await api.get("/lojas");
       const lojas = lojasRes.data || [];
 
-      // 2. Para cada loja, buscar seu estoque
-      const lojasComEstoquePromises = lojas.map(async (loja) => {
-        try {
-          const estoqueRes = await api.get(`/estoque-lojas/${loja.id}`);
-          const estoque = estoqueRes.data || [];
+      // 2. Buscar estoque em lotes para evitar sobrecarga
+      const tamanhoLote = 5; // Ajuste conforme necessário
+      const lotes = dividirEmLotes(lojas, tamanhoLote);
+      let resultado = [];
 
-          return {
-            ...loja,
-            estoque: estoque,
-            totalProdutos: estoque.length,
-            totalUnidades: estoque.reduce(
-              (sum, item) => sum + item.quantidade,
-              0
-            ),
-          };
-        } catch (error) {
-          console.error(`Erro ao carregar estoque da loja ${loja.id}:`, error);
-          return {
-            ...loja,
-            estoque: [],
-            totalProdutos: 0,
-            totalUnidades: 0,
-          };
-        }
-      });
-
-      const resultado = await Promise.all(lojasComEstoquePromises);
+      for (const lote of lotes) {
+        const lotePromises = lote.map(async (loja) => {
+          try {
+            const estoqueRes = await api.get(`/estoque-lojas/${loja.id}`);
+            const estoque = estoqueRes.data || [];
+            return {
+              ...loja,
+              estoque: estoque,
+              totalProdutos: estoque.length,
+              totalUnidades: estoque.reduce(
+                (sum, item) => sum + item.quantidade,
+                0
+              ),
+            };
+          } catch (error) {
+            console.error(`Erro ao carregar estoque da loja ${loja.id}:`, error);
+            return {
+              ...loja,
+              estoque: [],
+              totalProdutos: 0,
+              totalUnidades: 0,
+            };
+          }
+        });
+        const resultadoLote = await Promise.all(lotePromises);
+        resultado = resultado.concat(resultadoLote);
+      }
       setLojasComEstoque(resultado);
     } catch (error) {
       console.error("Erro ao carregar estoque das lojas:", error);
@@ -1597,16 +1613,20 @@ export function Dashboard() {
         </div>
 
         {/* Cards de Resumo com design moderno - Apenas para ADMIN */}
-        {usuario?.role === "ADMIN" && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6 mb-8">
-                        {/* Card de acesso para Manutenções */}
-                        <Link to="/manutencoes" className="stat-card bg-gradient-to-br from-blue-500 to-blue-700 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 hover:scale-105 transition-transform cursor-pointer">
-                          <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                            <span className="text-5xl mb-2">🛠️</span>
-                            <span className="font-bold text-lg text-center">Manutenções</span>
-                            <span className="text-xs text-blue-100 mt-1 text-center">Visualizar e gerenciar manutenções</span>
-                          </div>
-                        </Link>
+        {/* Card de acesso para Manutenções - visível para todos */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6 mb-8">
+          <Link to="/manutencoes" className="stat-card bg-gradient-to-br from-blue-500 to-blue-700 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 hover:scale-105 transition-transform cursor-pointer relative">
+            <div className="relative z-10 flex flex-col items-center justify-center h-full">
+              <span className="text-5xl mb-2">🛠️</span>
+              <span className="font-bold text-lg text-center">Manutenções</span>
+              <span className="text-xs text-blue-100 mt-1 text-center">Visualizar e gerenciar manutenções</span>
+              {/* Badge de alerta para FUNCIONARIO com manutenções pendentes */}
+              {usuario?.role === "FUNCIONARIO" && (
+                <ManutencoesBadgeAlert userId={usuario.id} />
+              )}
+            </div>
+          </Link>
+          {usuario?.role === "ADMIN" && <>
             <div className="stat-card bg-linear-to-br from-yellow-500 to-orange-500 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30">
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-2">
@@ -1704,12 +1724,8 @@ export function Dashboard() {
                 </p>
               </div>
             </div>
-          </div>
-        )}
-
-
-
-        {/* Busca de Lojas e Máquinas */}
+          </>}
+        </div>
         <div className="card-gradient mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
             <span className="text-3xl">🔍</span>
