@@ -29,23 +29,22 @@ function Manutencoes() {
       setError("");
       setSuccess("");
       const token = localStorage.getItem("token");
-      const resp = await fetch(`/api/manutencoes/${detalhe.id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!resp.ok) {
-        const text = await resp.text();
-        console.error("Erro ao excluir manutenção:", resp.status, text);
-        setError(`Erro ao excluir manutenção: ${resp.status} - ${text}`);
+      const url = `/manutencoes/${detalhe.id}`;
+      console.log("[DEBUG] DELETE manutenção (axios):", url, { id: detalhe.id });
+      try {
+        await api.delete(url, { headers: { Authorization: `Bearer ${token}` } });
+        setSuccess("Manutenção excluída com sucesso!");
+        setDetalhe(null);
+        // Atualizar lista
+        const res = await api.get("/manutencoes");
+        setManutencoes(res.data);
+      } catch (err) {
+        console.error("[DEBUG] Erro ao excluir manutenção (axios):", err?.response?.status, err?.response?.data, err);
+        setError("Erro ao excluir manutenção: " + (err?.response?.status ? `${err.response.status} - ${JSON.stringify(err.response.data)}` : err.message || err));
         return;
       }
-      setSuccess("Manutenção excluída com sucesso!");
-      setDetalhe(null);
-      // Atualizar lista
-      const res = await api.get("/manutencoes");
-      setManutencoes(res.data);
     } catch (err) {
-      console.error("Erro ao excluir manutenção (catch):", err);
+      console.error("[DEBUG] Erro ao excluir manutenção (catch):", err);
       setError("Erro ao excluir manutenção: " + (err.message || err));
     } finally {
       setLoading(false);
@@ -152,7 +151,11 @@ function Manutencoes() {
       }
     });
     alertasFrequentes = Object.values(porMaquina)
-      .filter(arr => arr.length >= 2)
+      .filter(arr => {
+        // Só alerta se houver pelo menos uma manutenção pendente nessa máquina
+        const temPendente = arr.some(m => m.status !== "feito" && m.status !== "concluida");
+        return arr.length >= 2 && temPendente;
+      })
       .map(arr => {
         const maquina = arr[0].maquina;
         const loja = arr[0].loja;
