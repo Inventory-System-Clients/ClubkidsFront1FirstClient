@@ -43,9 +43,10 @@ export function SelecionarRoteiro() {
       const responseBolinha = await api.get("/roteiros", { params: { data: hoje } });
       // Filtrar apenas os de bolinha do dia atual
       const bolinhasHoje = (responseBolinha.data || []).filter(r => (r.zona || "").toLowerCase().startsWith("bolinha"));
-      // Juntar os dois arrays, evitando duplicidade de ids
-      const idsFixo = new Set((responseFixo.data || []).map(r => r.id));
-      const roteirosCombinados = [...(responseFixo.data || []), ...bolinhasHoje.filter(r => !idsFixo.has(r.id))];
+      // Priorizar roteiros do dia 24: se houver bolinha com mesmo nome/zona, não adicionar do dia atual
+      const zonasFixo = new Set((responseFixo.data || []).map(r => (r.zona || "").toLowerCase().trim()));
+      const bolinhasHojeNaoDuplicadas = bolinhasHoje.filter(r => !zonasFixo.has((r.zona || "").toLowerCase().trim()));
+      const roteirosCombinados = [...(responseFixo.data || []), ...bolinhasHojeNaoDuplicadas];
       setRoteiros(roteirosCombinados);
     } catch (error) {
       setError(

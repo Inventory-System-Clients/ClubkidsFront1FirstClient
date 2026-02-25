@@ -48,8 +48,18 @@ export function Relatorios() {
   const carregarRoteiros = async () => {
     try {
       setLoadingRoteiros(true);
-      const response = await api.get("/roteiros");
-      setRoteiros(response.data || []);
+      // Buscar roteiros do dia 24/02/2026
+      const responseFixo = await api.get("/roteiros", { params: { data: "2026-02-24" } });
+      // Buscar roteiros bolinha do dia atual
+      const hoje = new Date().toISOString().split("T")[0];
+      const responseBolinha = await api.get("/roteiros", { params: { data: hoje } });
+      // Filtrar apenas os de bolinha do dia atual
+      const bolinhasHoje = (responseBolinha.data || []).filter(r => (r.zona || "").toLowerCase().startsWith("bolinha"));
+      // Priorizar roteiros do dia 24: se houver bolinha com mesmo nome/zona, não adicionar do dia atual
+      const zonasFixo = new Set((responseFixo.data || []).map(r => (r.zona || "").toLowerCase().trim()));
+      const bolinhasHojeNaoDuplicadas = bolinhasHoje.filter(r => !zonasFixo.has((r.zona || "").toLowerCase().trim()));
+      const roteirosCombinados = [...(responseFixo.data || []), ...bolinhasHojeNaoDuplicadas];
+      setRoteiros(roteirosCombinados);
     } catch (error) {
       console.error("Erro ao carregar roteiros:", error);
       setError("Erro ao carregar roteiros");
@@ -485,7 +495,7 @@ export function Relatorios() {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                       {/* Produtos que Saíram */}
                       <div className="bg-red-50 p-3 sm:p-5 rounded-xl border-2 border-red-200">
-                        <h4 className="text-base sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2 bg-red-500 text-white p-2 sm:p-3 rounded-lg">
+                        <h4 className="text-base sm:text-xl font-bold mb-3 sm:mb-4 flex items-center gap-2 bg-red-500 text-white p-2 sm:p-3 rounded-lg">
                           <span className="text-xl sm:text-2xl">📤</span>
                           <span className="text-sm sm:text-base">
                             Produtos que SAÍRAM
@@ -540,7 +550,7 @@ export function Relatorios() {
 
                       {/* Produtos que Entraram */}
                       <div className="bg-green-50 p-3 sm:p-5 rounded-xl border-2 border-green-200">
-                        <h4 className="text-base sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2 bg-green-500 text-white p-2 sm:p-3 rounded-lg">
+                        <h4 className="text-base sm:text-xl font-bold mb-3 sm:mb-4 flex items-center gap-2 bg-green-500 text-white p-2 sm:p-3 rounded-lg">
                           <span className="text-xl sm:text-2xl">📥</span>
                           <span className="text-sm sm:text-base">
                             Produtos que ENTRARAM
