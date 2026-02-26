@@ -6,6 +6,104 @@ import { Navbar } from "../components/Navbar";
 import { useAuth } from "../contexts/AuthContext";
 
 function Manutencoes() {
+    // Cadastro de nova manutenção
+    const [showNovaManutencao, setShowNovaManutencao] = useState(false);
+    const [novaManutencao, setNovaManutencao] = useState({
+      roteiroId: "",
+      lojaId: "",
+      maquinaId: "",
+      descricao: "",
+      funcionarioId: ""
+    });
+      const [erroNovaManutencao, setErroNovaManutencao] = useState("");
+    // Removido: const [maquinas, setMaquinas] = useState([]);
+    const [lojasAll, setLojasAll] = useState([]);
+    const [roteirosAll, setRoteirosAll] = useState([]);
+    // Removido: const [maquinasAll, setMaquinasAll] = useState([]);
+    // Removido: const [maquinasFiltradas, setMaquinasFiltradas] = useState([]);
+    useEffect(() => {
+      if (showNovaManutencao) {
+        api.get("/lojas").then(res => setLojasAll(res.data || []));
+        api.get("/roteiros").then(res => setRoteirosAll(res.data || []));
+        api.get("/maquinas").then(res => setMaquinasAll(res.data || []));
+        api.get("/usuarios/funcionarios").then(res => setFuncionarios(res.data || []));
+      }
+    }, [showNovaManutencao]);
+  // Removido: const [roteirosAll, setRoteirosAll] = useState([]);
+  const [maquinasAll, setMaquinasAll] = useState([]);
+  const [maquinasFiltradas, setMaquinasFiltradas] = useState([]);
+
+    // Quando a loja for selecionada, filtra roteiros e máquinas no frontend
+    useEffect(() => {
+      if (novaManutencao.lojaId) {
+        // Filtra roteiros da loja
+        const roteirosDaLoja = roteirosAll.filter(r => r.lojaId === novaManutencao.lojaId);
+        if (roteirosDaLoja.length > 0) {
+          setNovaManutencao(prev => ({ ...prev, roteiroId: roteirosDaLoja[0].id }));
+        } else {
+          setNovaManutencao(prev => ({ ...prev, roteiroId: "" }));
+        }
+        // Filtra máquinas da loja
+        const maquinasDaLoja = maquinasAll.filter(m => m.lojaId === novaManutencao.lojaId);
+        setMaquinasFiltradas(maquinasDaLoja);
+        setNovaManutencao(prev => ({ ...prev, maquinaId: "" }));
+      } else {
+        setMaquinasFiltradas([]);
+        setNovaManutencao(prev => ({ ...prev, roteiroId: "", maquinaId: "" }));
+      }
+    }, [novaManutencao.lojaId, roteirosAll, maquinasAll]);
+
+    async function handleNovaManutencao(e) {
+          // Log para inspecionar os roteiros filtrados por data
+          const roteirosData = roteirosAll.filter(r => r.data === "2026-02-24");
+          console.log('[NovaManutencao] Roteiros com data 2026-02-24:', roteirosData.map(r => ({ id: r.id, lojaId: r.lojaId, data: r.data })));
+        // Log para inspecionar os roteiros e o campo data
+        console.log('[NovaManutencao] Todos os roteiros retornados:', roteirosAll.map(r => ({ id: r.id, lojaId: r.lojaId, data: r.data })));
+      e.preventDefault();
+      try {
+        setLoading(true);
+        setError("");
+        setSuccess("");
+        setErroNovaManutencao("");
+        // Filtra todos os roteiros da loja selecionada (ou todos do sistema se preferir)
+        // Associar a todos os roteiros do dia 2026-02-26, ignorando lojaId
+        const dataAlvo = "2026-02-26";
+        const roteirosParaManutencao = roteirosAll.filter(r => r.data === dataAlvo);
+        if (!roteirosParaManutencao.length) {
+          setErroNovaManutencao("Não há roteiros do dia 26/02/2026 disponíveis para associar a manutenção.");
+          return;
+        }
+          // Buscar roteiro do dia 24/02/2026 que tem a loja escolhida
+          // Removido: const dataAlvo = "2026-02-24";
+          const lojaSelecionada = lojasAll.find(l => l.id === novaManutencao.lojaId);
+          let roteiroId = null;
+          for (const roteiro of roteirosAll.filter(r => r.data === dataAlvo)) {
+              api.get("/roteiros").then(res => setRoteirosAll(res.data || []));
+            const lojasRoteiro = roteiro.lojas || roteiro.lojasAssociadas || [];
+            if (lojasRoteiro.some(loja => loja.nome === lojaSelecionada?.nome)) {
+              roteiroId = roteiro.id;
+              break;
+            }
+          }
+            // Sempre envia roteiroId como null
+            const payload = {
+              maquinaId: novaManutencao.maquinaId,
+              descricao: novaManutencao.descricao,
+              lojaId: novaManutencao.lojaId,
+              roteiroId: null
+            };
+            const res = await api.post("/manutencoes", payload);
+            setShowNovaManutencao(false);
+            // fetchManutencoes removido (não definido)
+            setLoading(false);
+      } catch (err) {
+        console.error("[NovaManutencao] Erro POST", err);
+        setError("Erro ao cadastrar manutenção: " +
+          (err?.response?.status ? `${err.response.status} - ${JSON.stringify(err.response.data)}` : err.message || err));
+      } finally {
+        setLoading(false);
+      }
+    }
   const { usuario } = useAuth();
   // ...existing code...
   const [funcionarios, setFuncionarios] = useState([]);
@@ -168,6 +266,11 @@ function Manutencoes() {
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <PageHeader title="Manutenções" subtitle="Acompanhe todas as manutenções registradas" icon="🛠️" />
+        {isAdmin && (
+          <div className="mb-4">
+            <button className="btn-primary" onClick={() => setShowNovaManutencao(true)}>Nova Manutenção</button>
+          </div>
+        )}
         {error && <AlertBox type="error" message={error} onClose={() => setError("")} />}
         {success && <AlertBox type="success" message={success} onClose={() => setSuccess("")} />}
         {isAdmin && alertasFrequentes.length > 0 && (
@@ -187,6 +290,47 @@ function Manutencoes() {
             {statusList.map(status => <option key={status} value={status}>{status}</option>)}
           </select>
         </div>
+        {showNovaManutencao && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+            <form className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 relative" onSubmit={handleNovaManutencao}>
+              <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-600" type="button" onClick={() => setShowNovaManutencao(false)}>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+              <h3 className="text-xl font-bold mb-4">Nova Manutenção</h3>
+                {erroNovaManutencao && (
+                  <div className="bg-red-100 text-red-700 rounded p-2 mb-2 text-sm">{erroNovaManutencao}</div>
+                )}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium">Loja</label>
+                  <select className="input-field w-full" value={novaManutencao.lojaId} onChange={e => setNovaManutencao(d => ({ ...d, lojaId: e.target.value }))} required>
+                    <option value="">Selecione</option>
+                    {lojasAll.map(l => <option key={l.id} value={l.id}>{l.nome}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Máquina</label>
+                  <select className="input-field w-full" value={novaManutencao.maquinaId} onChange={e => setNovaManutencao(d => ({ ...d, maquinaId: e.target.value }))} required disabled={!novaManutencao.lojaId}>
+                    <option value="">Selecione</option>
+                    {maquinasFiltradas.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Funcionário (opcional)</label>
+                  <select className="input-field w-full" value={novaManutencao.funcionarioId} onChange={e => setNovaManutencao(d => ({ ...d, funcionarioId: e.target.value }))}>
+                    <option value="">Selecione</option>
+                    {funcionarios.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Descrição</label>
+                  <textarea className="input-field w-full" value={novaManutencao.descricao} onChange={e => setNovaManutencao(d => ({ ...d, descricao: e.target.value }))} required />
+                </div>
+                <button className="btn-primary w-full mt-2" type="submit">Cadastrar</button>
+              </div>
+            </form>
+          </div>
+        )}
         {loading ? <PageLoader /> : (
           <div className="overflow-x-auto bg-white rounded-lg shadow">
             <table className="min-w-full divide-y divide-gray-200">
@@ -244,7 +388,7 @@ function Manutencoes() {
                 <div><strong>Máquina:</strong> {detalhe.maquina?.nome || '-'} </div>
               </div>
               <div className="flex gap-2 mt-6">
-                {isAdmin && <button className="btn-primary" onClick={handleEditOpen}>Edbevditar</button>}
+                {isAdmin && <button className="btn-primary" onClick={handleEditOpen}>Editar</button>}
                 {isAdmin && <button className="btn-danger" onClick={handleDelete}>Excluir</button>}
                 {!isAdmin && detalhe.status !== "feito" && (
                   <button className="btn-success" onClick={async () => {
