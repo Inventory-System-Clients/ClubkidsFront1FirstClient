@@ -544,7 +544,7 @@ export function ExecutarRoteiro() {
                                   🔧
                                 </button>
                                 <button
-                                  onClick={() => navigate(`/movimentacoes/roteiro/${id}/loja/${loja.id}`)}
+                                  onClick={() => navigate(`/movimentacoes/roteiro/${id}/loja/${loja.id}`, { state: { maquinaId: maquina.id } })}
                                   className={`px-4 py-2 rounded-lg transition-colors ${
                                     maquina.atendida
                                       ? 'bg-green-600 text-white hover:bg-green-700'

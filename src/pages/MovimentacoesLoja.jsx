@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import api from "../services/api";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
@@ -9,6 +9,7 @@ import { PageLoader } from "../components/Loading";
 export function MovimentacoesLoja() {
   const { roteiroId, lojaId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   
   const [roteiro, setRoteiro] = useState(null);
   const [loja, setLoja] = useState(null);
@@ -22,7 +23,10 @@ export function MovimentacoesLoja() {
   const [areceberPendente, setAReceberPendente] = useState(false);
   
   // Formulário de movimentação
-  const [maquinaSelecionada, setMaquinaSelecionada] = useState("");
+  // Inicializa com o ID da máquina passada via navegação, se houver
+  const [maquinaSelecionada, setMaquinaSelecionada] = useState(() => {
+    return location.state?.maquinaId || "";
+  });
   const [formData, setFormData] = useState({
     produto_id: "",
     quantidadeAtualMaquina: "",
@@ -46,7 +50,7 @@ export function MovimentacoesLoja() {
       const [roteiroRes, lojaRes, produtosRes] = await Promise.all([
         api.get(`/roteiros/${roteiroId}`),
         api.get(`/lojas/${lojaId}`),
-        api.get("/produtos"),
+        api.get("/produtos")
       ]);
       
       setRoteiro(roteiroRes.data);
