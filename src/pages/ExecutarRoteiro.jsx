@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import api from "../services/api";
 import { Navbar } from "../components/Navbar";
@@ -7,6 +7,18 @@ import { PageHeader, AlertBox, Badge } from "../components/UIComponents";
 import { PageLoader } from "../components/Loading";
 
 export function ExecutarRoteiro() {
+  // Pesquisa de loja
+  const [buscaLoja, setBuscaLoja] = useState("");
+  const lojaRefs = useRef({});
+  const handleBuscarLoja = (e) => {
+    e.preventDefault();
+    if (!buscaLoja.trim() || !roteiro?.lojas) return;
+    const termo = buscaLoja.trim().toLowerCase();
+    const lojaEncontrada = roteiro.lojas.find(l => l.nome.toLowerCase().includes(termo));
+    if (lojaEncontrada && lojaRefs.current[lojaEncontrada.id]) {
+      lojaRefs.current[lojaEncontrada.id].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -202,6 +214,21 @@ export function ExecutarRoteiro() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <Navbar />
+      {/* Barra de pesquisa de loja centralizada */}
+      <div className="flex flex-col items-center mt-4 w-full px-2">
+        <form onSubmit={handleBuscarLoja} className="flex flex-col sm:flex-row items-center gap-2 w-full max-w-md">
+          <input
+            type="text"
+            placeholder="Buscar loja..."
+            value={buscaLoja}
+            onChange={e => setBuscaLoja(e.target.value)}
+            className="p-2 rounded border border-gray-300 w-full min-w-0"
+          />
+          <button type="submit" className="p-2 rounded bg-blue-600 text-white w-full sm:w-auto">
+            Buscar
+          </button>
+        </form>
+      </div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <PageHeader
           title={roteiro.zona || "Roteiro"}
@@ -400,18 +427,22 @@ export function ExecutarRoteiro() {
             const totalMaquinas = maquinasDaLoja.length;
             const maquinasAtendidas = maquinasDaLoja.filter(m => m.atendida).length;
             const todasAtendidas = verificarTodasMaquinasAtendidas(loja);
-            
             return (
-              <div key={loja.id} className={`card ${
-                loja.concluida 
-                  ? 'bg-green-50 border-2 border-green-500' 
-                  : todasAtendidas 
-                    ? 'bg-green-50 border-2 border-green-400 shadow-lg' 
-                    : 'bg-white border border-gray-200'
-              }`}>
-                <div className="flex items-center justify-between mb-4">
+              <div
+                key={loja.id}
+                ref={el => { lojaRefs.current[loja.id] = el; }}
+                className={`card ${
+                  loja.concluida 
+                    ? 'bg-green-50 border-2 border-green-500' 
+                    : todasAtendidas 
+                      ? 'bg-green-50 border-2 border-green-400 shadow-lg' 
+                      : 'bg-white border border-gray-200'
+                } w-full max-w-full overflow-x-auto`}
+                style={{ minWidth: 0 }}
+              >
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
                   <div className="flex-1">
-                    <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-900 flex flex-wrap items-center gap-2">
                       {loja.concluida && '✅ '}
                       🏪 {loja.nome}
                       <Badge type="info">{loja.cidade}</Badge>
@@ -483,7 +514,7 @@ export function ExecutarRoteiro() {
                   )}
                 </div>
                 
-                <div className="space-y-3">
+                <div className="space-y-3 w-full">
                   {maquinasDaLoja.map((maquina) => {
                     // Filtra manutenções desta máquina
                     const manutencoesMaquina = Array.isArray(roteiro.manutencoes)
@@ -491,16 +522,17 @@ export function ExecutarRoteiro() {
                       : [];
                     return (
                       <div 
-                        key={maquina.id} 
-                        className={`p-4 rounded-lg border-2 transition-all ${
+                        key={maquina.id}
+                        className={`p-4 rounded-lg border-2 transition-all w-full ${
                           maquina.atendida 
                             ? 'bg-green-50 border-green-300' 
                             : 'bg-white border-gray-200'
                         }`}
+                        style={{ minWidth: 0 }}
                       >
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                           <div className="flex-1">
-                            <h4 className="font-bold text-gray-900 mb-1 flex items-center gap-2">
+                            <h4 className="font-bold text-gray-900 mb-1 flex flex-wrap items-center gap-2 text-base sm:text-lg">
                               {maquina.nome}
                               {maquina.atendida && (
                                 <span className="inline-flex items-center px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-full">
@@ -513,7 +545,7 @@ export function ExecutarRoteiro() {
                                 </span>
                               )}
                             </h4>
-                            <p className="text-sm text-gray-600">
+                            <p className="text-xs sm:text-sm text-gray-600 break-all">
                               Código: {maquina.codigo} | Tipo: {maquina.tipo}
                             </p>
                             {/* Manutenções desta máquina */}
@@ -530,7 +562,7 @@ export function ExecutarRoteiro() {
                               </div>
                             )}
                           </div>
-                          <div className="flex gap-2">
+                          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                             {!loja.concluida && (
                               <>
                                 <button
@@ -538,14 +570,14 @@ export function ExecutarRoteiro() {
                                     setManutencaoMaquina(maquina.id);
                                     setMostrarFormManutencao(true);
                                   }}
-                                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                                  className="w-full sm:w-auto px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
                                   title="Registrar Manutenção"
                                 >
                                   🔧
                                 </button>
                                 <button
                                   onClick={() => navigate(`/movimentacoes/roteiro/${id}/loja/${loja.id}`, { state: { maquinaId: maquina.id } })}
-                                  className={`px-4 py-2 rounded-lg transition-colors ${
+                                  className={`w-full sm:w-auto px-4 py-2 rounded-lg transition-colors ${
                                     maquina.atendida
                                       ? 'bg-green-600 text-white hover:bg-green-700'
                                       : 'bg-blue-500 text-white hover:bg-blue-600'
@@ -571,23 +603,23 @@ export function ExecutarRoteiro() {
         {roteiro.gastos && roteiro.gastos.length > 0 && (
           <div className="card mt-6">
             <h3 className="text-xl font-bold text-gray-900 mb-4">Gastos Registrados</h3>
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
+            <div className="overflow-x-auto w-full">
+              <table className="min-w-full text-xs sm:text-sm">
                 <thead className="bg-gray-100">
                   <tr>
-                    <th className="px-4 py-2 text-left text-sm font-bold">Categoria</th>
-                    <th className="px-4 py-2 text-left text-sm font-bold">Valor</th>
-                    <th className="px-4 py-2 text-left text-sm font-bold">Descrição</th>
-                    <th className="px-4 py-2 text-left text-sm font-bold">Data/Hora</th>
+                    <th className="px-2 sm:px-4 py-2 text-left font-bold">Categoria</th>
+                    <th className="px-2 sm:px-4 py-2 text-left font-bold">Valor</th>
+                    <th className="px-2 sm:px-4 py-2 text-left font-bold">Descrição</th>
+                    <th className="px-2 sm:px-4 py-2 text-left font-bold">Data/Hora</th>
                   </tr>
                 </thead>
                 <tbody>
                   {roteiro.gastos.map((gasto, idx) => (
                     <tr key={idx} className="border-t">
-                      <td className="px-4 py-2">{gasto.categoria}</td>
-                      <td className="px-4 py-2 font-bold">R$ {(parseFloat(gasto.valor) || 0).toFixed(2)}</td>
-                      <td className="px-4 py-2">{gasto.descricao || '-'}</td>
-                      <td className="px-4 py-2 text-sm text-gray-600">
+                      <td className="px-2 sm:px-4 py-2">{gasto.categoria}</td>
+                      <td className="px-2 sm:px-4 py-2 font-bold">R$ {(parseFloat(gasto.valor) || 0).toFixed(2)}</td>
+                      <td className="px-2 sm:px-4 py-2">{gasto.descricao || '-'}</td>
+                      <td className="px-2 sm:px-4 py-2 text-gray-600">
                         {new Date(gasto.dataHora).toLocaleString('pt-BR')}
                       </td>
                     </tr>
