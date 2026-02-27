@@ -1552,6 +1552,7 @@ export function Dashboard() {
   // Removido: moedas no render
 
   return (
+
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
       <Navbar />
       {/* Alerta de roteiros pendentes do dia, aparece após 20h */}
@@ -1559,7 +1560,7 @@ export function Dashboard() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header com boas-vindas */}
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-4xl font-bold mb-2">
               <span className="text-gradient">Dashboard</span> 🧸
@@ -1568,10 +1569,10 @@ export function Dashboard() {
               Visão geral do seu sistema de pelúcias
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col xs:flex-row gap-2 w-full sm:w-auto">
             <button
               onClick={carregarDados}
-              className="btn-primary flex items-center gap-2"
+              className="btn-primary flex items-center gap-2 w-full xs:w-auto justify-center"
               title="Atualizar dados"
             >
               <svg
@@ -1591,7 +1592,7 @@ export function Dashboard() {
             </button>
             <button
               onClick={() => window.location.assign('/veiculos')}
-              className="btn-primary flex items-center gap-2"
+              className="btn-primary flex items-center gap-2 w-full xs:w-auto justify-center"
               title="Ir para Veículos"
             >
               <svg
@@ -1615,7 +1616,7 @@ export function Dashboard() {
         {/* Cards de Resumo com design moderno - Apenas para ADMIN */}
         {/* Card de acesso para Manutenções - visível para todos */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6 mb-8">
-          <Link to="/manutencoes" className="stat-card bg-gradient-to-br from-blue-500 to-blue-700 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 hover:scale-105 transition-transform cursor-pointer relative">
+          <Link to="/manutencoes" className="stat-card bg-linear-to-br from-blue-500 to-blue-700 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 hover:scale-105 transition-transform cursor-pointer relative">
             <div className="relative z-10 flex flex-col items-center justify-center h-full">
               <span className="text-5xl mb-2">🛠️</span>
               <span className="font-bold text-lg text-center">Manutenções</span>
