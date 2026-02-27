@@ -54,48 +54,22 @@ function Manutencoes() {
     }, [novaManutencao.lojaId, roteirosAll, maquinasAll]);
 
     async function handleNovaManutencao(e) {
-          // Log para inspecionar os roteiros filtrados por data
-          const roteirosData = roteirosAll.filter(r => r.data === "2026-02-24");
-          console.log('[NovaManutencao] Roteiros com data 2026-02-24:', roteirosData.map(r => ({ id: r.id, lojaId: r.lojaId, data: r.data })));
-        // Log para inspecionar os roteiros e o campo data
-        console.log('[NovaManutencao] Todos os roteiros retornados:', roteirosAll.map(r => ({ id: r.id, lojaId: r.lojaId, data: r.data })));
       e.preventDefault();
       try {
         setLoading(true);
         setError("");
         setSuccess("");
         setErroNovaManutencao("");
-        // Filtra todos os roteiros da loja selecionada (ou todos do sistema se preferir)
-        // Associar a todos os roteiros do dia 2026-02-26, ignorando lojaId
-        const dataAlvo = "2026-02-26";
-        const roteirosParaManutencao = roteirosAll.filter(r => r.data === dataAlvo);
-        if (!roteirosParaManutencao.length) {
-          setErroNovaManutencao("Não há roteiros do dia 26/02/2026 disponíveis para associar a manutenção.");
-          return;
-        }
-          // Buscar roteiro do dia 24/02/2026 que tem a loja escolhida
-          // Removido: const dataAlvo = "2026-02-24";
-          const lojaSelecionada = lojasAll.find(l => l.id === novaManutencao.lojaId);
-          let roteiroId = null;
-          for (const roteiro of roteirosAll.filter(r => r.data === dataAlvo)) {
-              api.get("/roteiros").then(res => setRoteirosAll(res.data || []));
-            const lojasRoteiro = roteiro.lojas || roteiro.lojasAssociadas || [];
-            if (lojasRoteiro.some(loja => loja.nome === lojaSelecionada?.nome)) {
-              roteiroId = roteiro.id;
-              break;
-            }
-          }
-            // Sempre envia roteiroId como null
-            const payload = {
-              maquinaId: novaManutencao.maquinaId,
-              descricao: novaManutencao.descricao,
-              lojaId: novaManutencao.lojaId,
-              roteiroId: null
-            };
-            const res = await api.post("/manutencoes", payload);
-            setShowNovaManutencao(false);
-            // fetchManutencoes removido (não definido)
-            setLoading(false);
+        // Cadastro de manutenção SEM depender de roteiros do dia
+        const payload = {
+          maquinaId: novaManutencao.maquinaId,
+          descricao: novaManutencao.descricao,
+          lojaId: novaManutencao.lojaId,
+          roteiroId: null
+        };
+        const res = await api.post("/manutencoes", payload);
+        setShowNovaManutencao(false);
+        setLoading(false);
       } catch (err) {
         console.error("[NovaManutencao] Erro POST", err);
         setError("Erro ao cadastrar manutenção: " +
