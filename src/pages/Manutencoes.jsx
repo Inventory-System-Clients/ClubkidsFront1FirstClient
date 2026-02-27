@@ -277,10 +277,41 @@ function Manutencoes() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium">Loja</label>
-                  <select className="input-field w-full" value={novaManutencao.lojaId} onChange={e => setNovaManutencao(d => ({ ...d, lojaId: e.target.value }))} required>
-                    <option value="">Selecione</option>
-                    {lojasAll.map(l => <option key={l.id} value={l.id}>{l.nome}</option>)}
-                  </select>
+                  {/* Campo de busca para loja com autocomplete */}
+                  <div className="relative w-full">
+                    <input
+                      type="text"
+                      className="input-field w-full"
+                      placeholder="Digite para buscar a loja"
+                      value={novaManutencao.lojaBusca || ''}
+                      onChange={e => {
+                        const busca = e.target.value;
+                        setNovaManutencao(d => ({ ...d, lojaBusca: busca }));
+                      }}
+                      required
+                    />
+                    {novaManutencao.lojaBusca && (
+                      <div className="absolute z-10 bg-white border border-gray-200 rounded w-full max-h-48 overflow-y-auto mt-1 shadow-lg">
+                        {lojasAll
+                          .filter(l => l.nome.toLowerCase().includes((novaManutencao.lojaBusca || '').toLowerCase()))
+                          .map(l => (
+                            <div
+                              key={l.id}
+                              className={`px-3 py-2 cursor-pointer hover:bg-blue-100 ${novaManutencao.lojaId === l.id ? 'bg-blue-200' : ''}`}
+                              onClick={() => {
+                                setNovaManutencao(d => ({ ...d, lojaId: l.id, lojaBusca: l.nome }));
+                              }}
+                            >
+                              {l.nome}
+                            </div>
+                          ))}
+                        {/* Caso não encontre nenhuma loja */}
+                        {lojasAll.filter(l => l.nome.toLowerCase().includes((novaManutencao.lojaBusca || '').toLowerCase())).length === 0 && (
+                          <div className="px-3 py-2 text-gray-400">Nenhuma loja encontrada</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium">Máquina</label>
