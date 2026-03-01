@@ -65,7 +65,8 @@ function Manutencoes() {
           maquinaId: novaManutencao.maquinaId,
           descricao: novaManutencao.descricao,
           lojaId: novaManutencao.lojaId,
-          roteiroId: null
+          roteiroId: null,
+          funcionarioId: novaManutencao.funcionarioId
         };
         const res = await api.post("/manutencoes", payload);
         setShowNovaManutencao(false);
@@ -282,13 +283,12 @@ function Manutencoes() {
                     <input
                       type="text"
                       className="input-field w-full"
-                      placeholder="Digite para buscar a loja"
+                      placeholder="Digite para buscar a loja (opcional)"
                       value={novaManutencao.lojaBusca || ''}
                       onChange={e => {
                         const busca = e.target.value;
                         setNovaManutencao(d => ({ ...d, lojaBusca: busca }));
                       }}
-                      required
                     />
                     {novaManutencao.lojaBusca && (
                       <div className="absolute z-10 bg-white border border-gray-200 rounded w-full max-h-48 overflow-y-auto mt-1 shadow-lg">
@@ -316,7 +316,7 @@ function Manutencoes() {
                 <div>
                   <label className="block text-sm font-medium">Máquina</label>
                   <select className="input-field w-full" value={novaManutencao.maquinaId} onChange={e => setNovaManutencao(d => ({ ...d, maquinaId: e.target.value }))} required disabled={!novaManutencao.lojaId}>
-                    <option value="">Selecione</option>
+                    <option value="">Selecione (opcional)</option>
                     {maquinasFiltradas.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
                   </select>
                 </div>
@@ -346,6 +346,7 @@ function Manutencoes() {
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Loja</th>
                   {/* Coluna de roteiro removida */}
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Máquina</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Atribuído a</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                 </tr>
               </thead>
@@ -364,6 +365,7 @@ function Manutencoes() {
                     <td className="px-4 py-2">{m.loja?.nome || '-'}</td>
                     {/* Coluna de roteiro removida */}
                     <td className="px-4 py-2">{m.maquina?.nome || '-'}</td>
+                    <td className="px-4 py-2">{m.funcionario?.nome || m.funcionarioId || '-'}</td>
                     <td className="px-4 py-2 font-bold">
                       {m.status === "feito" || m.status === "concluida" ? (
                         <span className="text-green-700">{m.status}</span>
