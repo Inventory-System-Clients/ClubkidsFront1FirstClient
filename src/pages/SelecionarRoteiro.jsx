@@ -234,6 +234,19 @@ export function SelecionarRoteiro() {
       const zona = (r.zona || "").toLowerCase();
       return dias.some(dia => zona.startsWith(dia));
     });
+  } else if (filtroTipoRoteiro === "gigantes") {
+    roteirosFiltrados = roteirosFiltrados.filter(r => (r.zona || "").toLowerCase() === "gruas gigantes");
+  }
+
+  // Roteiros de bolinha e gruas gigantes só aparecem para o funcionário atribuído (exceto admin)
+  if (usuario?.role !== "ADMIN") {
+    roteirosFiltrados = roteirosFiltrados.filter(r => {
+      const zona = (r.zona || "").toLowerCase();
+      if (zona.startsWith("bolinha") || zona === "gruas gigantes") {
+        return r.funcionarioId === usuario.id;
+      }
+      return true;
+    });
   }
 
 
@@ -317,6 +330,12 @@ export function SelecionarRoteiro() {
               Dias da Semana
             </button>
             <button
+              className={`px-4 py-2 rounded-lg font-semibold border-2 transition-colors ${filtroTipoRoteiro === "gigantes" ? "bg-orange-500 text-white border-orange-700" : "bg-white text-orange-700 border-orange-300 hover:bg-orange-100"}`}
+              onClick={() => setFiltroTipoRoteiro("gigantes")}
+            >
+              Gigantes
+            </button>
+            <button
               className={`px-4 py-2 rounded-lg font-semibold border-2 transition-colors ${filtroTipoRoteiro === "todos" ? "bg-blue-500 text-white border-blue-700" : "bg-white text-blue-700 border-blue-300 hover:bg-blue-100"}`}
               onClick={() => setFiltroTipoRoteiro("todos")}
             >
@@ -372,9 +391,11 @@ export function SelecionarRoteiro() {
                 <div
                   key={roteiro.id}
                   className={`transition-all duration-300 ${
-                    (roteiro.zona || "").toLowerCase().startsWith("bolinha")
-                      ? "bg-blue-100 border-2 border-blue-400"
-                      : "card-gradient"
+                    (roteiro.zona || "").toLowerCase() === "gruas gigantes"
+                      ? "bg-orange-200 border-2 border-orange-500"
+                      : (roteiro.zona || "").toLowerCase().startsWith("bolinha")
+                        ? "bg-blue-100 border-2 border-blue-400"
+                        : "card-gradient"
                   } hover:shadow-xl ${
                     isAdmin && draggedLoja && draggedFromRoteiro !== roteiro.id
                       ? "ring-2 ring-blue-400 ring-offset-2"

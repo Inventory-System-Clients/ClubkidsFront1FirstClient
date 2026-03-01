@@ -317,7 +317,7 @@ export function StyleGuide() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="card">
-              <LoadingSpinner size="sm" message="Carregando..." />
+                <LoadingSpinner size="sm" message="Carregando..." />
             </div>
             <div className="card">
               <LoadingSpinner size="md" message="Processando..." />
