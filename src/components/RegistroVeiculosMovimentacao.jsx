@@ -82,11 +82,10 @@ export default function RegistroVeiculos({
               <th className="px-4 py-3 border-b font-semibold">Tipo</th>
               <th className="px-4 py-3 border-b font-semibold">Data/Hora</th>
               <th className="px-4 py-3 border-b font-semibold">Gasolina</th>
-              <th className="px-4 py-3 border-b font-semibold">
-                Nível Limpeza
-              </th>
+              <th className="px-4 py-3 border-b font-semibold">Nível Limpeza</th>
               <th className="px-4 py-3 border-b font-semibold">Estado</th>
               <th className="px-4 py-3 border-b font-semibold">Modo</th>
+              <th className="px-4 py-3 border-b font-semibold">KM</th>
               <th className="px-4 py-3 border-b font-semibold">Observação</th>
             </tr>
           </thead>
@@ -153,6 +152,7 @@ export default function RegistroVeiculos({
                           : mov.estado || "-"}
                     </td>
                     <td className="px-4 py-2 border-b">{mov.modo || "-"}</td>
+                    <td className="px-4 py-2 border-b">{typeof mov.km === "number" ? mov.km : (mov.km || "-")}</td>
                     <td className="px-4 py-2 border-b text-left">
                       {mov.obs || mov.observacao || "-"}
                     </td>

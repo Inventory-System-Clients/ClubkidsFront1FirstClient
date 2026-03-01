@@ -35,7 +35,7 @@ export default function ControleVeiculos({
     setForm({
       estado: veiculo.estado,
       obs: "",
-      km: veiculo.km,
+      km: "",
       modo: "trabalho",
       combustivel: "5",
       limpeza: "esta limpo",
@@ -48,7 +48,7 @@ export default function ControleVeiculos({
     setFormFinalizar({
       estado: veiculo.estado,
       obs: "",
-      km: veiculo.km,
+      km: "",
       combustivel: "5",
       limpeza: "esta limpo",
     });
@@ -76,11 +76,22 @@ export default function ControleVeiculos({
   // Exemplo: para atualizar o status do veículo na API, use fetch/axios e depois onRefresh()
   const pilotarVeiculo = async () => {
     if (!veiculoSelecionado) return;
+    const kmInformado = Number(form.km);
+    const ultimaMov = ultimasMovs[veiculoSelecionado.id];
+    const kmUltimaMov = ultimaMov ? Number(ultimaMov.km) : 0;
+    if (!form.km || isNaN(kmInformado)) {
+      Swal.fire("Campo obrigatório", "Informe o KM inicial para iniciar o veículo.", "warning");
+      return;
+    }
+    if (kmInformado < kmUltimaMov) {
+      Swal.fire("KM inválido", `O KM inicial não pode ser menor que o último KM registrado (${kmUltimaMov}).`, "warning");
+      return;
+    }
     try {
       await api.put(`/veiculos/${veiculoSelecionado.id}`, {
         ...veiculoSelecionado,
         emUso: true,
-        km: Number.isNaN(parseInt(form.km)) ? 0 : parseInt(form.km),
+        km: kmInformado,
       });
       // Registrar movimentação de retirada
       await api.post("/movimentacao-veiculos", {
@@ -94,6 +105,7 @@ export default function ControleVeiculos({
         modo: form.modo,
         obs: form.obs || undefined,
         dataMovimentacao: new Date().toISOString(),
+        km: Number(form.km), // garantir número
       });
       if (onRefresh) onRefresh();
     } catch (error) {
@@ -105,13 +117,26 @@ export default function ControleVeiculos({
 
   const finalizarVeiculo = async () => {
     if (!veiculoSelecionado || finalizando) return;
+    const kmInformado = Number(formFinalizar.km);
+    const ultimaMov = ultimasMovs[veiculoSelecionado.id];
+    const kmUltimaMov = ultimaMov ? Number(ultimaMov.km) : 0;
+    const kmVeiculo = veiculoSelecionado.km ? Number(veiculoSelecionado.km) : 0;
+    const kmBase = Math.max(kmUltimaMov, kmVeiculo);
+    if (!formFinalizar.km || isNaN(kmInformado)) {
+      Swal.fire("Campo obrigatório", "Informe o KM para finalizar o veículo.", "warning");
+      return;
+    }
+    if (kmInformado < kmBase) {
+      Swal.fire("KM inválido", `O KM de finalização não pode ser menor que o último KM registrado (${kmBase}).`, "warning");
+      return;
+    }
     setFinalizando(true);
     try {
       await api.put(`/veiculos/${veiculoSelecionado.id}`, {
         ...veiculoSelecionado,
         emUso: false,
         nivelCombustivel: getCombustivelLabel(formFinalizar.combustivel),
-        km: Number.isNaN(parseInt(formFinalizar.km)) ? 0 : parseInt(formFinalizar.km),
+        km: kmInformado,
       });
       // Registrar movimentação de devolução
       await api.post("/movimentacao-veiculos", {
@@ -125,6 +150,7 @@ export default function ControleVeiculos({
         modo: veiculoSelecionado.modo,
         obs: formFinalizar.obs || undefined,
         dataMovimentacao: new Date().toISOString(),
+        km: Number(formFinalizar.km), // garantir número
       });
       if (onRefresh) onRefresh();
       Swal.fire({
@@ -257,89 +283,95 @@ export default function ControleVeiculos({
             <h2 className="text-lg font-bold mb-4">
               Finalizar uso de {veiculoSelecionado?.nome}
             </h2>
-            <div className="mb-3">
-              <label className="block text-sm font-medium">
-                Estado da moto
-              </label>
-              <select
-                name="estado"
-                value={formFinalizar.estado}
-                onChange={handleFormFinalizarChange}
-                className="w-full border rounded p-1"
-              >
-                <option value="Bom">Sem avaria</option>
-                <option value="Ruim">Com avaria</option>
-              </select>
-            </div>
-            <div className="mb-3">
-              <label className="block text-sm font-medium">Obs:</label>
-              <input
-                name="obs"
-                value={formFinalizar.obs}
-                onChange={handleFormFinalizarChange}
-                className="w-full border rounded p-1"
-                placeholder="Descreva o problema (opcional)"
-              />
-            </div>
-            <div className="mb-3">
-              <label className="block text-sm font-medium">Km final</label>
-              <input
-                name="km"
-                type="number"
-                value={formFinalizar.km}
-                onChange={handleFormFinalizarChange}
-                className="w-full border rounded p-1"
-                min="0"
-                onWheel={(e) => e.target.blur()}
-              />
-            </div>
-            <div className="mb-3">
-              <label className="block text-sm font-medium">
-                Nível de combustível
-              </label>
-              <select
-                name="combustivel"
-                value={formFinalizar.combustivel}
-                onChange={handleFormFinalizarChange}
-                className="w-full border rounded p-1"
-              >
-                <option value="5">5 palzinhos</option>
-                <option value="4">4 palzinhos</option>
-                <option value="3">3 palzinhos</option>
-                <option value="2">2 palzinhos</option>
-                <option value="1">1 palzinho</option>
-                <option value="0">Vazio</option>
-              </select>
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-medium">
-                Nível de limpeza
-              </label>
-              <select
-                name="limpeza"
-                value={formFinalizar.limpeza}
-                onChange={handleFormFinalizarChange}
-                className="w-full border rounded p-1"
-              >
-                <option value="esta limpo">Está limpo</option>
-                <option value="precisa limpar">Precisa limpar</option>
-              </select>
-            </div>
-            <div className="flex justify-end gap-2">
-              <button
-                className="px-4 py-1 bg-gray-300 rounded hover:bg-gray-400"
-                onClick={fecharModalFinalizar}
-              >
-                Cancelar
-              </button>
-              <button
-                className={`px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700${finalizando ? ' opacity-50 cursor-not-allowed' : ''}`}
-                onClick={finalizarVeiculo}
-                disabled={finalizando}
-              >
-                {finalizando ? 'Finalizando...' : 'Finalizar'}
-              </button>
-            </div>
+            <form
+              onSubmit={e => { e.preventDefault(); finalizarVeiculo(); }}
+              autoComplete="off"
+            >
+              <div className="mb-3">
+                <label className="block text-sm font-medium">
+                  Estado da moto
+                </label>
+                <select
+                  name="estado"
+                  value={formFinalizar.estado}
+                  onChange={handleFormFinalizarChange}
+                  className="w-full border rounded p-1"
+                >
+                  <option value="Bom">Sem avaria</option>
+                  <option value="Ruim">Com avaria</option>
+                </select>
+              </div>
+              <div className="mb-3">
+                <label className="block text-sm font-medium">Obs:</label>
+                <input
+                  name="obs"
+                  value={formFinalizar.obs}
+                  onChange={handleFormFinalizarChange}
+                  className="w-full border rounded p-1"
+                  placeholder="Descreva o problema (opcional)"
+                />
+              </div>
+              <div className="mb-3">
+                <label className="block text-sm font-medium">Km final</label>
+                <input
+                  name="km"
+                  type="number"
+                  value={formFinalizar.km}
+                  onChange={handleFormFinalizarChange}
+                  className="w-full border rounded p-1"
+                  min="0"
+                  onWheel={(e) => e.target.blur()}
+                />
+              </div>
+              <div className="mb-3">
+                <label className="block text-sm font-medium">
+                  Nível de combustível
+                </label>
+                <select
+                  name="combustivel"
+                  value={formFinalizar.combustivel}
+                  onChange={handleFormFinalizarChange}
+                  className="w-full border rounded p-1"
+                >
+                  <option value="5">5 palzinhos</option>
+                  <option value="4">4 palzinhos</option>
+                  <option value="3">3 palzinhos</option>
+                  <option value="2">2 palzinhos</option>
+                  <option value="1">1 palzinho</option>
+                  <option value="0">Vazio</option>
+                </select>
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium">
+                  Nível de limpeza
+                </label>
+                <select
+                  name="limpeza"
+                  value={formFinalizar.limpeza}
+                  onChange={handleFormFinalizarChange}
+                  className="w-full border rounded p-1"
+                >
+                  <option value="esta limpo">Está limpo</option>
+                  <option value="precisa limpar">Precisa limpar</option>
+                </select>
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  className="px-4 py-1 bg-gray-300 rounded hover:bg-gray-400"
+                  onClick={fecharModalFinalizar}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className={`px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700${finalizando ? ' opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={finalizando}
+                >
+                  {finalizando ? 'Finalizando...' : 'Finalizar'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -351,105 +383,111 @@ export default function ControleVeiculos({
             <h2 className="text-lg font-bold mb-4">
               Pilotar {veiculoSelecionado?.nome}
             </h2>
-            <div className="mb-3">
-              <label className="block text-sm font-medium">
-                Estado da moto
-              </label>
-              <select
-                name="estado"
-                value={form.estado}
-                onChange={handleFormChange}
-                className="w-full border rounded p-1"
-                required
-              >
-                <option value="Bom">Sem avaria</option>
-                <option value="Ruim">Com avaria</option>
-              </select>
-            </div>
-            <div className="mb-3">
-              <label className="block text-sm font-medium">Obs:</label>
-              <input
-                name="obs"
-                value={form.obs}
-                onChange={handleFormChange}
-                className="w-full border rounded p-1"
-                placeholder="Descreva o problema (opcional)"
-              />
-            </div>
-            <div className="mb-3">
-              <label className="block text-sm font-medium">Km inicial</label>
-              <input
-                name="km"
-                type="number"
-                value={form.km}
-                onChange={handleFormChange}
-                className="w-full border rounded p-1"
-                min="0"
-                required
-                onWheel={(e) => e.target.blur()}
-              />
-            </div>
-            <div className="mb-3">
-              <label className="block text-sm font-medium">Modo</label>
-              <select
-                name="modo"
-                value={form.modo}
-                onChange={handleFormChange}
-                className="w-full border rounded p-1"
-                required
-              >
-                <option value="trabalho">Trabalho</option>
-                <option value="emprestado">Emprestado</option>
-              </select>
-            </div>
-            <div className="mb-3">
-              <label className="block text-sm font-medium">
-                Nível de combustível
-              </label>
-              <select
-                name="combustivel"
-                value={form.combustivel}
-                onChange={handleFormChange}
-                className="w-full border rounded p-1"
-                required
-              >
-                <option value="5">5 palzinhos</option>
-                <option value="4">4 palzinhos</option>
-                <option value="3">3 palzinhos</option>
-                <option value="2">2 palzinhos</option>
-                <option value="1">1 palzinho</option>
-                <option value="0">Vazio</option>
-              </select>
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-medium">
-                Nível de limpeza
-              </label>
-              <select
-                name="limpeza"
-                value={form.limpeza}
-                onChange={handleFormChange}
-                className="w-full border rounded p-1"
-                required
-              >
-                <option value="esta limpo">Está limpo</option>
-                <option value="precisa limpar">Precisa limpar</option>
-              </select>
-            </div>
-            <div className="flex justify-end gap-2">
-              <button
-                className="px-4 py-1 bg-gray-300 rounded hover:bg-gray-400"
-                onClick={fecharModal}
-              >
-                Cancelar
-              </button>
-              <button
-                className="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-                onClick={pilotarVeiculo}
-              >
-                Pilotar
-              </button>
-            </div>
+            <form
+              onSubmit={e => { e.preventDefault(); pilotarVeiculo(); }}
+              autoComplete="off"
+            >
+              <div className="mb-3">
+                <label className="block text-sm font-medium">
+                  Estado da moto
+                </label>
+                <select
+                  name="estado"
+                  value={form.estado}
+                  onChange={handleFormChange}
+                  className="w-full border rounded p-1"
+                  required
+                >
+                  <option value="Bom">Sem avaria</option>
+                  <option value="Ruim">Com avaria</option>
+                </select>
+              </div>
+              <div className="mb-3">
+                <label className="block text-sm font-medium">Obs:</label>
+                <input
+                  name="obs"
+                  value={form.obs}
+                  onChange={handleFormChange}
+                  className="w-full border rounded p-1"
+                  placeholder="Descreva o problema (opcional)"
+                />
+              </div>
+              <div className="mb-3">
+                <label className="block text-sm font-medium">Km inicial</label>
+                <input
+                  name="km"
+                  type="number"
+                  value={form.km}
+                  onChange={handleFormChange}
+                  className="w-full border rounded p-1"
+                  min="0"
+                  required
+                  onWheel={(e) => e.target.blur()}
+                />
+              </div>
+              <div className="mb-3">
+                <label className="block text-sm font-medium">Modo</label>
+                <select
+                  name="modo"
+                  value={form.modo}
+                  onChange={handleFormChange}
+                  className="w-full border rounded p-1"
+                  required
+                >
+                  <option value="trabalho">Trabalho</option>
+                  <option value="emprestado">Emprestado</option>
+                </select>
+              </div>
+              <div className="mb-3">
+                <label className="block text-sm font-medium">
+                  Nível de combustível
+                </label>
+                <select
+                  name="combustivel"
+                  value={form.combustivel}
+                  onChange={handleFormChange}
+                  className="w-full border rounded p-1"
+                  required
+                >
+                  <option value="5">5 palzinhos</option>
+                  <option value="4">4 palzinhos</option>
+                  <option value="3">3 palzinhos</option>
+                  <option value="2">2 palzinhos</option>
+                  <option value="1">1 palzinho</option>
+                  <option value="0">Vazio</option>
+                </select>
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium">
+                  Nível de limpeza
+                </label>
+                <select
+                  name="limpeza"
+                  value={form.limpeza}
+                  onChange={handleFormChange}
+                  className="w-full border rounded p-1"
+                  required
+                >
+                  <option value="esta limpo">Está limpo</option>
+                  <option value="precisa limpar">Precisa limpar</option>
+                </select>
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  className="px-4 py-1 bg-gray-300 rounded hover:bg-gray-400"
+                  onClick={fecharModal}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  Pilotar
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
