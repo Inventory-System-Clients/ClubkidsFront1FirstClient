@@ -9,49 +9,64 @@ export default function ControleVeiculos({
   onRefresh,
   loading,
 }) {
-  const { usuario } = useContext(AuthContext);
+  // Estados para edição de nome/modelo (admin)
+  const [editandoId, setEditandoId] = useState(null);
+  const [editNome, setEditNome] = useState("");
+  const [editModelo, setEditModelo] = useState("");
+  // Estado para modal de abastecimento obrigatório ao finalizar
+    // Estado para formulário de início de pilotagem
+    const [form, setForm] = useState({
+      estado: "Bom",
+      obs: "",
+      km: "",
+      combustivel: "5",
+      limpeza: "esta limpo",
+      modo: "trabalho"
+    });
+  const [modalAbastecimento, setModalAbastecimento] = useState(false);
+  const [abastecimento, setAbastecimento] = useState({ litros: '', posto: '' });
+  const [erroAbastecimento, setErroAbastecimento] = useState('');
+  const { usuario, isAdmin } = useContext(AuthContext);
   const [modalAberto, setModalAberto] = useState(false);
   const [modalFinalizarAberto, setModalFinalizarAberto] = useState(false);
   const [veiculoSelecionado, setVeiculoSelecionado] = useState(null);
-  const [form, setForm] = useState({
-    estado: "Bom",
-    obs: "",
-    km: "",
-    modo: "trabalho",
-    combustivel: "5",
-    limpeza: "esta limpo",
-  });
-  const [formFinalizar, setFormFinalizar] = useState({
-    estado: "Bom",
-    obs: "",
-    km: "",
-    combustivel: "5",
-    limpeza: "esta limpo",
-  });
   const [finalizando, setFinalizando] = useState(false);
+  const [formFinalCompleto, setFormFinalCompleto] = useState({
+    estado: "Bom",
+    obs: "",
+    km: "",
+    combustivel: "5",
+    limpeza: "esta limpo",
+    litros: '',
+    posto: ''
+  });
+  const [erroFinalCompleto, setErroFinalCompleto] = useState('');
 
   const abrirModal = (veiculo) => {
     setVeiculoSelecionado(veiculo);
     setForm({
-      estado: veiculo.estado,
+      estado: veiculo.estado || "Bom",
       obs: "",
       km: "",
-      modo: "trabalho",
       combustivel: "5",
       limpeza: "esta limpo",
+      modo: "trabalho"
     });
     setModalAberto(true);
   };
 
   const abrirModalFinalizar = (veiculo) => {
     setVeiculoSelecionado(veiculo);
-    setFormFinalizar({
+    setFormFinalCompleto({
       estado: veiculo.estado,
       obs: "",
       km: "",
       combustivel: "5",
       limpeza: "esta limpo",
+      litros: '',
+      posto: ''
     });
+    setErroFinalCompleto('');
     setModalFinalizarAberto(true);
   };
 
@@ -68,9 +83,9 @@ export default function ControleVeiculos({
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
-  const handleFormFinalizarChange = (e) => {
+  const handleFormFinalCompletoChange = (e) => {
     const { name, value } = e.target;
-    setFormFinalizar((prev) => ({ ...prev, [name]: value }));
+    setFormFinalCompleto((prev) => ({ ...prev, [name]: value }));
   };
 
   // Exemplo: para atualizar o status do veículo na API, use fetch/axios e depois onRefresh()
@@ -116,41 +131,51 @@ export default function ControleVeiculos({
   };
 
   const finalizarVeiculo = async () => {
+    setErroFinalCompleto("");
     if (!veiculoSelecionado || finalizando) return;
-    const kmInformado = Number(formFinalizar.km);
+    const kmInformado = Number(formFinalCompleto.km);
     const ultimaMov = ultimasMovs[veiculoSelecionado.id];
     const kmUltimaMov = ultimaMov ? Number(ultimaMov.km) : 0;
     const kmVeiculo = veiculoSelecionado.km ? Number(veiculoSelecionado.km) : 0;
     const kmBase = Math.max(kmUltimaMov, kmVeiculo);
-    if (!formFinalizar.km || isNaN(kmInformado)) {
-      Swal.fire("Campo obrigatório", "Informe o KM para finalizar o veículo.", "warning");
+    if (!formFinalCompleto.km || isNaN(kmInformado)) {
+      setErroFinalCompleto("Informe o KM para finalizar o veículo.");
       return;
     }
     if (kmInformado < kmBase) {
-      Swal.fire("KM inválido", `O KM de finalização não pode ser menor que o último KM registrado (${kmBase}).`, "warning");
+      setErroFinalCompleto(`O KM de finalização não pode ser menor que o último KM registrado (${kmBase}).`);
+      return;
+    }
+    if (!formFinalCompleto.litros || isNaN(Number(formFinalCompleto.litros)) || Number(formFinalCompleto.litros) <= 0) {
+      setErroFinalCompleto("Informe quantos litros foram abastecidos.");
+      return;
+    }
+    if (!formFinalCompleto.posto || formFinalCompleto.posto.trim() === "") {
+      setErroFinalCompleto("Informe o nome do posto de abastecimento.");
       return;
     }
     setFinalizando(true);
     try {
       await api.put(`/veiculos/${veiculoSelecionado.id}`, {
-        ...veiculoSelecionado,
         emUso: false,
-        nivelCombustivel: getCombustivelLabel(formFinalizar.combustivel),
+        estado: formFinalCompleto.estado,
+        obs: formFinalCompleto.obs,
         km: kmInformado,
+        nivelCombustivel: getCombustivelLabel(formFinalCompleto.combustivel),
+        nivelLimpeza: formFinalCompleto.limpeza,
       });
-      // Registrar movimentação de devolução
       await api.post("/movimentacao-veiculos", {
         veiculoId: veiculoSelecionado.id,
         tipo: "devolucao",
-        gasolina: formFinalizar.combustivel
-          ? getCombustivelLabel(formFinalizar.combustivel)
-          : undefined,
-        nivel_limpeza: formFinalizar.limpeza,
-        estado: formFinalizar.estado,
+        gasolina: formFinalCompleto.combustivel ? getCombustivelLabel(formFinalCompleto.combustivel) : undefined,
+        nivel_limpeza: formFinalCompleto.limpeza,
+        estado: formFinalCompleto.estado,
         modo: veiculoSelecionado.modo,
-        obs: formFinalizar.obs || undefined,
+        obs: formFinalCompleto.obs || undefined,
         dataMovimentacao: new Date().toISOString(),
-        km: Number(formFinalizar.km), // garantir número
+        km: kmInformado,
+        litrosAbastecidos: Number(formFinalCompleto.litros),
+        postoAbastecimento: formFinalCompleto.posto.trim(),
       });
       if (onRefresh) onRefresh();
       Swal.fire({
@@ -159,13 +184,112 @@ export default function ControleVeiculos({
         showConfirmButton: true,
         confirmButtonText: "OK",
       });
+      setModalFinalizarAberto(false);
+      setVeiculoSelecionado(null);
     } catch (error) {
+      setErroFinalCompleto("Erro ao finalizar veículo.");
       console.error("Erro ao finalizar:", error);
-      Swal.fire("Erro", "Não foi possível finalizar o veículo.", "error");
     }
     setFinalizando(false);
-    fecharModalFinalizar();
   };
+
+  // Confirmação do modal de abastecimento
+  const confirmarAbastecimento = async () => {
+    setErroAbastecimento("");
+    if (!abastecimento.litros || isNaN(Number(abastecimento.litros)) || Number(abastecimento.litros) <= 0) {
+      setErroAbastecimento("Informe quantos litros foram abastecidos.");
+      return;
+    }
+    if (!abastecimento.posto || abastecimento.posto.trim() === "") {
+      setErroAbastecimento("Informe o nome do posto de abastecimento.");
+      return;
+    }
+    setFinalizando(true);
+    try {
+      await api.put(`/veiculos/${veiculoSelecionado.id}`, {
+        litrosAbastecidos: Number(abastecimento.litros),
+        postoAbastecimento: abastecimento.posto.trim(),
+      });
+      // Finalizar normalmente
+      await api.put(`/veiculos/${veiculoSelecionado.id}`, {
+        ...veiculoSelecionado,
+        emUso: false,
+        nivelCombustivel: getCombustivelLabel(formFinalizar.combustivel),
+        km: Number(formFinalizar.km),
+      });
+      await api.post("/movimentacao-veiculos", {
+        veiculoId: veiculoSelecionado.id,
+        tipo: "devolucao",
+        gasolina: formFinalizar.combustivel ? getCombustivelLabel(formFinalizar.combustivel) : undefined,
+        nivel_limpeza: formFinalizar.limpeza,
+        estado: formFinalizar.estado,
+        modo: veiculoSelecionado.modo,
+        obs: formFinalizar.obs || undefined,
+        dataMovimentacao: new Date().toISOString(),
+        km: Number(formFinalizar.km),
+      });
+      if (onRefresh) onRefresh();
+      Swal.fire({
+        icon: "success",
+        title: `${usuario?.nome || "Funcionário"} guardou ${veiculoSelecionado?.nome}`,
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+      });
+      setModalAbastecimento(false);
+      setAbastecimento({ litros: '', posto: '' });
+      setVeiculoSelecionado(null);
+    } catch (error) {
+      setErroAbastecimento("Erro ao salvar abastecimento/finalizar veículo.");
+      console.error("Erro ao finalizar:", error);
+    }
+    setFinalizando(false);
+  };
+      {/* Modal obrigatório de abastecimento ao finalizar */}
+      {modalAbastecimento && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96 shadow-lg relative">
+            <h2 className="text-lg font-bold mb-4">Informar Abastecimento</h2>
+            <form onSubmit={e => { e.preventDefault(); confirmarAbastecimento(); }} autoComplete="off">
+              <div className="mb-3">
+                <label className="block text-sm font-medium">Quantos litros foram abastecidos?</label>
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  className="w-full border rounded p-1"
+                  value={abastecimento.litros}
+                  onChange={e => setAbastecimento(a => ({ ...a, litros: e.target.value }))}
+                  required
+                />
+              </div>
+              <div className="mb-3">
+                <label className="block text-sm font-medium">Nome do posto de abastecimento</label>
+                <input
+                  type="text"
+                  className="w-full border rounded p-1"
+                  value={abastecimento.posto}
+                  onChange={e => setAbastecimento(a => ({ ...a, posto: e.target.value }))}
+                  required
+                />
+              </div>
+              {erroAbastecimento && <div className="text-red-600 text-sm mb-2">{erroAbastecimento}</div>}
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  className="px-4 py-1 bg-gray-300 rounded hover:bg-gray-400"
+                  onClick={() => { setModalAbastecimento(false); setAbastecimento({ litros: '', posto: '' }); setVeiculoSelecionado(null); }}
+                  disabled={finalizando}
+                >Cancelar</button>
+                <button
+                  type="submit"
+                  className="px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                  disabled={finalizando}
+                >Confirmar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
   // Função para exibir o texto do combustível
   function getCombustivelLabel(valor) {
@@ -211,12 +335,8 @@ export default function ControleVeiculos({
       {veiculos.map((veiculo) => {
         const mov = ultimasMovs[veiculo.id];
         const isRuim = mov?.estado?.toLowerCase() === "ruim";
-        const precisaLimpar = mov?.nivel_limpeza
-          ?.toLowerCase()
-          .includes("precisa");
-        let cardClass = veiculo.emUso
-          ? "filter grayscale opacity-70"
-          : "bg-white";
+        const precisaLimpar = mov?.nivel_limpeza?.toLowerCase().includes("precisa");
+        let cardClass = veiculo.emUso ? "filter grayscale opacity-70" : "bg-white";
         if (isRuim && precisaLimpar) {
           cardClass += " bg-red-100 border-2 border-red-400";
         } else if (isRuim) {
@@ -224,6 +344,7 @@ export default function ControleVeiculos({
         } else if (precisaLimpar) {
           cardClass += " bg-yellow-100 border-2 border-yellow-400";
         }
+        const isEditing = editandoId === veiculo.id;
         return (
           <div
             key={veiculo.id}
@@ -231,10 +352,27 @@ export default function ControleVeiculos({
           >
             <div className="flex items-center gap-2 text-2xl mb-2">
               <span>{emojiVeiculo(veiculo.tipo, veiculo.emoji)}</span>
-              <span className="font-bold text-lg">{veiculo.nome}</span>
+              {isEditing ? (
+                <input
+                  className="font-bold text-lg border rounded px-1 w-24"
+                  value={editNome}
+                  onChange={e => setEditNome(e.target.value)}
+                  autoFocus
+                />
+              ) : (
+                <span className="font-bold text-lg">{veiculo.nome}</span>
+              )}
             </div>
             <div className="text-gray-600 text-sm mb-2">
-              Modelo: {veiculo.modelo}
+              Modelo: {isEditing ? (
+                <input
+                  className="border rounded px-1 w-24"
+                  value={editModelo}
+                  onChange={e => setEditModelo(e.target.value)}
+                />
+              ) : (
+                veiculo.modelo
+              )}
             </div>
             <div className="flex gap-4 mb-2">
               <div>
@@ -247,30 +385,75 @@ export default function ControleVeiculos({
               </div>
               <div>
                 <div className="text-xs text-gray-500">Gasolina</div>
-                <div>
-                  {veiculo.nivelCombustivel || veiculo.combustivel || "-"}
-                </div>
+                <div>{veiculo.nivelCombustivel || veiculo.combustivel || "-"}</div>
               </div>
             </div>
             {!veiculo.emUso ? (
-              <button
-                className="mt-2 px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                onClick={() => abrirModal(veiculo)}
-                disabled={veiculo.emUso}
-              >
-                Pilotar
-              </button>
+              <div className="flex flex-col gap-2 mt-2">
+                {isEditing ? (
+                  <div className="flex gap-2">
+                    <button
+                      className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                      onClick={async () => {
+                        try {
+                          await api.put(`/veiculos/${veiculo.id}`, { nome: editNome, modelo: editModelo });
+                          setEditandoId(null);
+                          onRefresh && onRefresh();
+                        } catch (err) {
+                          Swal.fire("Erro", "Não foi possível salvar.", "error");
+                        }
+                      }}
+                    >Salvar</button>
+                    <button
+                      className="px-2 py-1 bg-gray-300 rounded hover:bg-gray-400"
+                      onClick={() => setEditandoId(null)}
+                    >Cancelar</button>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      className="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                      onClick={() => abrirModal(veiculo)}
+                      disabled={veiculo.emUso}
+                    >Pilotar</button>
+                    {isAdmin && (
+                      <>
+                        <button
+                          className="px-2 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+                          onClick={() => {
+                            setEditandoId(veiculo.id);
+                            setEditNome(veiculo.nome);
+                            setEditModelo(veiculo.modelo);
+                          }}
+                        >Editar</button>
+                        <button
+                          className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                          onClick={async () => {
+                            if (window.confirm("Tem certeza que deseja excluir este veículo?")) {
+                              try {
+                                await api.delete(`/veiculos/${veiculo.id}`);
+                                onRefresh && onRefresh();
+                              } catch (err) {
+                                Swal.fire("Erro", "Não foi possível excluir.", "error");
+                              }
+                            }
+                          }}
+                        >Excluir</button>
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
             ) : (
               <>
-                <div className="absolute top-2 right-2 bg-black text-white text-xs px-2 py-1 rounded">
-                  Em uso
-                </div>
+                <div className="absolute top-2 right-2 bg-black text-white text-xs px-2 py-1 rounded">Em uso</div>
                 <button
                   className="mt-2 px-4 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                  onClick={() => abrirModalFinalizar(veiculo)}
-                >
-                  Finalizar
-                </button>
+                  onClick={() => {
+                    setModalFinalizarAberto(false); // Garante que o modal de finalizar não fique aberto
+                    abrirModalFinalizar(veiculo);
+                  }}
+                >Finalizar</button>
               </>
             )}
           </div>
@@ -288,13 +471,11 @@ export default function ControleVeiculos({
               autoComplete="off"
             >
               <div className="mb-3">
-                <label className="block text-sm font-medium">
-                  Estado da moto
-                </label>
+                <label className="block text-sm font-medium">Estado da moto</label>
                 <select
                   name="estado"
-                  value={formFinalizar.estado}
-                  onChange={handleFormFinalizarChange}
+                  value={formFinalCompleto.estado}
+                  onChange={handleFormFinalCompletoChange}
                   className="w-full border rounded p-1"
                 >
                   <option value="Bom">Sem avaria</option>
@@ -305,8 +486,8 @@ export default function ControleVeiculos({
                 <label className="block text-sm font-medium">Obs:</label>
                 <input
                   name="obs"
-                  value={formFinalizar.obs}
-                  onChange={handleFormFinalizarChange}
+                  value={formFinalCompleto.obs}
+                  onChange={handleFormFinalCompletoChange}
                   className="w-full border rounded p-1"
                   placeholder="Descreva o problema (opcional)"
                 />
@@ -316,21 +497,19 @@ export default function ControleVeiculos({
                 <input
                   name="km"
                   type="number"
-                  value={formFinalizar.km}
-                  onChange={handleFormFinalizarChange}
+                  value={formFinalCompleto.km}
+                  onChange={handleFormFinalCompletoChange}
                   className="w-full border rounded p-1"
                   min="0"
                   onWheel={(e) => e.target.blur()}
                 />
               </div>
               <div className="mb-3">
-                <label className="block text-sm font-medium">
-                  Nível de combustível
-                </label>
+                <label className="block text-sm font-medium">Nível de combustível</label>
                 <select
                   name="combustivel"
-                  value={formFinalizar.combustivel}
-                  onChange={handleFormFinalizarChange}
+                  value={formFinalCompleto.combustivel}
+                  onChange={handleFormFinalCompletoChange}
                   className="w-full border rounded p-1"
                 >
                   <option value="5">5 palzinhos</option>
@@ -341,35 +520,55 @@ export default function ControleVeiculos({
                   <option value="0">Vazio</option>
                 </select>
               </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium">
-                  Nível de limpeza
-                </label>
+              <div className="mb-3">
+                <label className="block text-sm font-medium">Nível de limpeza</label>
                 <select
                   name="limpeza"
-                  value={formFinalizar.limpeza}
-                  onChange={handleFormFinalizarChange}
+                  value={formFinalCompleto.limpeza}
+                  onChange={handleFormFinalCompletoChange}
                   className="w-full border rounded p-1"
                 >
                   <option value="esta limpo">Está limpo</option>
                   <option value="precisa limpar">Precisa limpar</option>
                 </select>
               </div>
+              <div className="mb-3">
+                <label className="block text-sm font-medium">Quantos litros foram abastecidos?</label>
+                <input
+                  name="litros"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  className="w-full border rounded p-1"
+                  value={formFinalCompleto.litros}
+                  onChange={handleFormFinalCompletoChange}
+                  required
+                />
+              </div>
+              <div className="mb-3">
+                <label className="block text-sm font-medium">Nome do posto de abastecimento</label>
+                <input
+                  name="posto"
+                  type="text"
+                  className="w-full border rounded p-1"
+                  value={formFinalCompleto.posto}
+                  onChange={handleFormFinalCompletoChange}
+                  required
+                />
+              </div>
+              {erroFinalCompleto && <div className="text-red-600 text-sm mb-2">{erroFinalCompleto}</div>}
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   className="px-4 py-1 bg-gray-300 rounded hover:bg-gray-400"
-                  onClick={fecharModalFinalizar}
-                >
-                  Cancelar
-                </button>
+                  onClick={() => { setModalFinalizarAberto(false); setVeiculoSelecionado(null); }}
+                  disabled={finalizando}
+                >Cancelar</button>
                 <button
                   type="submit"
                   className={`px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700${finalizando ? ' opacity-50 cursor-not-allowed' : ''}`}
                   disabled={finalizando}
-                >
-                  {finalizando ? 'Finalizando...' : 'Finalizar'}
-                </button>
+                >{finalizando ? 'Finalizando...' : 'Finalizar'}</button>
               </div>
             </form>
           </div>

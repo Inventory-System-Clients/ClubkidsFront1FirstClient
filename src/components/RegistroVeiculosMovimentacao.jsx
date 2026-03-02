@@ -87,6 +87,8 @@ export default function RegistroVeiculos({
               <th className="px-4 py-3 border-b font-semibold">Modo</th>
               <th className="px-4 py-3 border-b font-semibold">KM</th>
               <th className="px-4 py-3 border-b font-semibold">Observação</th>
+              <th className="px-4 py-3 border-b font-semibold">Litros Abastecidos</th>
+              <th className="px-4 py-3 border-b font-semibold">Posto Abastecimento</th>
             </tr>
           </thead>
           <tbody>
@@ -155,6 +157,12 @@ export default function RegistroVeiculos({
                     <td className="px-4 py-2 border-b">{typeof mov.km === "number" ? mov.km : (mov.km || "-")}</td>
                     <td className="px-4 py-2 border-b text-left">
                       {mov.obs || mov.observacao || "-"}
+                    </td>
+                    <td className="px-4 py-2 border-b text-right">
+                      {mov.litrosAbastecidos !== undefined ? mov.litrosAbastecidos : "-"}
+                    </td>
+                    <td className="px-4 py-2 border-b">
+                      {mov.postoAbastecimento || "-"}
                     </td>
                   </tr>
                 );
