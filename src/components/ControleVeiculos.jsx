@@ -416,7 +416,7 @@ export default function ControleVeiculos({
                       onClick={() => abrirModal(veiculo)}
                       disabled={veiculo.emUso}
                     >Pilotar</button>
-                    {isAdmin && (
+                    {isAdmin() && (
                       <>
                         <button
                           className="px-2 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
