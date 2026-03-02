@@ -17,6 +17,7 @@ export function Relatorios() {
   const [loadingLojas, setLoadingLojas] = useState(true);
   const [relatorio, setRelatorio] = useState(null);
   const [error, setError] = useState("");
+  const [gastosLoja, setGastosLoja] = useState([]);
 
   useEffect(() => {
     carregarRoteiros();
@@ -87,6 +88,7 @@ export function Relatorios() {
       setLoading(true);
       setError("");
       setRelatorio(null);
+      setGastosLoja([]);
 
       let lojaId = lojaSelecionada;
       let roteiroId = roteiroSelecionado;
@@ -139,6 +141,12 @@ export function Relatorios() {
         comissoes = comissaoRes.data?.comissoes || [];
         totalComissao = comissoes.reduce((acc, c) => acc + (parseFloat(c.totalComissao) || 0), 0);
         totalLucro = comissoes.reduce((acc, c) => acc + (parseFloat(c.totalLucro) || 0), 0);
+
+        // Buscar gastos por loja
+        const gastosRes = await api.get(`/gastos`, {
+          params: { lojaId },
+        });
+        setGastosLoja(gastosRes.data || []);
       }
 
       // Atualizar totais gerais
@@ -323,7 +331,7 @@ export function Relatorios() {
 
             {/* Exibir lojas do roteiro, se filtrando por roteiro */}
             {roteiroSelecionado && relatorio.lojas && relatorio.lojas.length > 0 && (
-              <div className="card bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-300">
+              <div className="card bg-linear-to-r from-blue-50 to-blue-100 border-2 border-blue-300">
                 <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2 flex items-center gap-2">
                   <span className="text-xl sm:text-2xl">🏪</span>
                   Lojas deste roteiro
@@ -338,7 +346,48 @@ export function Relatorios() {
                 </ul>
               </div>
             )}
-            <div className="card bg-gradient-to-r from-purple-50 to-purple-100 border-2 border-purple-300">
+
+            {/* Tabela de Gastos por Loja */}
+            {gastosLoja.length > 0 && (
+              <div className="card bg-linear-to-r from-yellow-50 to-orange-100 border-2 border-yellow-300">
+                <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <span className="text-xl sm:text-2xl">💸</span>
+                  Gastos registrados nesta loja
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full table-auto">
+                    <thead>
+                      <tr className="bg-yellow-100">
+                        <th className="px-3 py-2 text-left text-xs font-bold text-gray-700">Data</th>
+                        
+                        <th className="px-3 py-2 text-left text-xs font-bold text-gray-700">Categoria</th>
+                        <th className="px-3 py-2 text-left text-xs font-bold text-gray-700">Descrição</th>
+                        <th className="px-3 py-2 text-right text-xs font-bold text-gray-700">Valor (R$)</th>
+                        <th className="px-3 py-2 text-left text-xs font-bold text-gray-700">Roteiro</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {gastosLoja.map((gasto, idx) => (
+                        <tr key={gasto.id || idx} className="border-b border-yellow-200">
+                          <td className="px-3 py-2 text-xs text-gray-700">{gasto.data ? new Date(gasto.data).toLocaleDateString('pt-BR') : '-'}</td>
+                          
+                          <td className="px-3 py-2 text-xs text-gray-700">{gasto.categoria || '-'}</td>
+                          <td className="px-3 py-2 text-xs text-gray-700">{gasto.descricao || '-'}</td>
+                          <td className="px-3 py-2 text-xs text-right font-bold text-orange-700">{gasto.valor ? Number(gasto.valor).toFixed(2) : '-'}</td>
+                          <td className="px-3 py-2 text-xs text-gray-700">{
+                            (() => {
+                              const roteiro = roteiros.find(r => r.id === gasto.roteiroId);
+                              return roteiro ? (roteiro.nome || roteiro.zona || roteiro.id) : gasto.roteiroId || '-';
+                            })()
+                          }</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            <div className="card bg-linear-to-r from-purple-50 to-purple-100 border-2 border-purple-300">
               <h3 className="text-lg sm:text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <span className="text-2xl sm:text-3xl">📊</span>
                 {roteiroSelecionado && relatorio && relatorio.roteiro && relatorio.roteiro.zona
@@ -347,7 +396,7 @@ export function Relatorios() {
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
 
-                <div className="card bg-gradient-to-br from-red-500 to-red-600 text-white">
+                <div className="card bg-linear-to-br from-red-500 to-red-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">📤</div>
                   <div className="text-xl sm:text-2xl font-bold">
                     {typeof totais.produtosSairam === "number" ? totais.produtosSairam.toLocaleString("pt-BR") : "0"}
@@ -357,7 +406,7 @@ export function Relatorios() {
                   </div>
                 </div>
 
-                <div className="card bg-gradient-to-br from-green-500 to-green-600 text-white">
+                <div className="card bg-linear-to-br from-green-500 to-green-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">📥</div>
                   <div className="text-xl sm:text-2xl font-bold">
                     {typeof totais.produtosEntraram === "number" ? totais.produtosEntraram.toLocaleString("pt-BR") : "0"}
@@ -367,7 +416,7 @@ export function Relatorios() {
                   </div>
                 </div>
 
-                <div className="card bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+                <div className="card bg-linear-to-br from-purple-500 to-purple-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">🔄</div>
                   <div className="text-xl sm:text-2xl font-bold">
                     {typeof totais.movimentacoes === "number" ? totais.movimentacoes.toLocaleString("pt-BR") : "0"}
@@ -384,35 +433,35 @@ export function Relatorios() {
                 Valores de Entrada (Lucro)
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-                <div className="card bg-gradient-to-br from-green-400 to-green-500 text-white">
+                <div className="card bg-linear-to-br from-green-400 to-green-500 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">💵</div>
                   <div className="text-xl sm:text-2xl font-bold">
                     R$ {typeof totais.valoresEntrada?.notas === "number" ? totais.valoresEntrada.notas.toFixed(2) : "0.00"}
                   </div>
                   <div className="text-sm opacity-90">Entrada em Notas</div>
                 </div>
-                <div className="card bg-gradient-to-br from-blue-400 to-blue-500 text-white">
+                <div className="card bg-linear-to-br from-blue-400 to-blue-500 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">💳</div>
                   <div className="text-xl sm:text-2xl font-bold">
                     R$ {typeof totais.valoresEntrada?.cartao === "number" ? totais.valoresEntrada.cartao.toFixed(2) : "0.00"}
                   </div>
                   <div className="text-sm opacity-90">Entrada Digital/Cartão</div>
                 </div>
-                <div className="card bg-gradient-to-br from-orange-500 to-red-600 text-white">
+                <div className="card bg-linear-to-br from-orange-500 to-red-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">💰</div>
                   <div className="text-xl sm:text-2xl font-bold">
                     R$ {typeof totais.valoresEntrada?.total === "number" ? totais.valoresEntrada.total.toFixed(2) : "0.00"}
                   </div>
                   <div className="text-sm opacity-90">Recebimento Total</div>
                 </div>
-                <div className="card bg-gradient-to-br from-yellow-500 to-yellow-600 text-white">
+                <div className="card bg-linear-to-br from-yellow-500 to-yellow-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">📉</div>
                   <div className="text-xl sm:text-2xl font-bold">
                     R$ {(typeof totais.comissao === 'number' ? totais.comissao : maquinas.reduce((acc, m) => acc + (m.valoresComissao || 0), 0)).toFixed(2)}
                   </div>
                   <div className="text-sm opacity-90">Comissão Total Paga</div>
                 </div>
-                <div className="card bg-gradient-to-br from-green-700 to-green-900 text-white">
+                <div className="card bg-linear-to-br from-green-700 to-green-900 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">💸</div>
                   <div className="text-xl sm:text-2xl font-bold">
                     R$ {(typeof totais.lucroComDescontoComissao === 'number'
@@ -432,10 +481,10 @@ export function Relatorios() {
             {/* DETALHAMENTO POR MÁQUINA - PRINCIPAL */}
             {maquinas.length > 0 && (
               <div className="space-y-6">
-                <div className="card bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
+                <div className="card bg-linear-to-r from-indigo-500 to-purple-600 text-white">
                   <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold flex items-center gap-2 sm:gap-3">
                     <span className="text-3xl sm:text-4xl">🎰</span>
-                    <span className="break-words">
+                    <span className="wrap-break-word">
                       RELATÓRIO DETALHADO POR MÁQUINA
                     </span>
                   </h2>
@@ -451,7 +500,7 @@ export function Relatorios() {
                     className="card border-4 border-indigo-300 shadow-2xl page-break-before"
                   >
                     {/* Header da Máquina com destaque */}
-                    <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 sm:p-6 rounded-xl mb-4 sm:mb-6 shadow-lg">
+                    <div className="bg-linear-to-r from-indigo-600 to-purple-600 text-white p-4 sm:p-6 rounded-xl mb-4 sm:mb-6 shadow-lg">
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                         <div className="flex-1">
                           <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-2">
@@ -486,7 +535,7 @@ export function Relatorios() {
                         </span>
                       </h4>
                       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-                        <div className="bg-gradient-to-br from-red-500 to-red-600 text-white p-3 sm:p-5 rounded-xl shadow-lg">
+                        <div className="bg-linear-to-br from-red-500 to-red-600 text-white p-3 sm:p-5 rounded-xl shadow-lg">
                           <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
                             📤
                           </div>
@@ -497,7 +546,7 @@ export function Relatorios() {
                             Produtos Saíram
                           </div>
                         </div>
-                        <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-3 sm:p-5 rounded-xl shadow-lg">
+                        <div className="bg-linear-to-br from-green-500 to-green-600 text-white p-3 sm:p-5 rounded-xl shadow-lg">
                           <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
                             📥
                           </div>
@@ -508,7 +557,7 @@ export function Relatorios() {
                             Produtos Entraram
                           </div>
                         </div>
-                        <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-3 sm:p-5 rounded-xl shadow-lg">
+                        <div className="bg-linear-to-br from-purple-500 to-purple-600 text-white p-3 sm:p-5 rounded-xl shadow-lg">
                           <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
                             🔄
                           </div>
@@ -529,17 +578,17 @@ export function Relatorios() {
                         </span>
                       </h4>
                       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-                        <div className="bg-gradient-to-br from-green-400 to-green-500 text-white p-3 sm:p-5 rounded-xl shadow-lg">
+                        <div className="bg-linear-to-br from-green-400 to-green-500 text-white p-3 sm:p-5 rounded-xl shadow-lg">
                           <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">💵</div>
                           <div className="text-xl sm:text-3xl font-bold text-center">R$ {(maquina.valoresEntrada?.notas || 0).toFixed(2)}</div>
                           <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">Entrada em Notas</div>
                         </div>
-                        <div className="bg-gradient-to-br from-blue-400 to-blue-500 text-white p-3 sm:p-5 rounded-xl shadow-lg">
+                        <div className="bg-linear-to-br from-blue-400 to-blue-500 text-white p-3 sm:p-5 rounded-xl shadow-lg">
                           <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">💳</div>
                           <div className="text-xl sm:text-3xl font-bold text-center">R$ {(maquina.valoresEntrada?.cartao || 0).toFixed(2)}</div>
                           <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">Entrada Digital/Cartão</div>
                         </div>
-                        <div className="bg-gradient-to-br from-orange-500 to-red-600 text-white p-3 sm:p-5 rounded-xl shadow-lg">
+                        <div className="bg-linear-to-br from-orange-500 to-red-600 text-white p-3 sm:p-5 rounded-xl shadow-lg">
                           <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">💰</div>
                           <div className="text-xl sm:text-3xl font-bold text-center">
                             R$ {(() => {
@@ -550,14 +599,14 @@ export function Relatorios() {
                           </div>
                           <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">Recebimento Total</div>
                         </div>
-                        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white p-3 sm:p-5 rounded-xl shadow-lg">
+                        <div className="bg-linear-to-br from-yellow-500 to-yellow-600 text-white p-3 sm:p-5 rounded-xl shadow-lg">
                           <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">📉</div>
                           <div className="text-xl sm:text-3xl font-bold text-center">
                             R$ {(typeof maquina.valoresComissao === 'number' ? maquina.valoresComissao : 0).toFixed(2)}
                           </div>
                           <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">Comissão Paga</div>
                         </div>
-                        <div className="bg-gradient-to-br from-green-700 to-green-900 text-white p-3 sm:p-5 rounded-xl shadow-lg col-span-2 lg:col-span-1">
+                        <div className="bg-linear-to-br from-green-700 to-green-900 text-white p-3 sm:p-5 rounded-xl shadow-lg col-span-2 lg:col-span-1">
                           <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">💸</div>
                           <div className="text-xl sm:text-3xl font-bold text-center">
                             R$ {(typeof maquina.lucroComDescontoComissao === 'number'
@@ -703,7 +752,7 @@ export function Relatorios() {
             )}
 
             {/* Consolidado Geral de Produtos */}
-            <div className="card bg-gradient-to-r from-amber-50 to-orange-100 border-2 border-orange-300">
+            <div className="card bg-linear-to-r from-amber-50 to-orange-100 border-2 border-orange-300">
               <h3 className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2">
                 <span className="text-3xl">📊</span>
                 Consolidado Geral de Produtos
