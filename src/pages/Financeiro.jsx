@@ -18,6 +18,7 @@ export function Financeiro() {
     valorEntradaNotas: "",
     valorEntradaCartao: "",
   });
+  const [bagBusca, setBagBusca] = useState("");
 
   useEffect(() => {
     carregarPendenciasFinanceiras();
@@ -140,7 +141,16 @@ export function Financeiro() {
 
             {/* Pendentes de Valores */}
             <div className="bg-white shadow-md rounded-lg overflow-hidden">
-              <div className="p-4 border-b"><h2 className="text-xl font-bold">Pendentes de Valores (Bags)</h2></div>
+              <div className="p-4 border-b flex items-center justify-between">
+                <h2 className="text-xl font-bold">Pendentes de Valores (Bags)</h2>
+                <input
+                  type="text"
+                  placeholder="Buscar por Nº Bag..."
+                  value={bagBusca}
+                  onChange={e => setBagBusca(e.target.value)}
+                  className="ml-4 px-2 py-1 border rounded text-sm w-48"
+                />
+              </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
@@ -155,7 +165,11 @@ export function Financeiro() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {movimentacoes.map((mov) => (
+                    {movimentacoes
+                      .filter(mov =>
+                        bagBusca.trim() === "" || (mov.numeroBag && mov.numeroBag.toString().includes(bagBusca.trim()))
+                      )
+                      .map((mov) => (
                       <tr key={mov.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(mov.dataColeta).toLocaleDateString("pt-BR")}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{mov.maquina?.loja?.nome || "N/A"}</td>
