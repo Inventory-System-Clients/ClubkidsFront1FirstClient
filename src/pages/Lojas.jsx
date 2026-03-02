@@ -16,6 +16,7 @@ import { useAuth } from "../contexts/AuthContext";
 export function Lojas() {
   const { usuario } = useAuth();
   const [lojas, setLojas] = useState([]);
+  const [busca, setBusca] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deleteDialog, setDeleteDialog] = useState({
@@ -203,6 +204,16 @@ export function Lojas() {
 
   if (loading) return <PageLoader />;
 
+  // Filtro de busca por nome ou endereço
+  const lojasFiltradas = lojas.filter((loja) => {
+    if (!busca.trim()) return true;
+    const buscaLower = busca.toLowerCase();
+    return (
+      (loja.nome && loja.nome.toLowerCase().includes(buscaLower)) ||
+      (loja.endereco && loja.endereco.toLowerCase().includes(buscaLower))
+    );
+  });
+
   return (
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
       <Navbar />
@@ -242,7 +253,7 @@ export function Lojas() {
         )}
 
         <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="card bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+          <div className="card bg-linear-to-br from-purple-500 to-purple-600 text-white">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm opacity-90">Total de Lojas</p>
@@ -262,7 +273,7 @@ export function Lojas() {
             </div>
           </div>
 
-          <div className="card bg-gradient-to-br from-green-500 to-green-600 text-white">
+          <div className="card bg-linear-to-br from-green-500 to-green-600 text-white">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm opacity-90">Lojas Ativas</p>
@@ -284,7 +295,7 @@ export function Lojas() {
             </div>
           </div>
 
-          <div className="card bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+          <div className="card bg-linear-to-br from-blue-500 to-blue-600 text-white">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm opacity-90">Total de Máquinas</p>
@@ -306,10 +317,22 @@ export function Lojas() {
           </div>
         </div>
 
+        <div className="mb-6">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Buscar por nome ou endereço
+          </label>
+          <input
+            type="text"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="input-field w-full"
+            placeholder="Digite para buscar..."
+          />
+        </div>
         <DataTable
           headers={headers}
-          data={lojas}
-          emptyMessage="Nenhuma loja cadastrada. Clique em 'Nova Loja' para começar."
+          data={lojasFiltradas}
+          emptyMessage="Nenhuma loja encontrada. Clique em 'Nova Loja' para começar."
         />
       </div>
 

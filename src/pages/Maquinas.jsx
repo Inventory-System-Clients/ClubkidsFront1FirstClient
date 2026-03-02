@@ -25,6 +25,7 @@ export function Maquinas() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [filtroLoja, setFiltroLoja] = useState("");
+  const [busca, setBusca] = useState("");
   const [mostrarInativas, setMostrarInativas] = useState(false);
 
   useEffect(() => {
@@ -88,9 +89,13 @@ export function Maquinas() {
   };
 
   // Filtro por loja (backend já filtra por ativo/inativo)
-  const maquinasFiltradas = filtroLoja
-    ? maquinas.filter((m) => m.lojaId === filtroLoja)
-    : maquinas;
+  const maquinasFiltradas = maquinas.filter((m) => {
+    const lojaOk = filtroLoja ? m.lojaId === filtroLoja : true;
+    const buscaOk = busca.trim() === "" ||
+      (m.nome && m.nome.toLowerCase().includes(busca.toLowerCase())) ||
+      (m.codigo && m.codigo.toLowerCase().includes(busca.toLowerCase()));
+    return lojaOk && buscaOk;
+  });
 
   const stats = [
     {
@@ -230,7 +235,7 @@ export function Maquinas() {
 
         <div className="card-gradient">
           {/* Filtros */}
-          <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Filtrar por Loja
@@ -248,7 +253,18 @@ export function Maquinas() {
                 ))}
               </select>
             </div>
-
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Buscar por nome ou código
+              </label>
+              <input
+                type="text"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                className="input-field w-full"
+                placeholder="Digite para buscar..."
+              />
+            </div>
             <div className="flex items-end">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
