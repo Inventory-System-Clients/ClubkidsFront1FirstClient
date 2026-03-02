@@ -86,28 +86,89 @@ export function Relatorios() {
     try {
       setLoading(true);
       setError("");
-      setRelatorio(null); // Limpar relatório anterior
+      setRelatorio(null);
 
-      let response;
-      if (roteiroSelecionado) {
-        response = await api.get("/relatorios/roteiro", {
-          params: {
-            roteiroId: roteiroSelecionado,
-            dataInicio,
-            dataFim,
-          },
+      let lojaId = lojaSelecionada;
+      let roteiroId = roteiroSelecionado;
+      let relatorioData = null;
+
+      // Buscar relatório base
+      if (roteiroId) {
+        relatorioData = (await api.get("/relatorios/roteiro", {
+          params: { roteiroId, dataInicio, dataFim },
+        })).data;
+        // Se só uma loja no roteiro, usar o id dela
+        if (relatorioData && relatorioData.lojas && relatorioData.lojas.length === 1) {
+          lojaId = relatorioData.lojas[0].loja.id;
+        }
+      } else if (lojaId) {
+        relatorioData = (await api.get("/relatorios/impressao", {
+          params: { lojaId, dataInicio, dataFim },
+        })).data;
+      }
+
+      // Buscar e calcular comissão igual ao dashboard
+      let comissoes = [];
+      let totalComissao = 0;
+      let totalLucro = 0;
+      if (lojaId) {
+        // Buscar roteiros do período para garantir cálculo
+        const roteirosRes = await api.get(`/roteiros?data=${dataFim}`);
+        const roteiros = roteirosRes.data || [];
+        let roteiroIdParaComissao = roteiroId;
+        if (!roteiroIdParaComissao && roteiros.length > 0) {
+          // Pega o primeiro roteiro do dia que contenha a loja
+          for (const roteiro of roteiros) {
+            if ((roteiro.lojas || []).some(l => l.id == lojaId)) {
+              roteiroIdParaComissao = roteiro.id;
+              break;
+            }
+          }
+        }
+        if (roteiroIdParaComissao) {
+          try {
+            await api.post(`/roteiros/lojas/${lojaId}/calcular-comissao`, { roteiroId: roteiroIdParaComissao });
+          } catch (e) {
+            // Pode já estar calculada
+          }
+        }
+        // Buscar comissões do período
+        const comissaoRes = await api.get(`/relatorios/comissoes`, {
+          params: { lojaId, dataInicio, dataFim },
         });
-      } else if (lojaSelecionada) {
-        response = await api.get("/relatorios/impressao", {
-          params: {
-            lojaId: lojaSelecionada,
-            dataInicio,
-            dataFim,
-          },
+        comissoes = comissaoRes.data?.comissoes || [];
+        totalComissao = comissoes.reduce((acc, c) => acc + (parseFloat(c.totalComissao) || 0), 0);
+        totalLucro = comissoes.reduce((acc, c) => acc + (parseFloat(c.totalLucro) || 0), 0);
+      }
+
+      // Atualizar totais gerais
+      if (!relatorioData.totais) relatorioData.totais = {};
+      relatorioData.totais.comissao = totalComissao;
+      relatorioData.totais.lucroComDescontoComissao = totalLucro - totalComissao;
+
+      // Atualizar máquinas com detalhes de comissão
+      if (Array.isArray(relatorioData.maquinas) && comissoes.length > 0) {
+        relatorioData.maquinas = relatorioData.maquinas.map((maq) => {
+          // Procura detalhe da máquina em todos os registros de comissão
+          let detalhe = null;
+          for (const c of comissoes) {
+            if (Array.isArray(c.detalhes)) {
+              detalhe = c.detalhes.find((d) => d.maquinaId == maq.maquina.id);
+              if (detalhe) break;
+            }
+          }
+          if (detalhe) {
+            return {
+              ...maq,
+              valoresComissao: detalhe.comissao,
+              lucroComDescontoComissao: (parseFloat(detalhe.lucro || 0)) - (parseFloat(detalhe.comissao || 0)),
+            };
+          }
+          return maq;
         });
       }
 
-      setRelatorio(response.data);
+      setRelatorio(relatorioData);
     } catch (error) {
       console.error("Erro ao gerar relatório:", error);
       console.error("Detalhes do erro:", {
@@ -322,8 +383,7 @@ export function Relatorios() {
                 <span className="text-xl sm:text-2xl">💰</span>
                 Valores de Entrada (Lucro)
               </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
                 <div className="card bg-gradient-to-br from-green-400 to-green-500 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">💵</div>
                   <div className="text-xl sm:text-2xl font-bold">
@@ -331,7 +391,6 @@ export function Relatorios() {
                   </div>
                   <div className="text-sm opacity-90">Entrada em Notas</div>
                 </div>
-
                 <div className="card bg-gradient-to-br from-blue-400 to-blue-500 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">💳</div>
                   <div className="text-xl sm:text-2xl font-bold">
@@ -339,11 +398,31 @@ export function Relatorios() {
                   </div>
                   <div className="text-sm opacity-90">Entrada Digital/Cartão</div>
                 </div>
-
                 <div className="card bg-gradient-to-br from-orange-500 to-red-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">💰</div>
                   <div className="text-xl sm:text-2xl font-bold">
                     R$ {typeof totais.valoresEntrada?.total === "number" ? totais.valoresEntrada.total.toFixed(2) : "0.00"}
+                  </div>
+                  <div className="text-sm opacity-90">Recebimento Total</div>
+                </div>
+                <div className="card bg-gradient-to-br from-yellow-500 to-yellow-600 text-white">
+                  <div className="text-2xl sm:text-3xl mb-2">📉</div>
+                  <div className="text-xl sm:text-2xl font-bold">
+                    R$ {(typeof totais.comissao === 'number' ? totais.comissao : maquinas.reduce((acc, m) => acc + (m.valoresComissao || 0), 0)).toFixed(2)}
+                  </div>
+                  <div className="text-sm opacity-90">Comissão Total Paga</div>
+                </div>
+                <div className="card bg-gradient-to-br from-green-700 to-green-900 text-white">
+                  <div className="text-2xl sm:text-3xl mb-2">💸</div>
+                  <div className="text-xl sm:text-2xl font-bold">
+                    R$ {(typeof totais.lucroComDescontoComissao === 'number'
+                      ? totais.lucroComDescontoComissao
+                      : (() => {
+                          const totalRecebido = typeof totais.valoresEntrada?.total === "number" ? totais.valoresEntrada.total : 0;
+                          const totalComissao = maquinas.reduce((acc, m) => acc + (m.valoresComissao || 0), 0);
+                          return totalRecebido - totalComissao;
+                        })()
+                    ).toFixed(2)}
                   </div>
                   <div className="text-sm opacity-90">Lucro Total da Loja</div>
                 </div>
@@ -451,42 +530,48 @@ export function Relatorios() {
                       </h4>
                       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
                         <div className="bg-gradient-to-br from-green-400 to-green-500 text-white p-3 sm:p-5 rounded-xl shadow-lg">
-                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
-                            💵
-                          </div>
-                          <div className="text-xl sm:text-3xl font-bold text-center">
-                            R$ {(maquina.valoresEntrada?.notas || 0).toFixed(2)}
-                          </div>
-                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
-                            Entrada em Notas
-                          </div>
+                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">💵</div>
+                          <div className="text-xl sm:text-3xl font-bold text-center">R$ {(maquina.valoresEntrada?.notas || 0).toFixed(2)}</div>
+                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">Entrada em Notas</div>
                         </div>
                         <div className="bg-gradient-to-br from-blue-400 to-blue-500 text-white p-3 sm:p-5 rounded-xl shadow-lg">
-                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
-                            💳
-                          </div>
-                          <div className="text-xl sm:text-3xl font-bold text-center">
-                            R$ {(maquina.valoresEntrada?.cartao || 0).toFixed(2)}
-                          </div>
-                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
-                            Entrada Digital/Cartão
-                          </div>
+                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">💳</div>
+                          <div className="text-xl sm:text-3xl font-bold text-center">R$ {(maquina.valoresEntrada?.cartao || 0).toFixed(2)}</div>
+                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">Entrada Digital/Cartão</div>
                         </div>
                         <div className="bg-gradient-to-br from-orange-500 to-red-600 text-white p-3 sm:p-5 rounded-xl shadow-lg">
-                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
-                            💰
-                          </div>
+                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">💰</div>
                           <div className="text-xl sm:text-3xl font-bold text-center">
-                            R${" "}
-                            {(() => {
+                            R$ {(() => {
                               const notas = maquina.valoresEntrada?.notas || 0;
                               const cartao = maquina.valoresEntrada?.cartao || 0;
                               return (notas + cartao).toFixed(2);
                             })()}
                           </div>
-                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
-                            Lucro Total
+                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">Recebimento Total</div>
+                        </div>
+                        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white p-3 sm:p-5 rounded-xl shadow-lg">
+                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">📉</div>
+                          <div className="text-xl sm:text-3xl font-bold text-center">
+                            R$ {(typeof maquina.valoresComissao === 'number' ? maquina.valoresComissao : 0).toFixed(2)}
                           </div>
+                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">Comissão Paga</div>
+                        </div>
+                        <div className="bg-gradient-to-br from-green-700 to-green-900 text-white p-3 sm:p-5 rounded-xl shadow-lg col-span-2 lg:col-span-1">
+                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">💸</div>
+                          <div className="text-xl sm:text-3xl font-bold text-center">
+                            R$ {(typeof maquina.lucroComDescontoComissao === 'number'
+                              ? maquina.lucroComDescontoComissao
+                              : (() => {
+                                  const notas = maquina.valoresEntrada?.notas || 0;
+                                  const cartao = maquina.valoresEntrada?.cartao || 0;
+                                  const totalRecebido = notas + cartao;
+                                  const comissao = maquina.valoresComissao || 0;
+                                  return totalRecebido - comissao;
+                                })()
+                            ).toFixed(2)}
+                          </div>
+                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">Lucro da Máquina</div>
                         </div>
                       </div>
                     </div>

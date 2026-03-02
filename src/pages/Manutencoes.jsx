@@ -397,7 +397,7 @@ function Manutencoes() {
               <div className="flex gap-2 mt-6">
                 {isAdmin && <button className="btn-primary" onClick={handleEditOpen}>Editar</button>}
                 {isAdmin && <button className="btn-danger" onClick={handleDelete}>Excluir</button>}
-                {!isAdmin && detalhe.status !== "feito" && (
+                {(isAdmin || (!isAdmin && detalhe.status !== "feito")) && detalhe.status !== "feito" && (
                   <button className="btn-success" onClick={async () => {
                     try {
                       setLoading(true);
