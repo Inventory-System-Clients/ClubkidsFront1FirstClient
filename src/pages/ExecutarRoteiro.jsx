@@ -8,6 +8,19 @@ import { PageHeader, AlertBox, Badge } from "../components/UIComponents";
 import { PageLoader } from "../components/Loading";
 
 export function ExecutarRoteiro() {
+      const [manutencaoUrgente, setManutencaoUrgente] = useState(false);
+    // Estado para manutenções
+    const [manutencoes, setManutencoes] = useState([]);
+    // Marcar manutenção como feita
+    const marcarManutencaoFeita = async (manutencaoId) => {
+      try {
+        await api.put(`/manutencoes/${manutencaoId}`, { status: "feito" });
+        setSuccess("Manutenção marcada como feita!");
+        await carregarRoteiro();
+      } catch (error) {
+        setError("Erro ao marcar manutenção: " + (error.response?.data?.error || error.message));
+      }
+    };
   const { usuario } = useAuth();
     // Função para desfazer finalização do roteiro (apenas admin)
     const desfazerFinalizacao = async () => {
@@ -97,25 +110,13 @@ export function ExecutarRoteiro() {
   const carregarRoteiro = async () => {
     try {
       setLoading(true);
-      console.log(`🔄 [ExecutarRoteiro] Carregando roteiro ${id}... (${new Date().toLocaleTimeString()})`);
-      // Adicionar timestamp para forçar cache bust e carregar pendências "à receber"
-      const [roteiroRes, areceberRes] = await Promise.all([
+      const [roteiroRes, areceberRes, manutencoesRes] = await Promise.all([
         api.get(`/roteiros/${id}?_t=${Date.now()}`),
-        api.get(`/roteiros/financeiro/areceber`)
+        api.get(`/roteiros/financeiro/areceber`),
+        api.get(`/manutencoes?roteiroId=${id}`)
       ]);
-      console.log(`✅ [ExecutarRoteiro] Roteiro carregado:`, roteiroRes.data);
-      
-      // Log detalhado das lojas e máquinas
-      roteiroRes.data.lojas?.forEach(loja => {
-        const totalMaq = loja.maquinas?.length || 0;
-        const atendidas = loja.maquinas?.filter(m => m.atendida).length || 0;
-        console.log(`🏪 Loja "${loja.nome}": ${atendidas}/${totalMaq} máquinas atendidas`);
-        loja.maquinas?.forEach(maq => {
-          console.log(`  - ${maq.nome} (${maq.codigo}): ${maq.atendida ? '✅ ATENDIDA' : '❌ PENDENTE'}`);
-        });
-      });
-      
       setRoteiro(roteiroRes.data);
+      setManutencoes(manutencoesRes.data || []);
       const pendSet = new Set((areceberRes.data || []).filter(r => !r.recebido).map(r => r.lojaId));
       setAReceberPendentes(pendSet);
       setLastUpdate(Date.now());
@@ -123,7 +124,6 @@ export function ExecutarRoteiro() {
       setError("Erro ao carregar roteiro: " + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
-      console.log('✅ [ExecutarRoteiro] Loading=false aplicado');
     }
   };
 
@@ -190,12 +190,14 @@ export function ExecutarRoteiro() {
     try {
       await api.post(`/roteiros/${id}/manutencoes`, {
         maquinaId: manutencaoMaquina,
-        descricao: descricaoManutencao
+        descricao: descricaoManutencao,
+        status: manutencaoUrgente ? "urgente" : "pendente"
       });
       setSuccess("Manutenção registrada com sucesso!");
       setMostrarFormManutencao(false);
       setManutencaoMaquina(null);
       setDescricaoManutencao("");
+      setManutencaoUrgente(false);
       await carregarRoteiro();
     } catch (error) {
       setError("Erro ao registrar manutenção: " + (error.response?.data?.error || error.message));
@@ -225,7 +227,7 @@ export function ExecutarRoteiro() {
   const progressoMaquinas = totalMaquinas > 0 ? (maquinasAtendidas / totalMaquinas) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100">
       <Navbar />
       {/* Barra de pesquisa de loja centralizada */}
       <div className="flex flex-col items-center mt-4 w-full px-2">
@@ -254,7 +256,7 @@ export function ExecutarRoteiro() {
 
         {/* Resumo do Roteiro */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="card bg-gradient-to-br from-blue-50 to-blue-100">
+          <div className="card bg-linear-to-br from-blue-50 to-blue-100">
             <h3 className="text-lg font-bold text-gray-900 mb-2">Progresso Lojas</h3>
             <div className="flex items-center gap-2">
               <div className="flex-1 bg-gray-200 rounded-full h-4 overflow-hidden">
@@ -285,7 +287,7 @@ export function ExecutarRoteiro() {
             </div>
           </div>
 
-          <div className="card bg-gradient-to-br from-green-50 to-green-100">
+          <div className="card bg-linear-to-br from-green-50 to-green-100">
             <h3 className="text-lg font-bold text-gray-900 mb-2">Orçamento</h3>
             <p className="text-2xl font-bold text-green-700">
               R$ {(parseFloat(roteiro.saldoRestante) || 500).toFixed(2)}
@@ -295,7 +297,7 @@ export function ExecutarRoteiro() {
             </p>
           </div>
 
-          <div className="card bg-gradient-to-br from-yellow-50 to-yellow-100">
+          <div className="card bg-linear-to-br from-yellow-50 to-yellow-100">
             <h3 className="text-lg font-bold text-gray-900 mb-2">Ações</h3>
             <div className="flex flex-col gap-2">
               <button
@@ -425,6 +427,15 @@ export function ExecutarRoteiro() {
                   required
                 />
               </div>
+              <div className="flex items-center gap-2 mb-4">
+                <input
+                  type="checkbox"
+                  checked={manutencaoUrgente}
+                  onChange={e => setManutencaoUrgente(e.target.checked)}
+                  id="manutencaoUrgente"
+                />
+                <label htmlFor="manutencaoUrgente" className="text-sm font-semibold text-red-700">Urgente</label>
+              </div>
               <div className="flex gap-2">
                 <button type="submit" className="btn-danger">Registrar</button>
                 <button 
@@ -433,6 +444,7 @@ export function ExecutarRoteiro() {
                     setMostrarFormManutencao(false);
                     setManutencaoMaquina(null);
                     setDescricaoManutencao("");
+                    setManutencaoUrgente(false);
                   }}
                   className="btn-secondary"
                 >
@@ -450,6 +462,10 @@ export function ExecutarRoteiro() {
             const totalMaquinas = maquinasDaLoja.length;
             const maquinasAtendidas = maquinasDaLoja.filter(m => m.atendida).length;
             const todasAtendidas = verificarTodasMaquinasAtendidas(loja);
+            // Filtra manutenções desta loja (por lojaId e status diferente de 'feito')
+            const manutencoesDaLoja = Array.isArray(manutencoes)
+              ? manutencoes.filter(m => m.lojaId === loja.id && m.status !== 'feito')
+              : [];
             return (
               <div
                 key={loja.id}
@@ -470,21 +486,35 @@ export function ExecutarRoteiro() {
                       🏪 {loja.nome}
                       <Badge type="info">{loja.cidade}</Badge>
                     </h3>
-                    {/* Manutenções salvas para esta loja */}
-                    {Array.isArray(roteiro.manutencoes) && roteiro.manutencoes.filter(m => {
-                      // A manutenção pertence a uma máquina desta loja
-                      return loja.maquinas?.some(maq => maq.id === m.maquinaId);
-                    }).length > 0 && (
+                    {/* Manutenções desta loja */}
+                    {manutencoesDaLoja.length > 0 && (
                       <div className="mt-2">
                         <div className="font-semibold text-red-700 text-sm mb-1 flex items-center gap-1">
                           <span>🔧</span> Manutenções registradas:
                         </div>
                         <ul className="pl-4 list-disc text-xs text-red-800">
-                          {roteiro.manutencoes.filter(m => loja.maquinas?.some(maq => maq.id === m.maquinaId)).map((m, idx) => {
+                          {manutencoesDaLoja.map((m, idx) => {
                             const maq = loja.maquinas?.find(maq => maq.id === m.maquinaId);
                             return (
-                              <li key={m.id || idx}>
-                                <span className="font-bold">{maq?.nome || 'Máquina'}</span>: {m.descricao}
+                              <li key={m.id || idx} className="flex items-center gap-2">
+                                {maq ? (
+                                  <span className="font-bold">{maq.nome}</span>
+                                ) : (
+                                  <span className="font-bold">Manutenção</span>
+                                )}
+                                : {m.descricao}
+                                {!m.feita && (
+                                  <button
+                                    onClick={() => marcarManutencaoFeita(m.id)}
+                                    className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                                    title="Marcar manutenção como feita"
+                                  >
+                                    Marcar como feita
+                                  </button>
+                                )}
+                                {m.feita && (
+                                  <span className="text-green-700 font-bold ml-1">✓</span>
+                                )}
                               </li>
                             );
                           })}
@@ -540,16 +570,20 @@ export function ExecutarRoteiro() {
                 <div className="space-y-3 w-full">
                   {maquinasDaLoja.map((maquina) => {
                     // Filtra manutenções desta máquina
-                    const manutencoesMaquina = Array.isArray(roteiro.manutencoes)
-                      ? roteiro.manutencoes.filter(m => m.maquinaId === maquina.id)
+                    const manutencoesMaquina = Array.isArray(manutencoes)
+                      ? manutencoes.filter(m => m.maquinaId === maquina.id)
                       : [];
+                    // Verifica se há manutenção urgente pendente para esta máquina
+                    const manutencaoUrgentePendente = manutencoesMaquina.some(m => m.status === 'urgente');
                     return (
                       <div 
                         key={maquina.id}
                         className={`p-4 rounded-lg border-2 transition-all w-full ${
-                          maquina.atendida 
-                            ? 'bg-green-50 border-green-300' 
-                            : 'bg-white border-gray-200'
+                          manutencaoUrgentePendente
+                            ? 'bg-red-100 border-red-500 animate-pulse'
+                            : maquina.atendida 
+                              ? 'bg-green-50 border-green-300' 
+                              : 'bg-white border-gray-200'
                         }`}
                         style={{ minWidth: 0 }}
                       >
@@ -572,14 +606,24 @@ export function ExecutarRoteiro() {
                               Código: {maquina.codigo} | Tipo: {maquina.tipo}
                             </p>
                             {/* Manutenções desta máquina */}
-                            {manutencoesMaquina.length > 0 && (
+                            {manutencoesMaquina.filter(m => m.status !== 'feito').length > 0 && (
                               <div className="mt-2">
                                 <div className="font-semibold text-red-700 text-xs mb-1 flex items-center gap-1">
                                   <span>🔧</span> Manutenções registradas:
                                 </div>
-                                <ul className="pl-4 list-disc text-xs text-red-800">
-                                  {manutencoesMaquina.map((m, idx) => (
-                                    <li key={m.id || idx}>{m.descricao}</li>
+                                <ul className="pl-4 list-disc text-xs">
+                                  {manutencoesMaquina.filter(m => m.status !== 'feito').map((m, idx) => (
+                                    <li key={m.id || idx} className={`flex items-center gap-2 ${m.status === 'urgente' ? 'text-red-700 font-bold animate-pulse' : 'text-red-800'}`}>
+                                      {m.status === 'urgente' && <span className="text-red-700 font-bold">URGENTE!</span>}
+                                      {m.descricao}
+                                      <button
+                                        onClick={() => marcarManutencaoFeita(m.id)}
+                                        className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                                        title="Marcar manutenção como feita"
+                                      >
+                                        Feito
+                                      </button>
+                                    </li>
                                   ))}
                                 </ul>
                               </div>

@@ -12,6 +12,8 @@ import { useAuth } from "../contexts/AuthContext";
 
 import Swal from "sweetalert2";
 export function Dashboard() {
+    // Estado para manutenções urgentes atribuídas ao funcionário
+    const [manutencoesUrgentes, setManutencoesUrgentes] = useState([]);
   const [mostrarTodosAlertasMaquinas, setMostrarTodosAlertasMaquinas] =
     useState(false);
   // Estado para modal de movimentação de estoque
@@ -372,6 +374,14 @@ export function Dashboard() {
   }, [usuario]);
 
   useEffect(() => {
+        // Buscar todas manutenções atribuídas ao funcionário
+        if (usuario?.id) {
+          api.get(`/manutencoes?funcionarioId=${usuario.id}`).then(res => {
+            // Filtra apenas as urgentes atribuídas ao funcionário
+            const urgentes = (res.data || []).filter(m => m.status === 'urgente' && m.funcionarioId === usuario.id);
+            setManutencoesUrgentes(urgentes);
+          });
+        }
     carregarDados();
   }, [carregarDados]);
 
@@ -1554,11 +1564,24 @@ export function Dashboard() {
   return (
 
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
+      {/* Header com boas-vindas */}
       <Navbar />
-      {/* Alerta de roteiros pendentes do dia, aparece após 20h */}
       <AlertaRoteirosPendentes />
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Alerta de manutenção urgente atribuída ao funcionário */}
+        {manutencoesUrgentes.length > 0 && (
+          <div className="bg-red-100 border-l-4 border-red-500 p-4 mb-4 animate-pulse">
+            <div className="font-bold text-red-700 text-lg mb-1 flex items-center gap-2">
+              <span>⚠️</span> Atenção: Você possui {manutencoesUrgentes.length} manutenção(ões) urgente(s) atribuída(s)!
+            </div>
+            <ul className="list-disc pl-6 text-red-800 text-sm">
+              {manutencoesUrgentes.map(m => (
+                <li key={m.id}>{m.descricao}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        // ...existing code...
         {/* Header com boas-vindas */}
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>

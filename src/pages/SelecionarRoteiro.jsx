@@ -18,17 +18,7 @@ export function SelecionarRoteiro() {
       setSuccess("Finalização desfeita! O roteiro voltou para pendente.");
       await carregarRoteiros();
     } catch (error) {
-      // Log detalhado no console
-      console.error("Erro ao desfazer finalização:", error);
-      if (error.response) {
-        console.error("Status:", error.response.status);
-        console.error("Data:", error.response.data);
-        console.error("Headers:", error.response.headers);
-      }
-      setError(
-        "Erro ao desfazer finalização: " +
-        (error.response?.data?.error || JSON.stringify(error.response?.data) || error.message)
-      );
+      setError("Erro ao desfazer finalização: " + (error.response?.data?.error || error.message));
     }
   };
   const navigate = useNavigate();

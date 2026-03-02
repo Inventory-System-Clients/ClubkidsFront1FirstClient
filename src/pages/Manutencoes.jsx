@@ -6,6 +6,7 @@ import { Navbar } from "../components/Navbar";
 import { useAuth } from "../contexts/AuthContext";
 
 function Manutencoes() {
+      const [novaManutencaoUrgente, setNovaManutencaoUrgente] = useState(false);
     // Cadastro de nova manutenção
     const [showNovaManutencao, setShowNovaManutencao] = useState(false);
     const [novaManutencao, setNovaManutencao] = useState({
@@ -66,7 +67,8 @@ function Manutencoes() {
           descricao: novaManutencao.descricao,
           lojaId: novaManutencao.lojaId,
           roteiroId: null,
-          funcionarioId: novaManutencao.funcionarioId
+          funcionarioId: novaManutencao.funcionarioId,
+          status: novaManutencaoUrgente ? "urgente" : "pendente"
         };
         const res = await api.post("/manutencoes", payload);
         setShowNovaManutencao(false);
@@ -331,6 +333,15 @@ function Manutencoes() {
                   <label className="block text-sm font-medium">Descrição</label>
                   <textarea className="input-field w-full" value={novaManutencao.descricao} onChange={e => setNovaManutencao(d => ({ ...d, descricao: e.target.value }))} required />
                 </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={novaManutencaoUrgente}
+                    onChange={e => setNovaManutencaoUrgente(e.target.checked)}
+                    id="novaManutencaoUrgente"
+                  />
+                  <label htmlFor="novaManutencaoUrgente" className="text-sm font-semibold text-red-700">Urgente</label>
+                </div>
                 <button className="btn-primary w-full mt-2" type="submit">Cadastrar</button>
               </div>
             </form>
@@ -356,6 +367,7 @@ function Manutencoes() {
                     key={m.id}
                     className={
                       `hover:bg-blue-50 cursor-pointer` +
+                      (m.status === "urgente" ? " bg-red-100 border-l-4 border-red-500 animate-pulse" : "") +
                       (isAdmin && (m.status === "feito" || m.status === "concluida") ? " bg-green-100" : "")
                     }
                     onClick={() => setDetalhe(m)}
