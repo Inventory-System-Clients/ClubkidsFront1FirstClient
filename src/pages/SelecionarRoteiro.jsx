@@ -7,8 +7,30 @@ import { PageHeader, AlertBox, Badge } from "../components/UIComponents";
 import { PageLoader, EmptyState } from "../components/Loading";
 import { useAuth } from "../contexts/AuthContext";
 
+
 export function SelecionarRoteiro() {
   const { usuario } = useAuth();
+  // Função para desfazer finalização do roteiro (apenas admin)
+  const desfazerFinalizacao = async (roteiroId) => {
+    if (!window.confirm("Deseja realmente desfazer a finalização deste roteiro?")) return;
+    try {
+      await api.post(`/roteiros/${roteiroId}/desfazer-finalizacao`, {});
+      setSuccess("Finalização desfeita! O roteiro voltou para pendente.");
+      await carregarRoteiros();
+    } catch (error) {
+      // Log detalhado no console
+      console.error("Erro ao desfazer finalização:", error);
+      if (error.response) {
+        console.error("Status:", error.response.status);
+        console.error("Data:", error.response.data);
+        console.error("Headers:", error.response.headers);
+      }
+      setError(
+        "Erro ao desfazer finalização: " +
+        (error.response?.data?.error || JSON.stringify(error.response?.data) || error.message)
+      );
+    }
+  };
   const navigate = useNavigate();
 
   const [roteiros, setRoteiros] = useState([]);
@@ -678,6 +700,16 @@ export function SelecionarRoteiro() {
                       🎉 Roteiro finalizado! Não pode mais ser acessado hoje.
                     </p>
                   </div>
+                  {/* Botão de desfazer finalização para admin */}
+                  {usuario?.role === "ADMIN" && (
+                    <button
+                      onClick={() => desfazerFinalizacao(roteiro.id)}
+                      className="btn-danger w-full mt-4"
+                      title="Desfazer finalização do roteiro (apenas admin)"
+                    >
+                      ⬅️ Desfazer Finalização
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

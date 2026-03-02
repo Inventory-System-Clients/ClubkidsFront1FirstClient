@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useAuth } from "../contexts/AuthContext";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import api from "../services/api";
 import { Navbar } from "../components/Navbar";
@@ -7,6 +8,18 @@ import { PageHeader, AlertBox, Badge } from "../components/UIComponents";
 import { PageLoader } from "../components/Loading";
 
 export function ExecutarRoteiro() {
+  const { usuario } = useAuth();
+    // Função para desfazer finalização do roteiro (apenas admin)
+    const desfazerFinalizacao = async () => {
+      if (!window.confirm("Deseja realmente desfazer a finalização deste roteiro?")) return;
+      try {
+        await api.post(`/roteiros/${id}/desfazer-finalizacao`);
+        setSuccess("Finalização desfeita! O roteiro voltou para pendente.");
+        await carregarRoteiro();
+      } catch (error) {
+        setError("Erro ao desfazer finalização: " + (error.response?.data?.error || error.message));
+      }
+    };
   // Pesquisa de loja
   const [buscaLoja, setBuscaLoja] = useState("");
   const lojaRefs = useRef({});
@@ -322,6 +335,16 @@ export function ExecutarRoteiro() {
                   : `⏳ Faltam ${totalMaquinas - maquinasAtendidas} máquina(s)`
                 }
               </button>
+              {/* Botão de desfazer finalização para admin se status for finalizado */}
+              {usuario?.role === "ADMIN" && roteiro.status === "concluido" && (
+                <button
+                  onClick={desfazerFinalizacao}
+                  className="btn-danger text-sm"
+                  title="Desfazer finalização do roteiro (apenas admin)"
+                >
+                  ⬅️ Desfazer Finalização
+                </button>
+              )}
             </div>
           </div>
         </div>
