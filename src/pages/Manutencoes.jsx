@@ -189,6 +189,9 @@ function Manutencoes() {
   const lojas = Array.from(new Set(manutencoes.map(m => m.loja?.nome).filter(Boolean)));
   const statusList = Array.from(new Set(manutencoes.map(m => m.status).filter(Boolean)));
 
+  // Abas de filtro: pendentes/urgentes
+  const [abaManutencao, setAbaManutencao] = useState("pendentes");
+
   // Se não for admin, mostrar apenas manutenções atribuídas ao usuário logado
   const isAdmin = usuario?.role === "ADMIN";
   let filtradas = manutencoes.filter(m => {
@@ -197,6 +200,9 @@ function Manutencoes() {
       if (m.funcionarioId !== usuario?.id) return false;
       if (m.status === "feito" || m.status === "concluida") return false;
     }
+    // Filtro de aba
+    if (abaManutencao === "urgentes" && m.status !== "urgente") return false;
+    if (abaManutencao === "pendentes" && m.status === "urgente") return false;
     return (!filtroLoja || m.loja?.nome === filtroLoja) &&
       (!filtroStatus || m.status === filtroStatus);
   });
@@ -257,7 +263,20 @@ function Manutencoes() {
             ))}
           </div>
         )}
-        <div className="mb-4 flex flex-wrap gap-4">
+        <div className="mb-4 flex flex-wrap gap-4 items-center">
+          {/* Abas de filtro pendentes/urgentes */}
+          <div className="flex gap-2">
+            <button
+              className={`btn-secondary ${abaManutencao === "pendentes" ? "bg-blue-500 text-white" : "bg-gray-200"}`}
+              onClick={() => setAbaManutencao("pendentes")}
+              type="button"
+            >Pendentes</button>
+            <button
+              className={`btn-secondary ${abaManutencao === "urgentes" ? "bg-red-500 text-white" : "bg-gray-200"}`}
+              onClick={() => setAbaManutencao("urgentes")}
+              type="button"
+            >Urgentes</button>
+          </div>
           <select className="input-field" value={filtroLoja} onChange={e => setFiltroLoja(e.target.value)}>
             <option value="">Todas as lojas</option>
             {lojas.map(loja => <option key={loja} value={loja}>{loja}</option>)}
