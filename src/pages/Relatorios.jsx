@@ -359,10 +359,11 @@ export function Relatorios() {
                     <thead>
                       <tr className="bg-yellow-100">
                         <th className="px-3 py-2 text-left text-xs font-bold text-gray-700">Data</th>
-                        
                         <th className="px-3 py-2 text-left text-xs font-bold text-gray-700">Categoria</th>
                         <th className="px-3 py-2 text-left text-xs font-bold text-gray-700">Descrição</th>
                         <th className="px-3 py-2 text-right text-xs font-bold text-gray-700">Valor (R$)</th>
+                        <th className="px-3 py-2 text-left text-xs font-bold text-gray-700">KM Abastecimento</th>
+                        <th className="px-3 py-2 text-left text-xs font-bold text-gray-700">Litros Abastecidos</th>
                         <th className="px-3 py-2 text-left text-xs font-bold text-gray-700">Roteiro</th>
                       </tr>
                     </thead>
@@ -370,10 +371,11 @@ export function Relatorios() {
                       {gastosLoja.map((gasto, idx) => (
                         <tr key={gasto.id || idx} className="border-b border-yellow-200">
                           <td className="px-3 py-2 text-xs text-gray-700">{gasto.data ? new Date(gasto.data).toLocaleDateString('pt-BR') : '-'}</td>
-                          
                           <td className="px-3 py-2 text-xs text-gray-700">{gasto.categoria || '-'}</td>
                           <td className="px-3 py-2 text-xs text-gray-700">{gasto.descricao || '-'}</td>
                           <td className="px-3 py-2 text-xs text-right font-bold text-orange-700">{gasto.valor ? Number(gasto.valor).toFixed(2) : '-'}</td>
+                          <td className="px-3 py-2 text-xs text-gray-700">{gasto.kmAbastecimento ?? gasto.km_abastecimento ?? '-'}</td>
+                          <td className="px-3 py-2 text-xs text-gray-700">{gasto.litrosAbastecimento ?? gasto.litros_abastecimento ?? '-'}</td>
                           <td className="px-3 py-2 text-xs text-gray-700">{
                             (() => {
                               const roteiro = roteiros.find(r => r.id === gasto.roteiroId);
@@ -645,29 +647,26 @@ export function Relatorios() {
                               .sort((a, b) => b.quantidade - a.quantidade)
                               .map((produto) => (
                                 <div
-                                  key={produto.id}
-                                  className="bg-white p-3 sm:p-4 rounded-lg border-2 border-red-300 shadow-md"
+                                  key={produto.id + '-' + (produto.codigo || 'S/C')}
+                                  className="p-3 bg-white border-2 border-red-200 rounded-lg"
                                 >
-                                  <div className="flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                                      <span className="text-2xl sm:text-4xl shrink-0">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-2xl">
                                         {produto.emoji || "📦"}
                                       </span>
-                                      <div className="flex-1 min-w-0">
-                                        <div className="font-bold text-sm sm:text-lg text-gray-900 truncate">
+                                      <div>
+                                        <div className="font-bold text-gray-900">
                                           {produto.nome}
                                         </div>
-                                        <div className="text-xs sm:text-sm text-gray-600 truncate">
-                                          📋 Cód:{" "}
-                                          <span className="font-mono">
-                                            {produto.codigo || "S/C"}
-                                          </span>
+                                        <div className="text-xs text-gray-600">
+                                          Cód: {produto.codigo || "S/C"}
                                         </div>
                                       </div>
                                     </div>
-                                    <div className="bg-red-500 text-white px-3 sm:px-5 py-2 sm:py-3 rounded-xl font-bold text-base sm:text-xl shrink-0">
+                                    <span className="bg-red-500 text-white px-3 py-1 rounded-full font-bold">
                                       {typeof produto.quantidade === "number" ? produto.quantidade.toLocaleString("pt-BR") : "0"}
-                                    </div>
+                                    </span>
                                   </div>
                                 </div>
                               ))}
@@ -700,29 +699,26 @@ export function Relatorios() {
                               .sort((a, b) => b.quantidade - a.quantidade)
                               .map((produto) => (
                                 <div
-                                  key={produto.id}
-                                  className="bg-white p-3 sm:p-4 rounded-lg border-2 border-green-300 shadow-md"
+                                  key={produto.id + '-' + (produto.codigo || 'S/C')}
+                                  className="p-3 bg-white border-2 border-green-200 rounded-lg"
                                 >
-                                  <div className="flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                                      <span className="text-2xl sm:text-4xl shrink-0">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-2xl">
                                         {produto.emoji || "📦"}
                                       </span>
-                                      <div className="flex-1 min-w-0">
-                                        <div className="font-bold text-sm sm:text-lg text-gray-900 truncate">
+                                      <div>
+                                        <div className="font-bold text-gray-900">
                                           {produto.nome}
                                         </div>
-                                        <div className="text-xs sm:text-sm text-gray-600 truncate">
-                                          📋 Cód:{" "}
-                                          <span className="font-mono">
-                                            {produto.codigo || "S/C"}
-                                          </span>
+                                        <div className="text-xs text-gray-600">
+                                          Cód: {produto.codigo || "S/C"}
                                         </div>
                                       </div>
                                     </div>
-                                    <div className="bg-green-500 text-white px-3 sm:px-5 py-2 sm:py-3 rounded-xl font-bold text-base sm:text-xl shrink-0">
+                                    <span className="bg-green-500 text-white px-3 py-1 rounded-full font-bold">
                                       {typeof produto.quantidade === "number" ? produto.quantidade.toLocaleString("pt-BR") : "0"}
-                                    </div>
+                                    </span>
                                   </div>
                                 </div>
                               ))}
@@ -774,7 +770,7 @@ export function Relatorios() {
                         .sort((a, b) => b.quantidade - a.quantidade)
                         .map((produto) => (
                           <div
-                            key={produto.id}
+                            key={produto.id + '-' + (produto.codigo || 'S/C')}
                             className="p-3 bg-white border-2 border-red-200 rounded-lg"
                           >
                             <div className="flex items-center justify-between">
@@ -818,7 +814,7 @@ export function Relatorios() {
                         .sort((a, b) => b.quantidade - a.quantidade)
                         .map((produto) => (
                           <div
-                            key={produto.id}
+                            key={produto.id + '-' + (produto.codigo || 'S/C')}
                             className="p-3 bg-white border-2 border-green-200 rounded-lg"
                           >
                             <div className="flex items-center justify-between">

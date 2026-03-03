@@ -396,6 +396,34 @@ export function ExecutarRoteiro() {
                     placeholder="Opcional"
                   />
                 </div>
+                {/* Campos extras para combustível */}
+                {novoGasto.categoria === "Combustível" && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">KM quando abasteceu</label>
+                      <input
+                        type="number"
+                        value={novoGasto.kmAbastecimento || ""}
+                        onChange={e => setNovoGasto({...novoGasto, kmAbastecimento: e.target.value})}
+                        className="input-field"
+                        placeholder="KM atual"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Quantidade de litros</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={novoGasto.litrosAbastecimento || ""}
+                        onChange={e => setNovoGasto({...novoGasto, litrosAbastecimento: e.target.value})}
+                        className="input-field"
+                        placeholder="Litros abastecidos"
+                        required
+                      />
+                    </div>
+                  </>
+                )}
               </div>
               <div className="flex gap-2">
                 <button type="submit" className="btn-primary">Adicionar</button>
@@ -457,7 +485,7 @@ export function ExecutarRoteiro() {
 
         {/* Lista de Lojas e Máquinas */}
         <div className="space-y-6">
-          {roteiro.lojas?.map((loja) => {
+          {roteiro.lojas?.map((loja, idx) => {
             const maquinasDaLoja = loja.maquinas || [];
             const totalMaquinas = maquinasDaLoja.length;
             const maquinasAtendidas = maquinasDaLoja.filter(m => m.atendida).length;
@@ -468,7 +496,7 @@ export function ExecutarRoteiro() {
               : [];
             return (
               <div
-                key={loja.id}
+                key={loja.id + '-' + (loja.cidade || '') + '-' + idx}
                 ref={el => { lojaRefs.current[loja.id] = el; }}
                 className={`card ${
                   loja.concluida 
@@ -496,7 +524,7 @@ export function ExecutarRoteiro() {
                           {manutencoesDaLoja.map((m, idx) => {
                             const maq = loja.maquinas?.find(maq => maq.id === m.maquinaId);
                             return (
-                              <li key={m.id || idx} className="flex items-center gap-2">
+                              <li key={m.id + '-' + idx} className="flex items-center gap-2">
                                 {maq ? (
                                   <span className="font-bold">{maq.nome}</span>
                                 ) : (
@@ -577,7 +605,7 @@ export function ExecutarRoteiro() {
                     const manutencaoUrgentePendente = manutencoesMaquina.some(m => m.status === 'urgente');
                     return (
                       <div 
-                        key={maquina.id}
+                        key={maquina.id + '-' + (maquina.codigo || '')}
                         className={`p-4 rounded-lg border-2 transition-all w-full ${
                           manutencaoUrgentePendente
                             ? 'bg-red-100 border-red-500 animate-pulse'
@@ -613,7 +641,7 @@ export function ExecutarRoteiro() {
                                 </div>
                                 <ul className="pl-4 list-disc text-xs">
                                   {manutencoesMaquina.filter(m => m.status !== 'feito').map((m, idx) => (
-                                    <li key={m.id || idx} className={`flex items-center gap-2 ${m.status === 'urgente' ? 'text-red-700 font-bold animate-pulse' : 'text-red-800'}`}>
+                                    <li key={m.id + '-' + idx} className={`flex items-center gap-2 ${m.status === 'urgente' ? 'text-red-700 font-bold animate-pulse' : 'text-red-800'}`}>
                                       {m.status === 'urgente' && <span className="text-red-700 font-bold">URGENTE!</span>}
                                       {m.descricao}
                                       <button
@@ -682,7 +710,7 @@ export function ExecutarRoteiro() {
                 </thead>
                 <tbody>
                   {roteiro.gastos.map((gasto, idx) => (
-                    <tr key={idx} className="border-t">
+                    <tr key={(gasto.id ? gasto.id : 'gasto') + '-' + idx} className="border-t">
                       <td className="px-2 sm:px-4 py-2">{gasto.categoria}</td>
                       <td className="px-2 sm:px-4 py-2 font-bold">R$ {(parseFloat(gasto.valor) || 0).toFixed(2)}</td>
                       <td className="px-2 sm:px-4 py-2">{gasto.descricao || '-'}</td>

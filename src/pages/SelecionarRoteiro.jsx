@@ -401,7 +401,7 @@ export function SelecionarRoteiro() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {roteirosPendentes.map((roteiro) => (
                 <div
-                  key={roteiro.id}
+                  key={roteiro.id + '-' + (roteiro.zona || '')}
                   className={`transition-all duration-300 ${
                     (roteiro.zona || "").toLowerCase() === "gruas gigantes"
                       ? "bg-orange-200 border-2 border-orange-500"
@@ -500,9 +500,9 @@ export function SelecionarRoteiro() {
                         <p className="text-xs font-semibold text-gray-700 mb-1">
                           Lojas neste roteiro:
                         </p>
-                        {roteiro.lojas.map((loja) => (
+                        {roteiro.lojas.map((loja, idx) => (
                           <div
-                            key={loja.id}
+                            key={loja.id + '-' + roteiro.id + '-' + idx}
                             draggable={isAdmin}
                             onDragStart={(e) => {
                               if (isAdmin) {
@@ -643,7 +643,7 @@ export function SelecionarRoteiro() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {roteirosConcluidos.map((roteiro) => (
                 <div
-                  key={roteiro.id}
+                  key={roteiro.id + '-' + (roteiro.zona || '')}
                   className="card-gradient bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-500 relative"
                 >
                   {/* Ícone de bloqueio */}
@@ -759,7 +759,7 @@ export function SelecionarRoteiro() {
 
                     return (
                       <div
-                        key={loja.id}
+                        key={loja.id + '-' + (loja.nome || '')}
                         className={`p-4 rounded-lg border-2 transition-all ${
                           jaEstaNesteRoteiro
                             ? "bg-gray-100 border-gray-300"
