@@ -54,8 +54,8 @@ export function Relatorios() {
       // Buscar roteiros bolinha do dia atual
       const hoje = new Date().toISOString().split("T")[0];
       const responseBolinha = await api.get("/roteiros", { params: { data: hoje } });
-      // Filtrar apenas os de bolinha do dia atual
-      const bolinhasHoje = (responseBolinha.data || []).filter(r => (r.zona || "").toLowerCase().startsWith("bolinha"));
+      // Filtrar apenas os de bolinha e o Roteiro Coringa do dia atual
+      const bolinhasHoje = (responseBolinha.data || []).filter(r => (r.zona || "").toLowerCase().startsWith("bolinha") || r.zona === "Roteiro Coringa");
       // Priorizar roteiros do dia 24: se houver bolinha com mesmo nome/zona, não adicionar do dia atual
       const zonasFixo = new Set((responseFixo.data || []).map(r => (r.zona || "").toLowerCase().trim()));
       const bolinhasHojeNaoDuplicadas = bolinhasHoje.filter(r => !zonasFixo.has((r.zona || "").toLowerCase().trim()));

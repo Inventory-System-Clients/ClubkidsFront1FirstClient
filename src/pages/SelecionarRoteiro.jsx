@@ -36,6 +36,8 @@ export function SelecionarRoteiro() {
   const [filtroLoja, setFiltroLoja] = useState("");
   // Filtro de tipo de roteiro: 'bolinha' ou 'dias'
   const [filtroTipoRoteiro, setFiltroTipoRoteiro] = useState("todos");
+  const [filtroNome, setFiltroNome] = useState("");
+  const [observacoesEditando, setObservacoesEditando] = useState({});
 
 
   useEffect(() => {
@@ -53,8 +55,8 @@ export function SelecionarRoteiro() {
       // Buscar roteiros bolinha do dia atual
       const hoje = new Date().toISOString().split("T")[0];
       const responseBolinha = await api.get("/roteiros", { params: { data: hoje } });
-      // Filtrar apenas os de bolinha do dia atual
-      const bolinhasHoje = (responseBolinha.data || []).filter(r => (r.zona || "").toLowerCase().startsWith("bolinha"));
+      // Filtrar apenas os de bolinha e o Roteiro Coringa do dia atual
+      const bolinhasHoje = (responseBolinha.data || []).filter(r => (r.zona || "").toLowerCase().startsWith("bolinha") || r.zona === "Roteiro Coringa");
       // Priorizar roteiros do dia 24: se houver bolinha com mesmo nome/zona, não adicionar do dia atual
       const zonasFixo = new Set((responseFixo.data || []).map(r => (r.zona || "").toLowerCase().trim()));
       const bolinhasHojeNaoDuplicadas = bolinhasHoje.filter(r => !zonasFixo.has((r.zona || "").toLowerCase().trim()));
@@ -174,6 +176,19 @@ export function SelecionarRoteiro() {
     }
   };
 
+  const salvarObservacoes = async (roteiroId, observacoes) => {
+    try {
+      setError("");
+      const novoValor = observacoes || null;
+      await api.put(`/roteiros/${roteiroId}`, { observacoes: novoValor });
+      // Atualiza apenas o state local — backend não salva observacoes no banco ainda
+      setRoteiros(prev => prev.map(r => r.id === roteiroId ? { ...r, observacoes: novoValor } : r));
+      setSuccess(novoValor ? "Observação salva!" : "Observação excluída!");
+    } catch (error) {
+      setError("Erro ao salvar observação: " + (error.response?.data?.error || error.message));
+    }
+  };
+
   const adicionarLojaAoRoteiro = async (lojaId, roteiroId) => {
     try {
       setError("");
@@ -236,8 +251,11 @@ export function SelecionarRoteiro() {
     }
   };
 
-  // Exibir todos os roteiros carregados, aplicar filtro de tipo normalmente
-  let roteirosFiltrados = roteiros;
+  // Exibir todos os roteiros carregados, aplicar filtro de tipo e nome normalmente
+  let roteirosFiltrados = roteiros.filter(r =>
+    !filtroNome ||
+    (r.nome || r.zona || "").toLowerCase().includes(filtroNome.toLowerCase())
+  );
   if (filtroTipoRoteiro === "bolinha") {
     roteirosFiltrados = roteirosFiltrados.filter(r => (r.zona || "").toLowerCase().startsWith("bolinha"));
   } else if (filtroTipoRoteiro === "dias") {
@@ -353,6 +371,13 @@ export function SelecionarRoteiro() {
             >
               Todos
             </button>
+            <input
+              type="text"
+              placeholder="🔍 Buscar por nome..."
+              value={filtroNome}
+              onChange={e => setFiltroNome(e.target.value)}
+              className="px-3 py-2 rounded-lg border-2 border-gray-300 focus:border-blue-400 outline-none text-sm min-w-[160px]"
+            />
           </div>
         </div>
 
@@ -403,7 +428,9 @@ export function SelecionarRoteiro() {
                 <div
                   key={roteiro.id + '-' + (roteiro.zona || '')}
                   className={`transition-all duration-300 ${
-                    (roteiro.zona || "").toLowerCase() === "gruas gigantes"
+                    roteiro.zona === "Roteiro Coringa"
+                      ? "bg-purple-700 text-white border-2 border-purple-900"
+                      : (roteiro.zona || "").toLowerCase() === "gruas gigantes"
                       ? "bg-orange-200 border-2 border-orange-500"
                       : (roteiro.zona || "").toLowerCase().startsWith("bolinha")
                         ? "bg-blue-100 border-2 border-blue-400"
@@ -465,6 +492,56 @@ export function SelecionarRoteiro() {
                           : "Pendente"}
                       </Badge>
                     </div>
+                    {isAdmin && (
+                      <div className="mt-2">
+                        <label className="text-xs text-gray-600 block mb-1">⚠️ Observações para o funcionário:</label>
+                        <textarea
+                          rows={2}
+                          placeholder="Adicionar observação para o funcionário..."
+                          value={observacoesEditando[roteiro.id] !== undefined ? observacoesEditando[roteiro.id] : (roteiro.observacoes || "")}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            setObservacoesEditando(prev => ({ ...prev, [roteiro.id]: e.target.value }));
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-full text-sm px-2 py-1 border-2 border-gray-300 hover:border-orange-400 focus:border-orange-500 rounded outline-none resize-none"
+                        />
+                        <div className="mt-1 flex gap-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const val = observacoesEditando[roteiro.id] !== undefined ? observacoesEditando[roteiro.id] : (roteiro.observacoes || "");
+                              salvarObservacoes(roteiro.id, val);
+                              setObservacoesEditando(prev => { const n = {...prev}; delete n[roteiro.id]; return n; });
+                            }}
+                            className="flex-1 text-xs py-1 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors font-semibold"
+                          >
+                            💾 Salvar
+                          </button>
+                          {roteiro.observacoes && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (window.confirm("Excluir a observação deste roteiro?")) {
+                                  salvarObservacoes(roteiro.id, null);
+                                  setObservacoesEditando(prev => { const n = {...prev}; delete n[roteiro.id]; return n; });
+                                }
+                              }}
+                              className="text-xs py-1 px-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors font-semibold"
+                              title="Excluir observação"
+                            >
+                              🗑️
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {!isAdmin && roteiro.observacoes && (
+                      <div className="mt-2 bg-yellow-50 border-2 border-orange-400 rounded-lg p-3">
+                        <p className="text-sm font-bold text-orange-700 mb-1">⚠️ Observações</p>
+                        <p className="text-sm text-gray-800 whitespace-pre-wrap">{roteiro.observacoes}</p>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-3">
@@ -644,7 +721,11 @@ export function SelecionarRoteiro() {
               {roteirosConcluidos.map((roteiro) => (
                 <div
                   key={roteiro.id + '-' + (roteiro.zona || '')}
-                  className="card-gradient bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-500 relative"
+                  className={`card-gradient border-2 relative ${
+                    roteiro.zona === "Roteiro Coringa"
+                      ? "bg-purple-500 text-white border-purple-500"
+                      : "bg-gradient-to-br from-green-50 to-green-100 border-green-500"
+                  }`}
                 >
                   {/* Ícone de bloqueio */}
                   <div className="absolute top-4 right-4 text-3xl">🔒</div>
@@ -684,8 +765,16 @@ export function SelecionarRoteiro() {
                     )}
                   </div>
 
+                  {/* Observação do roteiro */}
+                  {roteiro.observacoes && (
+                    <div className="mt-4 bg-yellow-50 border-2 border-orange-400 rounded-lg p-3">
+                      <p className="text-sm font-bold text-orange-700 mb-1">⚠️ Observações</p>
+                      <p className="text-sm text-gray-800 whitespace-pre-wrap">{roteiro.observacoes}</p>
+                    </div>
+                  )}
+
                   {/* Mensagem de roteiro bloqueado */}
-                  <div className="mt-6 p-4 bg-green-200 border-l-4 border-green-600 rounded">
+                  <div className="mt-4 p-4 bg-green-200 border-l-4 border-green-600 rounded">
                     <p className="text-sm font-semibold text-green-800 text-center">
                       🎉 Roteiro finalizado! Não pode mais ser acessado hoje.
                     </p>

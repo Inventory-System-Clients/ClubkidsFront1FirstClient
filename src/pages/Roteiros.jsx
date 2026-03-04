@@ -22,6 +22,7 @@ export function Roteiros() {
   const [showModalAdicionarLoja, setShowModalAdicionarLoja] = useState(false);
   const [roteiroSelecionadoParaAdicionar, setRoteiroSelecionadoParaAdicionar] = useState(null);
   const [filtroLoja, setFiltroLoja] = useState("");
+  const [observacoesEditando, setObservacoesEditando] = useState({});
 
   useEffect(() => {
     carregarRoteiros();
@@ -141,6 +142,19 @@ export function Roteiros() {
       await carregarRoteiros();
     } catch (error) {
       setError("Erro ao atribuir funcionário: " + (error.response?.data?.error || error.message));
+    }
+  };
+
+  const salvarObservacoes = async (roteiroId, observacoes) => {
+    try {
+      setError("");
+      const novoValor = observacoes || null;
+      await api.put(`/roteiros/${roteiroId}`, { observacoes: novoValor });
+      // Atualiza apenas o state local — backend não salva observacoes no banco ainda
+      setRoteiros(prev => prev.map(r => r.id === roteiroId ? { ...r, observacoes: novoValor } : r));
+      setSuccess(novoValor ? "Observação salva!" : "Observação excluída!");
+    } catch (error) {
+      setError("Erro ao salvar observação: " + (error.response?.data?.error || error.message));
     }
   };
 
@@ -349,6 +363,8 @@ export function Roteiros() {
                   className={`card hover:shadow-xl transition-all ${
                     isAdmin && draggedLoja && draggedFromRoteiro !== roteiro.id
                       ? 'ring-2 ring-blue-400 ring-offset-2 bg-blue-50'
+                      : roteiro.zona === 'Roteiro Coringa'
+                      ? 'bg-purple-700 text-white'
                       : ''
                   }`}
                   onDragOver={isAdmin ? (e) => {
@@ -379,6 +395,43 @@ export function Roteiros() {
                             </option>
                           ))}
                         </select>
+                      </div>
+                    )}
+                    {isAdmin && (
+                      <div className="mb-2">
+                        <label className="text-xs text-gray-600 block mb-1">⚠️ Observações para o funcionário:</label>
+                        <textarea
+                          rows={2}
+                          placeholder="Adicionar observação para o funcionário..."
+                          value={observacoesEditando[roteiro.id] !== undefined ? observacoesEditando[roteiro.id] : (roteiro.observacoes || "")}
+                          onChange={(e) => setObservacoesEditando(prev => ({ ...prev, [roteiro.id]: e.target.value }))}
+                          className="w-full text-sm px-2 py-1 border-2 border-gray-300 hover:border-orange-400 focus:border-orange-500 rounded outline-none resize-none"
+                        />
+                        <div className="mt-1 flex gap-1">
+                          <button
+                            onClick={() => {
+                              salvarObservacoes(roteiro.id, observacoesEditando[roteiro.id] !== undefined ? observacoesEditando[roteiro.id] : (roteiro.observacoes || ""));
+                              setObservacoesEditando(prev => { const n = {...prev}; delete n[roteiro.id]; return n; });
+                            }}
+                            className="flex-1 text-xs py-1 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors font-semibold"
+                          >
+                            💾 Salvar
+                          </button>
+                          {roteiro.observacoes && (
+                            <button
+                              onClick={() => {
+                                if (window.confirm("Excluir a observação deste roteiro?")) {
+                                  salvarObservacoes(roteiro.id, null);
+                                  setObservacoesEditando(prev => { const n = {...prev}; delete n[roteiro.id]; return n; });
+                                }
+                              }}
+                              className="text-xs py-1 px-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors font-semibold"
+                              title="Excluir observação"
+                            >
+                              🗑️
+                            </button>
+                          )}
+                        </div>
                       </div>
                     )}
                     {!isAdmin && roteiro.funcionarioNome && (
@@ -468,7 +521,7 @@ export function Roteiros() {
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Roteiros em Andamento</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {roteirosEmAndamento.map((roteiro) => (
-                <div key={roteiro.id} className="card bg-gray-100 opacity-75">
+                <div key={roteiro.id} className={`card opacity-75 ${roteiro.zona === 'Roteiro Coringa' ? 'bg-purple-700 text-white' : 'bg-gray-100'}`}>
                   <h3 className="text-lg font-bold text-gray-900 mb-2">
                     {roteiro.nome}
                   </h3>
@@ -511,7 +564,7 @@ export function Roteiros() {
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Roteiros Concluídos Hoje</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {roteirosConcluidos.map((roteiro) => (
-                <div key={roteiro.id} className="card bg-green-50">
+                <div key={roteiro.id} className={`card ${roteiro.zona === 'Roteiro Coringa' ? 'bg-purple-700 text-white' : 'bg-green-50'}`}>
                   <h3 className="text-lg font-bold text-gray-900 mb-2">
                     {roteiro.nome}
                   </h3>

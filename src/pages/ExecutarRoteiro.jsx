@@ -316,6 +316,12 @@ export function ExecutarRoteiro() {
               >
                 💰 Novo Gasto
               </button>
+              {roteiro.observacoes && (
+                <div className="bg-yellow-50 border-2 border-orange-400 rounded-lg p-3">
+                  <p className="text-sm font-bold text-orange-700 mb-1">⚠️ Observações</p>
+                  <p className="text-sm text-gray-800 whitespace-pre-wrap">{roteiro.observacoes}</p>
+                </div>
+              )}
               <button
                 onClick={concluirRoteiro}
                 disabled={lojasConcluidas < totalLojas || maquinasAtendidas < totalMaquinas}
