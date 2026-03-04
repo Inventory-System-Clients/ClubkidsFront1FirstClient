@@ -429,7 +429,7 @@ export function SelecionarRoteiro() {
                   key={roteiro.id + '-' + (roteiro.zona || '')}
                   className={`transition-all duration-300 ${
                     roteiro.zona === "Roteiro Coringa"
-                      ? "bg-purple-700 text-white border-2 border-purple-900"
+                      ? "bg-purple-200 border-2 border-purple-400 rounded-xl"
                       : (roteiro.zona || "").toLowerCase() === "gruas gigantes"
                       ? "bg-orange-200 border-2 border-orange-500"
                       : (roteiro.zona || "").toLowerCase().startsWith("bolinha")
@@ -723,7 +723,7 @@ export function SelecionarRoteiro() {
                   key={roteiro.id + '-' + (roteiro.zona || '')}
                   className={`card-gradient border-2 relative ${
                     roteiro.zona === "Roteiro Coringa"
-                      ? "bg-purple-500 text-white border-purple-500"
+                      ? "bg-purple-200 border-purple-400 rounded-xl"
                       : "bg-gradient-to-br from-green-50 to-green-100 border-green-500"
                   }`}
                 >
