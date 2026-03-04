@@ -44,6 +44,29 @@ export default function RegistroVeiculos({
   if (!usuario || usuario.role !== "ADMIN") return null;
   if (loading) return <div className="p-6">Carregando veículos...</div>;
 
+  // Detectar divergências de KM: retirada com km diferente da última devolução do mesmo veículo
+  const divergencias = new Map();
+  if (movimentacoes.length > 0) {
+    const sorted = [...movimentacoes].sort(
+      (a, b) => new Date(a.dataMovimentacao) - new Date(b.dataMovimentacao),
+    );
+    const estadoPorVeiculo = {};
+    for (const mov of sorted) {
+      const vid = mov.veiculo?.id ?? mov.veiculoId ?? mov.veiculo_id;
+      if (!vid) continue;
+      if (!estadoPorVeiculo[vid]) estadoPorVeiculo[vid] = { lastDevKm: null };
+      const estado = estadoPorVeiculo[vid];
+      const kmNum = typeof mov.km === "number" ? mov.km : Number(mov.km);
+      if (mov.tipo === "retirada") {
+        if (estado.lastDevKm !== null && !isNaN(kmNum) && kmNum !== estado.lastDevKm) {
+          divergencias.set(mov.id, { kmEsperado: estado.lastDevKm, kmEncontrado: kmNum });
+        }
+      } else {
+        if (!isNaN(kmNum)) estado.lastDevKm = kmNum;
+      }
+    }
+  }
+
   return (
     <div className="p-0 md:p-2">
       <h2 className="text-2xl font-bold mb-6 text-blue-900 tracking-tight drop-shadow-sm">
@@ -122,8 +145,10 @@ export default function RegistroVeiculos({
                 } else if (precisaLimpar) {
                   rowClass += " bg-yellow-100 !hover:bg-yellow-200";
                 }
+                const divKm = divergencias.get(mov.id);
                 return (
-                  <tr key={mov.id} className={rowClass}>
+                  <React.Fragment key={mov.id}>
+                  <tr className={rowClass}>
                     <td className="px-4 py-2 border-b">
                       {mov.veiculo?.nome || "-"}
                     </td>
@@ -165,6 +190,19 @@ export default function RegistroVeiculos({
                       {mov.postoAbastecimento || "-"}
                     </td>
                   </tr>
+                  {divKm && (
+                    <tr>
+                      <td
+                        colSpan={12}
+                        className="px-4 py-1 bg-red-50 border-b-2 border-red-500"
+                      >
+                        <span className="text-red-700 font-semibold text-xs">
+                          ⚠️ Divergência de KM: última devolução registrou {divKm.kmEsperado} km, mas esta retirada está com {divKm.kmEncontrado} km — possível uso não registrado do veículo ({divKm.kmEncontrado - divKm.kmEsperado} km a mais)
+                        </span>
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
                 );
               })
             )}

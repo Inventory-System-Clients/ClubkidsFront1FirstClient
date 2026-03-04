@@ -260,6 +260,7 @@ export function Dashboard() {
     balanco: null,
     loading: true,
   });
+  const [roteirosHoje, setRoteirosHoje] = useState([]);
 
   // Estados para busca e navegação
 
@@ -324,19 +325,37 @@ export function Dashboard() {
             return { data: null };
           })
         );
+        requisicoes.push(
+          (async () => {
+            const hojeStr = new Date().toISOString().split("T")[0];
+            const [fixoRes, bolinhaRes] = await Promise.all([
+              api.get("/roteiros", { params: { data: "2026-02-24" } }).catch(() => ({ data: [] })),
+              api.get("/roteiros", { params: { data: hojeStr } }).catch(() => ({ data: [] })),
+            ]);
+            const bolinhasHoje = (bolinhaRes.data || []).filter(
+              (r) => (r.zona || "").toLowerCase().startsWith("bolinha") || r.zona === "Roteiro Coringa"
+            );
+            const zonasFixo = new Set((fixoRes.data || []).map((r) => (r.zona || "").toLowerCase().trim()));
+            const bolinhasNaoDuplicadas = bolinhasHoje.filter(
+              (r) => !zonasFixo.has((r.zona || "").toLowerCase().trim())
+            );
+            return { data: [...(fixoRes.data || []), ...bolinhasNaoDuplicadas] };
+          })()
+        );
       }
 
       const resultados = await Promise.all(requisicoes);
 
-      let alertasRes, balancoRes, lojasRes, maquinasRes, produtosRes;
+      let alertasRes, balancoRes, lojasRes, maquinasRes, produtosRes, roteirosRes;
 
       if (isAdmin) {
-        [alertasRes, balancoRes, lojasRes, maquinasRes, produtosRes] =
+        [alertasRes, balancoRes, lojasRes, maquinasRes, produtosRes, roteirosRes] =
           resultados;
       } else {
         [lojasRes, maquinasRes, produtosRes] = resultados;
         alertasRes = { data: { alertas: [] } };
         balancoRes = { data: null };
+        roteirosRes = { data: [] };
       }
 
       console.log("Lojas carregadas:", lojasRes.data);
@@ -360,6 +379,7 @@ export function Dashboard() {
       setLojas(lojasRes.data || []);
       setMaquinas(maquinasRes.data || []);
       setProdutos(produtosRes.data || []);
+      setRoteirosHoje(roteirosRes.data || []);
 
       // Carregar alertas de estoque de lojas (para todos os usuários)
       if (lojasRes.data && lojasRes.data.length > 0) {
@@ -1650,34 +1670,50 @@ export function Dashboard() {
             </div>
           </Link>
           {usuario?.role === "ADMIN" && <>
-            <div className="stat-card bg-linear-to-br from-yellow-500 to-orange-500 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30">
-              <div className="relative z-10">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-medium opacity-90">
-                    Faturamento Semanal
-                  </h3>
-                  <svg
-                    className="w-8 h-8 opacity-80"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                </div>
-                <p className="text-3xl font-bold">
-                  R${" "}
-                  {stats.balanco?.totais?.totalFaturamento?.toFixed(2) ||
-                    "0,00"}
-                </p>
-                <p className="text-xs opacity-75 mt-1">💰 Últimos 7 dias</p>
-              </div>
-            </div>
+            {(() => {
+              const diasSemanaDisplay = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+              const diaVariantes = [
+                [],              // domingo
+                ["segunda"],
+                ["terça", "terca"],
+                ["quarta"],
+                ["quinta"],
+                ["sexta"],
+                [],              // sábado
+              ];
+              const diaNomeDisplay = diasSemanaDisplay[new Date().getDay()];
+              const variantes = diaVariantes[new Date().getDay()];
+              const qtd = roteirosHoje.filter((r) => {
+                const zona = (r.zona || "").toLowerCase();
+                return variantes.some((v) => zona.startsWith(v));
+              }).length;
+              return (
+                <Link to="/roteiros" className="stat-card bg-linear-to-br from-purple-500 to-indigo-600 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 hover:scale-105 transition-transform cursor-pointer">
+                  <div className="relative z-10">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-medium opacity-90">
+                        Roteiros para hoje
+                      </h3>
+                      <svg
+                        className="w-8 h-8 opacity-80"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+                        />
+                      </svg>
+                    </div>
+                    <p className="text-3xl font-bold">{qtd}</p>
+                    <p className="text-xs opacity-75 mt-1">📋 {diaNomeDisplay}</p>
+                  </div>
+                </Link>
+              );
+            })()}
 
             {/* Removido: Card de Moedas Inseridas */}
 
