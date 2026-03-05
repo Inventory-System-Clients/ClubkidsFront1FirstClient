@@ -21,6 +21,18 @@ export function SelecionarRoteiro() {
       setError("Erro ao desfazer finalização: " + (error.response?.data?.error || error.message));
     }
   };
+    // Função para remover loja de todos os roteiros
+    const removerLojaDeTodosOsRoteiros = async (lojaId) => {
+      if (!window.confirm("Deseja realmente remover esta loja de todos os roteiros?")) return;
+      try {
+        setError("");
+        await api.delete(`/roteiros/remover-loja/${lojaId}`);
+        setSuccess("Loja removida de todos os roteiros!");
+        await carregarRoteiros();
+      } catch (error) {
+        setError("Erro ao remover loja: " + (error.response?.data?.error || error.message));
+      }
+    };
   const navigate = useNavigate();
 
   const [roteiros, setRoteiros] = useState([]);
@@ -376,7 +388,7 @@ export function SelecionarRoteiro() {
               placeholder="🔍 Buscar por nome..."
               value={filtroNome}
               onChange={e => setFiltroNome(e.target.value)}
-              className="px-3 py-2 rounded-lg border-2 border-gray-300 focus:border-blue-400 outline-none text-sm min-w-[160px]"
+              className="px-3 py-2 rounded-lg border-2 border-gray-300 focus:border-blue-400 outline-none text-sm min-w-40"
             />
           </div>
         </div>
@@ -589,7 +601,7 @@ export function SelecionarRoteiro() {
                               }
                             }}
                             onClick={(e) => e.stopPropagation()}
-                            className={`text-xs p-2 rounded border transition-all ${
+                            className={`text-xs p-2 rounded border transition-all flex items-center justify-between ${
                               loja.concluida
                                 ? "bg-green-50 border-green-400 text-green-800"
                                 : "bg-white border-gray-300"
@@ -603,8 +615,19 @@ export function SelecionarRoteiro() {
                                 : ""
                             }`}
                           >
-                            {loja.concluida ? "✅" : "🏪"}{" "}
-                            {loja.nome || "Loja sem nome"}
+                            <span>{loja.concluida ? "✅" : "🏪"} {loja.nome || "Loja sem nome"}</span>
+                            {isAdmin && (
+                              <button
+                                className="ml-1 w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded hover:bg-red-600"
+                                title="Remover loja de todos os roteiros"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removerLojaDeTodosOsRoteiros(loja.id);
+                                }}
+                              >
+                                <span className="text-base" role="img" aria-label="Excluir">🗑️</span>
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -724,7 +747,7 @@ export function SelecionarRoteiro() {
                   className={`card-gradient border-2 relative ${
                     roteiro.zona === "Roteiro Coringa"
                       ? "bg-purple-200 border-purple-400 rounded-xl"
-                      : "bg-gradient-to-br from-green-50 to-green-100 border-green-500"
+                      : "bg-linear-to-br from-green-50 to-green-100 border-green-500"
                   }`}
                 >
                   {/* Ícone de bloqueio */}
@@ -801,7 +824,7 @@ export function SelecionarRoteiro() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Header do Modal */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
+            <div className="bg-linear-to-r from-blue-600 to-blue-700 text-white p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-bold">
