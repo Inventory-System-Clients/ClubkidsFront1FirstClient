@@ -59,7 +59,14 @@ export default function RegistroVeiculos({
       const kmNum = typeof mov.km === "number" ? mov.km : Number(mov.km);
       if (mov.tipo === "retirada") {
         if (estado.lastDevKm !== null && !isNaN(kmNum) && kmNum !== estado.lastDevKm) {
-          divergencias.set(mov.id, { kmEsperado: estado.lastDevKm, kmEncontrado: kmNum });
+          const diferenca = kmNum - estado.lastDevKm;
+          const tipo = diferenca > 0 ? 'maior' : 'menor';
+          divergencias.set(mov.id, { 
+            kmEsperado: estado.lastDevKm, 
+            kmEncontrado: kmNum,
+            diferenca: Math.abs(diferenca),
+            tipo: tipo
+          });
         }
       } else {
         if (!isNaN(kmNum)) estado.lastDevKm = kmNum;
@@ -194,10 +201,14 @@ export default function RegistroVeiculos({
                     <tr>
                       <td
                         colSpan={12}
-                        className="px-4 py-1 bg-red-50 border-b-2 border-red-500"
+                        className={`px-4 py-1 border-b-2 ${divKm.tipo === 'maior' ? 'bg-red-50 border-red-500' : 'bg-yellow-50 border-yellow-500'}`}
                       >
-                        <span className="text-red-700 font-semibold text-xs">
-                          ⚠️ Divergência de KM: última devolução registrou {divKm.kmEsperado} km, mas esta retirada está com {divKm.kmEncontrado} km — possível uso não registrado do veículo ({divKm.kmEncontrado - divKm.kmEsperado} km a mais)
+                        <span className={`font-semibold text-xs ${divKm.tipo === 'maior' ? 'text-red-700' : 'text-yellow-700'}`}>
+                          ⚠️ Divergência de KM: última devolução registrou {divKm.kmEsperado} km, mas esta retirada está com {divKm.kmEncontrado} km
+                          {divKm.tipo === 'maior' 
+                            ? ` — possível uso não registrado do veículo (+${divKm.diferenca} km)`
+                            : ` — possível erro no odômetro (-${divKm.diferenca} km)`
+                          }
                         </span>
                       </td>
                     </tr>
