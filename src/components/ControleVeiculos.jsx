@@ -94,6 +94,8 @@ export default function ControleVeiculos({
     const kmInformado = Number(form.km);
     const ultimaMov = ultimasMovs[veiculoSelecionado.id];
     const kmUltimaMov = ultimaMov ? Number(ultimaMov.km) : 0;
+    const tipoUltimaMov = ultimaMov ? ultimaMov.tipo : null;
+    
     if (!form.km || isNaN(kmInformado)) {
       Swal.fire("Campo obrigatório", "Informe o KM inicial para iniciar o veículo.", "warning");
       return;
@@ -102,6 +104,25 @@ export default function ControleVeiculos({
       Swal.fire("KM inválido", `O KM inicial não pode ser menor que o último KM registrado (${kmUltimaMov}).`, "warning");
       return;
     }
+    
+    // Verificar se KM inicial é maior que o KM da última devolução (possível uso não autorizado)
+    let alertaKmMaior = false;
+    if (kmUltimaMov > 0 && kmInformado > kmUltimaMov && tipoUltimaMov === 'devolucao') {
+      alertaKmMaior = true;
+      const diferenca = kmInformado - kmUltimaMov;
+      
+      // Notificar o usuário sobre a inconsistência
+      await Swal.fire({
+        icon: "warning",
+        title: "Inconsistência de KM detectada",
+        html: `<p><strong>KM atual informado:</strong> ${kmInformado}</p>
+               <p><strong>KM da última devolução:</strong> ${kmUltimaMov}</p>
+               <p><strong>Diferença:</strong> ${diferenca} km</p>
+               <p class="text-red-600 mt-2">Este veículo foi utilizado entre devoluções sem registro.</p>`,
+        confirmButtonText: "Continuar mesmo assim"
+      });
+    }
+    
     try {
       await api.put(`/veiculos/${veiculoSelecionado.id}`, {
         ...veiculoSelecionado,
@@ -114,6 +135,7 @@ export default function ControleVeiculos({
       fecharModal();
       return;
     }
+    
     // Registrar movimentação de retirada
     try {
       await api.post("/movimentacao-veiculos", {
@@ -128,6 +150,8 @@ export default function ControleVeiculos({
         obs: form.obs || undefined,
         dataMovimentacao: new Date().toISOString(),
         km: Number(form.km),
+        alertaKmMaior: alertaKmMaior, // Flag para backend criar alerta
+        kmAnterior: kmUltimaMov // Enviar o KM anterior para referência
       });
     } catch (movError) {
       console.warn("Movimentação não registrada:", movError);
