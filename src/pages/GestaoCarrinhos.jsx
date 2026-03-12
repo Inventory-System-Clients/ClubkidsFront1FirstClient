@@ -94,8 +94,8 @@ export function GestaoCarrinhos() {
     try {
       console.log('🔄 Carregando dados - Usuário:', usuario?.email, 'Role:', usuario?.role);
       
-      // Carregar usuários (funcionários) - apenas para admins que podem criar
-      if (isAdmin) {
+      // Carregar usuários (funcionários) - para admins e usuários autorizados
+      if (podeAcessar) {
         try {
           const resUsuarios = await api.get('/usuarios/funcionarios');
           setUsuarios(resUsuarios.data || []);
@@ -106,7 +106,7 @@ export function GestaoCarrinhos() {
           setProdutos(resProdutos.data || []);
           console.log('✅ Produtos carregados:', resProdutos.data?.length);
         } catch (err) {
-          console.warn('⚠️ Erro ao carregar usuários/produtos (normal para não-admins):', err.message);
+          console.warn('⚠️ Erro ao carregar usuários/produtos:', err.message);
         }
       }
       
