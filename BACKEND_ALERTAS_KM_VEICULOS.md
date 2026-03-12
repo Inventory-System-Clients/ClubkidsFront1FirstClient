@@ -1,19 +1,172 @@
 # 🚨 Backend: Alertas de Inconsistência de KM em Veículos
 
 **Data:** 12 de março de 2026  
-**Funcionalidade:** Gerar alertas quando um veículo é iniciado com KM maior que o da última devolução
+**Status:** ✅ BLOQUEIO IMPLEMENTADO NO FRONTEND  
+**Funcionalidade:** Sistema bloqueia retiradas com KM diferente da última movimentação
 
 ---
 
-## 🎯 Objetivo
+## 🎯 Objetivo Original (ALTERADO)
 
-Detectar quando um veículo foi utilizado entre devoluções sem registro oficial, gerando um alerta de inconsistência de KM para o admin investigar.
+**❌ Antes:** Gerar alertas quando um veículo era iniciado com KM diferente da última devolução  
+**✅ Agora:** Sistema **BLOQUEIA** completamente qualquer retirada com KM diferente da última movimentação
 
-### Cenário problemático:
-1. Funcionário devolve veículo com 1000 km
-2. Veículo fica parado (sem registro de uso)
-3. Próximo funcionário inicia veículo com 1050 km
-4. **❗ ALERTA:** Veículo rodou 50 km sem registro entre devoluções
+---
+
+## 🔒 Comportamento Atual
+
+### Regras de Validação:
+
+#### 1. **Ao RETIRAR veículo:**
+- KM informado **DEVE SER EXATAMENTE IGUAL** ao KM da última movimentação
+- Se KM for diferente (maior ou menor): ❌ **BLOQUEADO**
+- Apenas ADMIN pode sobrescrever esta regra
+
+#### 2. **Ao DEVOLVER veículo:**
+- KM informado **DEVE SER MAIOR OU IGUAL** ao KM da retirada
+- Se KM for menor: ❌ **BLOQUEADO**
+- Apenas ADMIN pode sobrescrever esta regra
+
+---
+
+## 📋 Cenários Bloqueados
+
+### ❌ Cenário 1: KM Maior na Retirada
+```
+Última devolução: 1000 km
+Tentativa de retirada: 1050 km
+Resultado: BLOQUEADO
+Mensagem: "O veículo não pode ter sido usado sem registro. O KM deve ser exatamente 1000."
+```
+
+### ❌ Cenário 2: KM Menor na Retirada
+```
+Última devolução: 1000 km
+Tentativa de retirada: 980 km
+Resultado: BLOQUEADO
+Mensagem: "O KM não pode diminuir. Verifique o odômetro. O KM deve ser exatamente 1000."
+```
+
+### ❌ Cenário 3: KM Menor na Devolução
+```
+Retirada: 1000 km
+Tentativa de devolução: 980 km
+Resultado: BLOQUEADO
+Mensagem: "O KM de finalização não pode ser menor que o último KM registrado (1000)."
+```
+
+---
+
+## ✅ Cenários Permitidos
+
+### ✅ Cenário 1: KM Exato na Retirada
+```
+Última devolução: 1000 km
+Retirada: 1000 km
+Resultado: PERMITIDO ✅
+```
+
+### ✅ Cenário 2: KM Maior na Devolução
+```
+Retirada: 1000 km
+Devolução: 1050 km
+Resultado: PERMITIDO ✅
+```
+
+---
+
+## 🔧 Backend: Não Requer Alterações
+
+Como o frontend bloqueia completamente as inconsistências, **NÃO é mais necessário:**
+- ❌ Criar tabela de alertas
+- ❌ Implementar endpoint de alertas
+- ❌ Validar campos `alertaKmMaior` e `kmAnterior`
+
+O endpoint POST `/movimentacao-veiculos` continua recebendo apenas:
+```json
+{
+  "veiculoId": "uuid",
+  "tipo": "retirada",
+  "km": 1000,
+  "gasolina": "5 palzinhos",
+  "nivel_limpeza": "esta limpo",
+  "estado": "Bom",
+  "modo": "trabalho",
+  "dataMovimentacao": "2026-03-12T10:30:00.000Z"
+}
+```
+
+---
+
+## 📊 Alertas no Histórico
+
+Os alertas de divergência continuam aparecendo no **histórico de movimentações** quando há inconsistências detectadas retroativamente (dados antigos antes do bloqueio):
+
+### 🔴 Alerta Vermelho (Crítico)
+- **Quando:** Retirada com KM > última devolução (dados antigos)
+- **Mensagem:** "possível uso não registrado do veículo (+X km)"
+
+### 🟡 Alerta Amarelo (Atenção)
+- **Quando:** Retirada com KM < última devolução (dados antigos)
+- **Mensagem:** "possível erro no odômetro (-X km)"
+
+Estes alertas são **calculados automaticamente** pelo frontend ao analisar o histórico, não requerem backend.
+
+---
+
+## 👨‍💼 Permissões de Admin
+
+Admins **podem** registrar movimentações com KM diferente:
+- Útil para correções de dados
+- Útil quando odômetro é trocado/resetado
+- Útil para ajustes manuais
+
+---
+
+## ✅ Impacto da Mudança
+
+### Antes (Sistema de Alertas):
+```
+1. Funcionário informa KM errado
+2. Sistema aceita e cria alerta
+3. Admin precisa investigar depois
+```
+
+### Agora (Sistema de Bloqueio):
+```
+1. Funcionário informa KM errado
+2. Sistema BLOQUEIA imediatamente ❌
+3. Funcionário deve corrigir na hora
+4. Nenhuma inconsistência entra no sistema ✅
+```
+
+---
+
+## 🧪 Como Testar
+
+### Teste 1: Bloquear KM Maior
+1. Devolva veículo com 1000 km
+2. Tente retirar com 1050 km
+3. **Resultado esperado:** Mensagem de erro, retirada bloqueada
+
+### Teste 2: Bloquear KM Menor na Retirada
+1. Devolva veículo com 1000 km
+2. Tente retirar com 980 km
+3. **Resultado esperado:** Mensagem de erro, retirada bloqueada
+
+### Teste 3: Bloquear KM Menor na Devolução
+1. Retire veículo com 1000 km
+2. Tente devolver com 980 km
+3. **Resultado esperado:** Mensagem de erro, devolução bloqueada
+
+### Teste 4: Admin Pode Sobrescrever
+1. Login como admin
+2. Informe qualquer KM
+3. **Resultado esperado:** Sistema aceita
+
+---
+
+**🎯 Resultado:** Sistema 100% consistente, sem possibilidade de registros incorretos de KM!
 
 ---
 

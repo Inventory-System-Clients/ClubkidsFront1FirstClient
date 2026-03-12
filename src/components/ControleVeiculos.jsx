@@ -93,34 +93,34 @@ export default function ControleVeiculos({
     if (!veiculoSelecionado) return;
     const kmInformado = Number(form.km);
     const ultimaMov = ultimasMovs[veiculoSelecionado.id];
-    const kmUltimaMov = ultimaMov ? Number(ultimaMov.km) : 0;
-    const tipoUltimaMov = ultimaMov ? ultimaMov.tipo : null;
-    
+    // Usar km da última movimentação OU o km atual do veículo como referência
+    const kmDaUltimaMov = ultimaMov ? Number(ultimaMov.km) : 0;
+    const kmDoVeiculo = veiculoSelecionado.km ? Number(veiculoSelecionado.km) : 0;
+    const kmRef = kmDaUltimaMov > 0 ? kmDaUltimaMov : kmDoVeiculo;
+
     if (!form.km || isNaN(kmInformado)) {
       Swal.fire("Campo obrigatório", "Informe o KM inicial para iniciar o veículo.", "warning");
       return;
     }
-    if (kmInformado < kmUltimaMov && !isAdmin()) {
-      Swal.fire("KM inválido", `O KM inicial não pode ser menor que o último KM registrado (${kmUltimaMov}).`, "warning");
-      return;
-    }
-    
-    // Verificar se KM inicial é maior que o KM da última devolução (possível uso não autorizado)
-    let alertaKmMaior = false;
-    if (kmUltimaMov > 0 && kmInformado > kmUltimaMov && tipoUltimaMov === 'devolucao') {
-      alertaKmMaior = true;
-      const diferenca = kmInformado - kmUltimaMov;
-      
-      // Notificar o usuário sobre a inconsistência
-      await Swal.fire({
-        icon: "warning",
-        title: "Inconsistência de KM detectada",
-        html: `<p><strong>KM atual informado:</strong> ${kmInformado}</p>
-               <p><strong>KM da última devolução:</strong> ${kmUltimaMov}</p>
-               <p><strong>Diferença:</strong> ${diferenca} km</p>
-               <p class="text-red-600 mt-2">Este veículo foi utilizado entre devoluções sem registro.</p>`,
-        confirmButtonText: "Continuar mesmo assim"
+
+    // Bloquear se KM for diferente da referência (exceto admin)
+    if (kmRef > 0 && kmInformado !== kmRef && !isAdmin()) {
+      const diferenca = kmInformado - kmRef;
+      const tipo = diferenca > 0 ? 'maior' : 'menor';
+
+      Swal.fire({
+        icon: "error",
+        title: "KM inconsistente — retirada bloqueada",
+        html: `<p><strong>KM informado:</strong> ${kmInformado}</p>
+               <p><strong>KM registrado no veículo:</strong> ${kmRef}</p>
+               <p><strong>Diferença:</strong> ${Math.abs(diferenca)} km ${tipo}</p>
+               <p class="mt-2 text-red-600 font-semibold">${tipo === 'maior'
+                 ? 'O veículo não pode ter sido usado sem registro.'
+                 : 'O KM não pode ser menor que o registrado. Verifique o odômetro.'}</p>
+               <p class="text-gray-500 text-sm mt-1">O KM deve ser exatamente <strong>${kmRef}</strong> para iniciar a retirada.</p>`,
+        confirmButtonText: "Entendi"
       });
+      return;
     }
     
     try {
@@ -149,9 +149,7 @@ export default function ControleVeiculos({
         modo: form.modo,
         obs: form.obs || undefined,
         dataMovimentacao: new Date().toISOString(),
-        km: Number(form.km),
-        alertaKmMaior: alertaKmMaior, // Flag para backend criar alerta
-        kmAnterior: kmUltimaMov // Enviar o KM anterior para referência
+        km: Number(form.km)
       });
     } catch (movError) {
       console.warn("Movimentação não registrada:", movError);
@@ -650,6 +648,15 @@ export default function ControleVeiculos({
               </div>
               <div className="mb-3">
                 <label className="block text-sm font-medium">Km inicial</label>
+                {(() => {
+                  const ultimaMov = ultimasMovs[veiculoSelecionado?.id];
+                  const kmDaUltimaMov = ultimaMov ? Number(ultimaMov.km) : 0;
+                  const kmDoVeiculo = veiculoSelecionado?.km ? Number(veiculoSelecionado.km) : 0;
+                  const kmRef = kmDaUltimaMov > 0 ? kmDaUltimaMov : kmDoVeiculo;
+                  return kmRef > 0 && !isAdmin() ? (
+                    <p className="text-xs text-blue-700 mb-1">⚠️ O KM deve ser exatamente <strong>{kmRef}</strong></p>
+                  ) : null;
+                })()}
                 <input
                   name="km"
                   type="number"
