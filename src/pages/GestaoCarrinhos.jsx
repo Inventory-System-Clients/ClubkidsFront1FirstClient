@@ -46,8 +46,15 @@ export function GestaoCarrinhos() {
   const [carrinhoParaDevolver, setCarrinhoParaDevolver] = useState(null);
   const [mostrarModalDevolucao, setMostrarModalDevolucao] = useState(false);
   
+  // Estado para histórico de devoluções
+  const [devolucoes, setDevolucoes] = useState([]);
+  const [filtroDataInicio, setFiltroDataInicio] = useState('');
+  const [filtroDataFim, setFiltroDataFim] = useState('');
+  const [filtroFuncionario, setFiltroFuncionario] = useState('');
+  const [carregandoDevolucoes, setCarregandoDevolucoes] = useState(false);
+  
   // Aba ativa
-  const [abaAtiva, setAbaAtiva] = useState('criar'); // 'criar', 'carrinhos', 'alertas'
+  const [abaAtiva, setAbaAtiva] = useState('criar'); // 'criar', 'carrinhos', 'alertas', 'historico'
 
   // Verificar se o usuário tem permissão para acessar e devolver carrinhos
   const usuarioEmail = usuario?.email || '';
@@ -147,6 +154,29 @@ export function GestaoCarrinhos() {
       setAlertas([]);
       setTotalAlertas(0);
       setAlertasAtivos(0);
+    }
+  }
+
+  async function carregarDevolucoes() {
+    setCarregandoDevolucoes(true);
+    try {
+      console.log('📋 Buscando histórico de devoluções...');
+      
+      // Construir query params
+      const params = new URLSearchParams();
+      if (filtroDataInicio) params.append('dataInicio', filtroDataInicio);
+      if (filtroDataFim) params.append('dataFim', filtroDataFim);
+      if (filtroFuncionario) params.append('usuarioNome', filtroFuncionario);
+      
+      const response = await api.get(`/carrinho-usuarios/devolucoes?${params.toString()}`);
+      console.log('✅ Devoluções carregadas:', response.data);
+      setDevolucoes(response.data || []);
+    } catch (err) {
+      console.error('❌ Erro ao carregar devoluções:', err);
+      console.error('Detalhes:', err.response?.data);
+      setDevolucoes([]);
+    } finally {
+      setCarregandoDevolucoes(false);
     }
   }
 
@@ -448,6 +478,20 @@ export function GestaoCarrinhos() {
                 {alertasAtivos}
               </span>
             )}
+          </button>
+          
+          <button
+            onClick={() => {
+              setAbaAtiva('historico');
+              carregarDevolucoes();
+            }}
+            className={`px-6 py-3 font-semibold transition-colors relative ${
+              abaAtiva === 'historico'
+                ? 'border-b-4 border-primary text-primary'
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            📋 Histórico de Devoluções
           </button>
         </div>
 
@@ -821,6 +865,197 @@ export function GestaoCarrinhos() {
                           Desativar
                         </button>
                       </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Aba: Histórico de Devoluções */}
+          {abaAtiva === 'historico' && (
+            <div>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <span>📋</span> Histórico de Devoluções
+                </h2>
+                <button
+                  onClick={carregarDevolucoes}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  disabled={carregandoDevolucoes}
+                >
+                  🔄 {carregandoDevolucoes ? 'Carregando...' : 'Atualizar'}
+                </button>
+              </div>
+
+              {/* Filtros */}
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+                <h3 className="font-semibold text-gray-700 mb-3">🔍 Filtros</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Data Início:
+                    </label>
+                    <input
+                      type="date"
+                      value={filtroDataInicio}
+                      onChange={(e) => setFiltroDataInicio(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Data Fim:
+                    </label>
+                    <input
+                      type="date"
+                      value={filtroDataFim}
+                      onChange={(e) => setFiltroDataFim(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Nome do Funcionário:
+                    </label>
+                    <input
+                      type="text"
+                      value={filtroFuncionario}
+                      onChange={(e) => setFiltroFuncionario(e.target.value)}
+                      placeholder="Digite o nome..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-4">
+                  <button
+                    onClick={carregarDevolucoes}
+                    className="px-4 py-2 bg-primary text-black font-semibold rounded-lg hover:bg-primary-dark transition-colors"
+                    disabled={carregandoDevolucoes}
+                  >
+                    Aplicar Filtros
+                  </button>
+                  <button
+                    onClick={() => {
+                      setFiltroDataInicio('');
+                      setFiltroDataFim('');
+                      setFiltroFuncionario('');
+                      carregarDevolucoes();
+                    }}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition-colors"
+                    disabled={carregandoDevolucoes}
+                  >
+                    Limpar Filtros
+                  </button>
+                </div>
+              </div>
+
+              {/* Lista de Devoluções */}
+              {carregandoDevolucoes ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">Carregando devoluções...</p>
+                </div>
+              ) : devolucoes.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">Nenhuma devolução encontrada</p>
+                  <p className="text-xs text-gray-400 mt-2">Tente ajustar os filtros</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {devolucoes.map(devolucao => (
+                    <div 
+                      key={devolucao.id}
+                      className={`border-2 rounded-lg p-4 ${devolucao.alertaAtivo ? 'border-yellow-400 bg-yellow-50' : 'border-green-400 bg-green-50'}`}
+                    >
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="text-lg font-bold text-gray-800">
+                            {devolucao.usuario?.nome || 'Usuário não encontrado'}
+                          </h3>
+                          <p className="text-sm text-gray-600">
+                            {devolucao.usuario?.email || ''}
+                          </p>
+                          <p className="text-sm text-gray-500 mt-1">
+                            {new Date(devolucao.dataDevolucao).toLocaleString('pt-BR')}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          {devolucao.alertaAtivo ? (
+                            <span className="inline-flex items-center gap-1 px-3 py-1 bg-yellow-200 text-yellow-800 rounded-full text-sm font-semibold">
+                              ⚠️ Com Discrepância
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-200 text-green-800 rounded-full text-sm font-semibold">
+                              ✅ OK
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-4 mb-3 p-3 bg-white rounded-lg">
+                        <div>
+                          <p className="text-xs text-gray-600">Quantidade Devolvida</p>
+                          <p className="text-lg font-bold">{devolucao.quantidadeDevolvida || 0}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600">Quantidade Esperada</p>
+                          <p className="text-lg font-bold">{devolucao.quantidadeEsperada || 0}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600">Discrepância</p>
+                          <p className={`text-lg font-bold ${devolucao.discrepancia === 0 ? 'text-green-600' : devolucao.discrepancia > 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                            {devolucao.discrepancia > 0 ? '+' : ''}{devolucao.discrepancia || 0}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Observação da Devolução */}
+                      {devolucao.observacao && (
+                        <div className="mt-3 p-3 bg-blue-100 border-l-4 border-blue-500 rounded">
+                          <p className="text-sm font-semibold text-gray-700 mb-1">📝 Observação:</p>
+                          <p className="text-sm text-gray-700">{devolucao.observacao}</p>
+                        </div>
+                      )}
+
+                      {/* Detalhes dos produtos */}
+                      {devolucao.itens && devolucao.itens.length > 0 && (
+                        <details className="mt-3">
+                          <summary className="cursor-pointer font-semibold text-gray-700 hover:text-primary">
+                            Ver detalhes dos produtos ({devolucao.itens.length})
+                          </summary>
+                          <div className="mt-2 space-y-2">
+                            {devolucao.itens.map(item => (
+                              <div key={item.id} className="p-2 bg-white rounded border border-gray-200">
+                                <div className="flex justify-between items-center">
+                                  <div className="flex-1">
+                                    <p className="font-medium text-gray-800">
+                                      {item.produto?.nome || 'Produto'}
+                                    </p>
+                                    {item.produto?.codigo && (
+                                      <p className="text-xs text-gray-500">
+                                        Código: {item.produto.codigo}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="text-right text-sm">
+                                    <p className="text-gray-600">
+                                      Devolvido: <strong>{item.quantidadeDevolvida}</strong>
+                                    </p>
+                                    <p className="text-gray-600">
+                                      Esperado: <strong>{item.quantidadeEsperada}</strong>
+                                    </p>
+                                    {item.discrepancia !== 0 && (
+                                      <p className={`font-semibold ${item.discrepancia > 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                                        {item.discrepancia > 0 ? 'Sobra: +' : 'Falta: '}{item.discrepancia}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </details>
+                      )}
                     </div>
                   ))}
                 </div>
