@@ -103,8 +103,8 @@ export default function ControleVeiculos({
       return;
     }
 
-    // Bloquear se KM for diferente da referência (exceto admin)
-    if (kmRef > 0 && kmInformado !== kmRef && !isAdmin()) {
+    // Bloquear se KM for diferente da referência
+    if (kmRef > 0 && kmInformado !== kmRef) {
       const diferenca = kmInformado - kmRef;
       const tipo = diferenca > 0 ? 'maior' : 'menor';
 
@@ -123,6 +123,46 @@ export default function ControleVeiculos({
       return;
     }
     
+    const payloadRetirada = {
+      veiculoId: veiculoSelecionado.id,
+      usuarioId: usuario?.id || undefined,
+      tipo: "retirada",
+      gasolina: form.combustivel
+        ? getCombustivelLabel(form.combustivel)
+        : undefined,
+      nivel_limpeza: form.limpeza,
+      estado: form.estado,
+      modo: form.modo,
+      obs: form.obs || undefined,
+      dataMovimentacao: new Date().toISOString(),
+      km: Number(form.km),
+    };
+
+    // Registrar movimentação de retirada antes de atualizar o status do veículo
+    try {
+      await api.post("/movimentacao-veiculos", payloadRetirada);
+    } catch (movError) {
+      const detalhes =
+        movError?.response?.data?.erro ||
+        movError?.response?.data?.message ||
+        movError?.response?.data?.detalhes ||
+        movError?.message ||
+        "Erro desconhecido";
+
+      console.error("Erro ao salvar retirada:", {
+        payloadRetirada,
+        status: movError?.response?.status,
+        responseData: movError?.response?.data,
+      });
+
+      Swal.fire(
+        "Erro ao salvar retirada",
+        `A retirada não foi registrada no banco. Detalhes: ${detalhes}`,
+        "error"
+      );
+      return;
+    }
+
     try {
       await api.put(`/veiculos/${veiculoSelecionado.id}`, {
         ...veiculoSelecionado,
@@ -130,34 +170,19 @@ export default function ControleVeiculos({
         km: kmInformado,
       });
     } catch (error) {
-      console.error("Erro ao pilotar:", error);
-      Swal.fire("Erro", "Não foi possível iniciar o uso do veículo.", "error");
+      console.error("Retirada salva, mas falhou atualizar veículo:", error);
+      Swal.fire(
+        "Atenção",
+        "A retirada foi salva, mas não foi possível atualizar o status do veículo. Atualize a página.",
+        "warning"
+      );
+      if (onRefresh) onRefresh();
       fecharModal();
       return;
     }
-    
-    // Registrar movimentação de retirada
-    try {
-      await api.post("/movimentacao-veiculos", {
-        veiculoId: veiculoSelecionado.id,
-        tipo: "retirada",
-        gasolina: form.combustivel
-          ? getCombustivelLabel(form.combustivel)
-          : undefined,
-        nivel_limpeza: form.limpeza,
-        estado: form.estado,
-        modo: form.modo,
-        obs: form.obs || undefined,
-        dataMovimentacao: new Date().toISOString(),
-        km: Number(form.km)
-      });
-    } catch (movError) {
-      console.warn("Movimentação não registrada:", movError);
-      if (!isAdmin()) {
-        Swal.fire("Erro", "Veículo iniciado, mas não foi possível registrar a movimentação.", "error");
-      }
-    }
+
     if (onRefresh) onRefresh();
+    Swal.fire("Sucesso", "Retirada registrada com sucesso.", "success");
     fecharModal();
   };
 
@@ -173,7 +198,7 @@ export default function ControleVeiculos({
       setErroFinalCompleto("Informe o KM para finalizar o veículo.");
       return;
     }
-    if (kmInformado < kmBase && !isAdmin()) {
+    if (kmInformado < kmBase) {
       setErroFinalCompleto(`O KM de finalização não pode ser menor que o último KM registrado (${kmBase}).`);
       return;
     }
