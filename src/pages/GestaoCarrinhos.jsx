@@ -22,6 +22,7 @@ export function GestaoCarrinhos() {
     { produtoId: '', quantidade: 0 }
   ]);
   const [criandoCarrinho, setCriandoCarrinho] = useState(false);
+  const [observacaoCarrinho, setObservacaoCarrinho] = useState('');
   
   // Estado para carrinhos ativos
   const [carrinhos, setCarrinhos] = useState([]);
@@ -209,7 +210,8 @@ export function GestaoCarrinhos() {
       
       const response = await api.post('/carrinho-usuarios', {
         usuarioId,
-        itens: itensValidos
+        itens: itensValidos,
+        observacao: observacaoCarrinho.trim() || undefined
       });
 
       if (response.data) {
@@ -543,6 +545,23 @@ export function GestaoCarrinhos() {
                       {' '}({itensCarrinho.filter(i => i.produtoId).length} tipos diferentes)
                     </p>
                   </div>
+                </div>
+
+                {/* Campo Observação */}
+                <div className="mb-6">
+                  <label className="block text-gray-700 font-semibold mb-2">
+                    Observação (opcional)
+                  </label>
+                  <textarea
+                    value={observacaoCarrinho}
+                    onChange={(e) => setObservacaoCarrinho(e.target.value)}
+                    placeholder="Ex: Cliente VIP, Evento especial, Pedido urgente..."
+                    rows={3}
+                    maxLength={500}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-vertical"
+                    disabled={criandoCarrinho}
+                  />
+                  <small className="text-gray-500">{observacaoCarrinho.length}/500 caracteres</small>
                 </div>
 
                 <div className="flex gap-3">
