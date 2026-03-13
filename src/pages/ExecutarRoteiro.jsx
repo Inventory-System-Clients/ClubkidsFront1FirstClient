@@ -355,9 +355,14 @@ export function ExecutarRoteiro() {
                 💰 Novo Gasto
               </button>
               {roteiro.observacoes && (
-                <div className="bg-yellow-50 border-2 border-orange-400 rounded-lg p-3">
-                  <p className="text-sm font-bold text-orange-700 mb-1">⚠️ Observações</p>
-                  <p className="text-sm text-gray-800 whitespace-pre-wrap">{roteiro.observacoes}</p>
+                <div className="bg-orange-50 border-2 border-orange-500 rounded-xl p-4 shadow-md animate-pulse">
+                  <p className="text-lg sm:text-xl font-extrabold text-orange-800 mb-2 flex items-center gap-2">
+                    <span className="text-2xl">⚠️</span>
+                    Observações Importantes
+                  </p>
+                  <p className="text-base sm:text-lg font-semibold text-orange-900 whitespace-pre-wrap leading-relaxed">
+                    {roteiro.observacoes}
+                  </p>
                 </div>
               )}
               <button
@@ -563,15 +568,17 @@ export function ExecutarRoteiro() {
                     </div>
                     {/* Manutenções desta loja */}
                     {manutencoesDaLoja.length > 0 && (
-                      <div className="mt-2">
-                        <div className="font-semibold text-red-700 text-sm mb-1 flex items-center gap-1">
-                          <span>🔧</span> Manutenções registradas:
+                      <div className="mt-2 animate-pulse">
+                        <div className="font-extrabold text-red-700 text-lg sm:text-xl mb-1 flex items-center gap-2">
+                          <span className="animate-pulse text-xl sm:text-2xl">🔴</span>
+                          <span>Manutenções registradas:</span>
                         </div>
-                        <ul className="pl-4 list-disc text-xs text-red-800">
+                        <ul className="pl-4 list-disc text-sm text-red-700 font-bold space-y-1">
                           {manutencoesDaLoja.map((m, idx) => {
                             const maq = loja.maquinas?.find(maq => maq.id === m.maquinaId);
                             return (
                               <li key={m.id + '-' + idx} className="flex items-center gap-2">
+                                <span className="animate-pulse">⚠️</span>
                                 {maq ? (
                                   <span className="font-bold">{maq.nome}</span>
                                 ) : (
