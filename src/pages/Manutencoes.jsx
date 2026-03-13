@@ -63,7 +63,7 @@ function Manutencoes() {
         setErroNovaManutencao("");
         // Cadastro de manutenção SEM depender de roteiros do dia
         const payload = {
-          maquinaId: novaManutencao.maquinaId,
+          maquinaId: novaManutencao.maquinaId || null,
           descricao: novaManutencao.descricao,
           lojaId: novaManutencao.lojaId,
           roteiroId: null,
@@ -216,6 +216,27 @@ function Manutencoes() {
     filtradas = outras.concat(feitas.slice(0, 10));
   }
 
+  const formatarEnderecoLoja = loja => {
+    if (!loja) return "Sem loja";
+    const endereco = (loja.endereco || "").trim();
+    const cidade = (loja.cidade || "").trim();
+    const estado = (loja.estado || "").trim();
+    const cidadeUf = cidade && estado ? `${cidade}/${estado}` : (cidade || estado);
+
+    if (endereco && cidadeUf) return `${endereco} - ${cidadeUf}`;
+    if (endereco) return endereco;
+    if (cidadeUf) return cidadeUf;
+    return "Endereço não cadastrado";
+  };
+
+  const formatLojaNome = loja => (loja?.nome ? loja.nome : "-");
+
+  const formatLojaEnderecoSuffix = loja => {
+    const endereco = formatarEnderecoLoja(loja);
+    if (!endereco || endereco === "Sem loja") return "";
+    return ` - ${endereco}`;
+  };
+
   // ALERTA DE MANUTENÇÕES FREQUENTES
   let alertasFrequentes = [];
   if (isAdmin && manutencoes.length > 0) {
@@ -240,7 +261,8 @@ function Manutencoes() {
       .map(arr => {
         const maquina = arr[0].maquina;
         const loja = arr[0].loja;
-        return `Manutenções frequentes na máquina ${maquina?.nome || ''} da loja ${loja?.nome || ''}`;
+        const endereco = formatLojaEnderecoSuffix(loja);
+        return `Manutenções frequentes na máquina ${maquina?.nome || ''} da loja ${loja?.nome || ''}${endereco}`;
       });
   }
 
@@ -336,7 +358,7 @@ function Manutencoes() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium">Máquina</label>
-                  <select className="input-field w-full" value={novaManutencao.maquinaId} onChange={e => setNovaManutencao(d => ({ ...d, maquinaId: e.target.value }))} required disabled={!novaManutencao.lojaId}>
+                  <select className="input-field w-full" value={novaManutencao.maquinaId} onChange={e => setNovaManutencao(d => ({ ...d, maquinaId: e.target.value }))} disabled={!novaManutencao.lojaId}>
                     <option value="">Selecione (opcional)</option>
                     {maquinasFiltradas.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
                   </select>
@@ -374,6 +396,7 @@ function Manutencoes() {
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Descrição</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Data/Hora</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Loja</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Endereço</th>
                   {/* Coluna de roteiro removida */}
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Máquina</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Atribuído a</th>
@@ -393,7 +416,8 @@ function Manutencoes() {
                   >
                     <td className="px-4 py-2">{m.descricao}</td>
                     <td className="px-4 py-2">{new Date(m.createdAt).toLocaleString("pt-BR")}</td>
-                    <td className="px-4 py-2">{m.loja?.nome || '-'}</td>
+                    <td className="px-4 py-2">{formatLojaNome(m.loja)}</td>
+                    <td className="px-4 py-2">{formatarEnderecoLoja(m.loja)}</td>
                     {/* Coluna de roteiro removida */}
                     <td className="px-4 py-2">{m.maquina?.nome || '-'}</td>
                     <td className="px-4 py-2">{m.funcionario?.nome || m.funcionarioId || '-'}</td>
@@ -405,7 +429,7 @@ function Manutencoes() {
                   </tr>
                 ))}
                 {filtradas.length === 0 && (
-                  <tr><td colSpan={6} className="text-center text-gray-400 py-8">Nenhuma manutenção encontrada</td></tr>
+                  <tr><td colSpan={7} className="text-center text-gray-400 py-8">Nenhuma manutenção encontrada</td></tr>
                 )}
               </tbody>
             </table>
@@ -422,7 +446,8 @@ function Manutencoes() {
                 <div><strong>Descrição:</strong> {detalhe.descricao}</div>
                 <div><strong>Data/Hora:</strong> {new Date(detalhe.createdAt).toLocaleString("pt-BR")}</div>
                 <div><strong>Status:</strong> {detalhe.status}</div>
-                <div><strong>Loja:</strong> {detalhe.loja?.nome || '-'} </div>
+                <div><strong>Loja:</strong> {formatLojaNome(detalhe.loja)} </div>
+                <div><strong>Endereço:</strong> {formatarEnderecoLoja(detalhe.loja)} </div>
                 <div><strong>Máquina:</strong> {detalhe.maquina?.nome || '-'} </div>
               </div>
               <div className="flex gap-2 mt-6">

@@ -251,6 +251,19 @@ export function ExecutarRoteiro() {
   const { totalMaquinas, maquinasAtendidas } = contarMaquinasAtendidas();
   const progressoMaquinas = totalMaquinas > 0 ? (maquinasAtendidas / totalMaquinas) * 100 : 0;
 
+  const formatarEnderecoLoja = loja => {
+    if (!loja) return "";
+    const endereco = (loja.endereco || "").trim();
+    const cidade = (loja.cidade || "").trim();
+    const estado = (loja.estado || "").trim();
+    const cidadeUf = cidade && estado ? `${cidade}/${estado}` : (cidade || estado);
+
+    if (endereco && cidadeUf) return `${endereco} - ${cidadeUf}`;
+    if (endereco) return endereco;
+    if (cidadeUf) return cidadeUf;
+    return "Endereço não cadastrado";
+  };
+
   return (
     <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100">
       <Navbar />
@@ -545,6 +558,9 @@ export function ExecutarRoteiro() {
                       🏪 {loja.nome}
                       <Badge type="info">{loja.cidade}</Badge>
                     </h3>
+                    <div className="text-sm text-gray-600 flex flex-wrap items-center gap-1 mt-1">
+                      <span className="opacity-80">{formatarEnderecoLoja(loja)}</span>
+                    </div>
                     {/* Manutenções desta loja */}
                     {manutencoesDaLoja.length > 0 && (
                       <div className="mt-2">
