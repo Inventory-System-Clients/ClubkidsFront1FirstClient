@@ -75,6 +75,8 @@ export function SelecionarRoteiro() {
   const [filtroTipoRoteiro, setFiltroTipoRoteiro] = useState("todos");
   const [filtroNome, setFiltroNome] = useState("");
   const [observacoesEditando, setObservacoesEditando] = useState({});
+  const [alertasRoteiro, setAlertasRoteiro] = useState([]);
+  const [loadingAlertas, setLoadingAlertas] = useState(false);
 
 
   useEffect(() => {
@@ -82,6 +84,39 @@ export function SelecionarRoteiro() {
     carregarFuncionarios();
     carregarTodasLojas();
   }, []);
+
+  useEffect(() => {
+    if (usuario?.role === "ADMIN") {
+      carregarAlertasRoteirosIncompletos();
+    }
+  }, [usuario]);
+
+  const carregarAlertasRoteirosIncompletos = async (dataSelecionada) => {
+    if (usuario?.role !== "ADMIN") return;
+    try {
+      setLoadingAlertas(true);
+      const params = dataSelecionada ? { data: dataSelecionada } : {};
+      const res = await api.get("/roteiros/alertas/finalizados-incompletos", { params });
+      setAlertasRoteiro(res.data?.alertas || []);
+    } catch (error) {
+      console.error("Erro ao carregar alertas de roteiros incompletos:", error);
+      setAlertasRoteiro([]);
+    } finally {
+      setLoadingAlertas(false);
+    }
+  };
+
+  const formatarEnderecoAlerta = (loja) => {
+    if (!loja) return "";
+    const endereco = (loja.endereco || "").trim();
+    const cidade = (loja.cidade || "").trim();
+    const estado = (loja.estado || "").trim();
+    const cidadeUf = cidade && estado ? `${cidade}/${estado}` : (cidade || estado);
+    if (endereco && cidadeUf) return `${endereco} - ${cidadeUf}`;
+    if (endereco) return endereco;
+    if (cidadeUf) return cidadeUf;
+    return "Endereço não cadastrado";
+  };
 
   // Função para buscar roteiros do dia 24/02/2026 e bolinhas do dia atual
   const carregarRoteiros = async () => {
@@ -427,6 +462,34 @@ export function SelecionarRoteiro() {
             message={success}
             onClose={() => setSuccess("")}
           />
+        )}
+
+        {isAdmin && !loadingAlertas && alertasRoteiro.length > 0 && (
+          <section className="mb-6 rounded-lg border-2 border-red-300 bg-red-50 p-4 shadow-sm">
+            <h3 className="font-bold text-red-800 text-lg flex items-center gap-2">
+              <span>🚨</span>
+              Atenção: roteiros concluídos com lojas pendentes
+            </h3>
+            <div className="mt-3 space-y-3">
+              {alertasRoteiro.map((item) => (
+                <div key={item.roteiro.id} className="rounded border border-red-200 bg-white p-3">
+                  <p className="font-semibold text-red-700">
+                    Roteiro: {item.roteiro.zona} ({item.roteiro.data})
+                  </p>
+                  <p className="text-xs text-gray-600 mb-1">Responsável: {item.roteiro.funcionarioNome || "-"}</p>
+                  <ul className="mt-2 list-disc pl-5 text-sm text-gray-800 space-y-1">
+                    {item.lojasNaoConcluidas.map((loja) => (
+                      <li key={loja.id}>
+                        <span className="font-semibold text-red-800">{loja.nome || "Loja sem nome"}</span>
+                        {" - "}
+                        <span className="text-gray-700">{formatarEnderecoAlerta(loja)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </section>
         )}
 
         {/* Estatísticas */}
