@@ -6,6 +6,10 @@ import { Footer } from "../components/Footer";
 import { PageHeader, AlertBox, Badge } from "../components/UIComponents";
 import { PageLoader } from "../components/Loading";
 
+const NUMEROS_BAG_BLOQUEADOS = new Set(["0", "00", "1", "2", "3", "4", "01", "02", "03", "04"]);
+const numeroBagBloqueado = (numeroBag = "") =>
+  NUMEROS_BAG_BLOQUEADOS.has(numeroBag.trim());
+
 export function MovimentacoesLoja() {
   const { roteiroId, lojaId } = useParams();
   const navigate = useNavigate();
@@ -124,8 +128,14 @@ export function MovimentacoesLoja() {
       setError("Selecione uma máquina");
       return;
     }
-    if (!formData.numeroBag || formData.numeroBag.trim() === "") {
+    const numeroBagInformado = formData.numeroBag?.trim() || "";
+
+    if (!numeroBagInformado) {
       setError("Informe o número de bag para prosseguir.");
+      return;
+    }
+    if (numeroBagBloqueado(numeroBagInformado)) {
+      setError("Os números 00, 01, 02, 03, 04 (e 0, 1, 2, 3, 4) são bloqueados para BAG. Informe outro número para lançar a movimentação.");
       return;
     }
 
@@ -141,7 +151,7 @@ export function MovimentacoesLoja() {
         contadorOut: parseInt(formData.contadorOut) || 0,
         quantidade_notas_entrada: 0,
         valor_entrada_maquininha_pix: parseFloat(formData.valor_entrada_maquininha_pix) || 0,
-        numeroBag: formData.numeroBag || null,
+        numeroBag: numeroBagInformado,
         valorEntradaNotas: formData.valorEntradaNotas ? parseFloat(formData.valorEntradaNotas) : null,
         valorEntradaCartao: formData.valorEntradaCartao ? parseFloat(formData.valorEntradaCartao) : null,
         observacoes: formData.observacao || "",
@@ -255,6 +265,7 @@ export function MovimentacoesLoja() {
 
   // Bloqueio de movimentação em outras lojas - baseado no backend
   const bloqueadoPorOutraLoja = lojaComMovimentacao !== null;
+  const bagInvalida = numeroBagBloqueado(formData.numeroBag);
 
   if (loading) return <PageLoader />;
 
@@ -549,6 +560,11 @@ export function MovimentacoesLoja() {
                         ⚠️ Os valores financeiros abaixo são opcionais quando há número de bag
                       </p>
                     )}
+                    {bagInvalida && (
+                      <p className="text-sm text-red-600 mt-1 font-semibold">
+                        ❌ Os números 00, 01, 02, 03, 04 (ou 0, 1, 2, 3, 4) não são permitidos para BAG.
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -614,15 +630,27 @@ export function MovimentacoesLoja() {
 
                 <button
                   type="submit"
-                  disabled={salvando || bloqueadoPorOutraLoja}
+                  disabled={salvando || bloqueadoPorOutraLoja || bagInvalida}
                   className={`w-full text-lg py-3 font-bold rounded-xl transition-colors ${
-                    bloqueadoPorOutraLoja 
+                    bloqueadoPorOutraLoja || bagInvalida
                       ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
                       : 'btn-primary'
                   }`}
-                  title={bloqueadoPorOutraLoja ? `Conclua a loja "${lojaComMovimentacao?.nome}" primeiro` : ''}
+                  title={
+                    bloqueadoPorOutraLoja
+                      ? `Conclua a loja "${lojaComMovimentacao?.nome}" primeiro`
+                      : bagInvalida
+                        ? "Número de bag inválido. Use um valor diferente de 00, 01, 02, 03, 04, 0, 1, 2, 3 ou 4."
+                        : ''
+                  }
                 >
-                  {salvando ? "Salvando..." : bloqueadoPorOutraLoja ? "🔒 Formulário Bloqueado" : "💾 Salvar Movimentação"}
+                  {salvando
+                    ? "Salvando..."
+                    : bloqueadoPorOutraLoja
+                      ? "🔒 Formulário Bloqueado"
+                      : bagInvalida
+                        ? "⚠️ BAG Inválida"
+                        : "💾 Salvar Movimentação"}
                 </button>
               </form>
             </div>
