@@ -529,11 +529,11 @@ export function SelecionarRoteiro() {
                   key={roteiro.id + '-' + (roteiro.zona || '')}
                   className={`transition-all duration-300 ${
                     roteiro.zona === "Roteiro Coringa"
-                      ? "bg-purple-200 border-2 border-purple-400 rounded-xl"
+                      ? "card bg-purple-200 border-2 border-purple-400 rounded-3xl shadow-md"
                       : (roteiro.zona || "").toLowerCase() === "gruas gigantes"
-                      ? "bg-orange-200 border-2 border-orange-500"
+                      ? "card bg-orange-200 border-2 border-orange-500 rounded-3xl shadow-md"
                       : (roteiro.zona || "").toLowerCase().startsWith("bolinha")
-                        ? "bg-blue-100 border-2 border-blue-400"
+                        ? "card bg-blue-100 border-2 border-blue-400 rounded-3xl shadow-md"
                         : "card-gradient"
                   } hover:shadow-xl ${
                     isAdmin && draggedLoja && draggedFromRoteiro !== roteiro.id
