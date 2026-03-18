@@ -118,6 +118,26 @@ export function SelecionarRoteiro() {
     return "Endereço não cadastrado";
   };
 
+  const getAlertaFinalizacao = (roteiro) => {
+    const alerta = roteiro?.alertaFinalizacao || {};
+    return {
+      possuiAlertaFinalizacao: Boolean(alerta.possuiAlertaFinalizacao),
+      foiFinalizadoSemConcluirTodasLojas: Boolean(alerta.foiFinalizadoSemConcluirTodasLojas),
+      totalLojasNaoConcluidas: Number(alerta.totalLojasNaoConcluidas || 0),
+      lojasNaoConcluidas: Array.isArray(alerta.lojasNaoConcluidas)
+        ? alerta.lojasNaoConcluidas
+        : [],
+      totalLojasConcluidasSemMovimentacao: Number(
+        alerta.totalLojasConcluidasSemMovimentacao || 0,
+      ),
+      lojasConcluidasSemMovimentacao: Array.isArray(
+        alerta.lojasConcluidasSemMovimentacao,
+      )
+        ? alerta.lojasConcluidasSemMovimentacao
+        : [],
+    };
+  };
+
   // Função para buscar roteiros do dia 24/02/2026 e bolinhas do dia atual
   const carregarRoteiros = async () => {
     try {
@@ -464,34 +484,6 @@ export function SelecionarRoteiro() {
           />
         )}
 
-        {isAdmin && !loadingAlertas && alertasRoteiro.length > 0 && (
-          <section className="mb-6 rounded-lg border-2 border-red-300 bg-red-50 p-4 shadow-sm">
-            <h3 className="font-bold text-red-800 text-lg flex items-center gap-2">
-              <span>🚨</span>
-              Atenção: roteiros concluídos com lojas pendentes
-            </h3>
-            <div className="mt-3 space-y-3">
-              {alertasRoteiro.map((item) => (
-                <div key={item.roteiro.id} className="rounded border border-red-200 bg-white p-3">
-                  <p className="font-semibold text-red-700">
-                    Roteiro: {item.roteiro.zona} ({item.roteiro.data})
-                  </p>
-                  <p className="text-xs text-gray-600 mb-1">Responsável: {item.roteiro.funcionarioNome || "-"}</p>
-                  <ul className="mt-2 list-disc pl-5 text-sm text-gray-800 space-y-1">
-                    {item.lojasNaoConcluidas.map((loja) => (
-                      <li key={loja.id}>
-                        <span className="font-semibold text-red-800">{loja.nome || "Loja sem nome"}</span>
-                        {" - "}
-                        <span className="text-gray-700">{formatarEnderecoAlerta(loja)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
         {/* Estatísticas */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="card-gradient text-center">
@@ -829,81 +821,236 @@ export function SelecionarRoteiro() {
               ✅ Roteiros Concluídos Hoje
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {roteirosConcluidos.map((roteiro) => (
-                <div
-                  key={roteiro.id + '-' + (roteiro.zona || '')}
-                  className={`card-gradient border-2 relative ${
-                    roteiro.zona === "Roteiro Coringa"
-                      ? "bg-purple-200 border-purple-400 rounded-xl"
-                      : "bg-linear-to-br from-green-50 to-green-100 border-green-500"
-                  }`}
-                >
-                  {/* Ícone de bloqueio */}
-                  <div className="absolute top-4 right-4 text-3xl">🔒</div>
+              {roteirosConcluidos.map((roteiro) => {
+                const alerta = getAlertaFinalizacao(roteiro);
+                const possuiAlertaFinalizacao =
+                  roteiro.status === "concluido" &&
+                  alerta.possuiAlertaFinalizacao;
 
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-bold text-green-700">
-                      {roteiro.zona}
-                    </h3>
-                    <Badge variant="success">✅ Concluído</Badge>
-                  </div>
+                return (
+                  <div
+                    key={roteiro.id + '-' + (roteiro.zona || '')}
+                    className={`card-gradient border-2 relative ${
+                      possuiAlertaFinalizacao
+                        ? "bg-linear-to-br from-amber-50 to-amber-100 border-amber-500"
+                        : roteiro.zona === "Roteiro Coringa"
+                          ? "bg-purple-200 border-purple-400 rounded-xl"
+                          : "bg-linear-to-br from-green-50 to-green-100 border-green-500"
+                    }`}
+                  >
+                    {/* Ícone de bloqueio */}
+                    <div className="absolute top-4 right-4 text-3xl">🔒</div>
 
-                  <div className="space-y-2 text-gray-700">
-                    <div className="flex items-center">
-                      <span className="text-2xl mr-2">📍</span>
-                      <div>
-                        <div className="font-semibold">
-                          Estado: {roteiro.estado || "N/A"}
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          {roteiro.cidade || "N/A"}
+                    <div className="flex items-center justify-between mb-4">
+                      <h3
+                        className={`text-xl font-bold ${
+                          possuiAlertaFinalizacao
+                            ? "text-amber-800"
+                            : "text-green-700"
+                        }`}
+                      >
+                        {roteiro.zona}
+                      </h3>
+                      {possuiAlertaFinalizacao ? (
+                        <Badge variant="warning">⚠️ Finalizado com alerta</Badge>
+                      ) : (
+                        <Badge variant="success">✅ Finalizado sem pendências</Badge>
+                      )}
+                    </div>
+
+                    <div className="space-y-2 text-gray-700">
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-2">📍</span>
+                        <div>
+                          <div className="font-semibold">
+                            Estado: {roteiro.estado || "N/A"}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            {roteiro.cidade || "N/A"}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center">
-                      <span className="text-2xl mr-2">🏪</span>
-                      <span>Lojas: {roteiro.lojas?.length || 0}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <span className="text-2xl mr-2">🎰</span>
-                      <span>Máquinas: {roteiro.totalMaquinas || 0}</span>
-                    </div>
-                    {roteiro.funcionarioNome && (
                       <div className="flex items-center">
-                        <span className="text-2xl mr-2">👤</span>
-                        <span>{roteiro.funcionarioNome}</span>
+                        <span className="text-2xl mr-2">🏪</span>
+                        <span>Lojas: {roteiro.lojas?.length || 0}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-2">🎰</span>
+                        <span>Máquinas: {roteiro.totalMaquinas || 0}</span>
+                      </div>
+                      {roteiro.funcionarioNome && (
+                        <div className="flex items-center">
+                          <span className="text-2xl mr-2">👤</span>
+                          <span>{roteiro.funcionarioNome}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {possuiAlertaFinalizacao && (
+                      <div className="mt-4 rounded-lg border border-amber-300 bg-amber-100 p-3 space-y-3">
+                        {alerta.foiFinalizadoSemConcluirTodasLojas && (
+                          <section>
+                            <p className="text-sm font-semibold text-red-700">
+                              Lojas não concluídas ({alerta.totalLojasNaoConcluidas})
+                            </p>
+                            <ul className="mt-1 list-disc pl-5 text-sm text-red-900 space-y-1">
+                              {alerta.lojasNaoConcluidas.length > 0 ? (
+                                alerta.lojasNaoConcluidas.map((loja) => (
+                                  <li key={loja.id}>
+                                    {loja.nome || "Loja sem nome"}
+                                  </li>
+                                ))
+                              ) : (
+                                <li>Detalhes não informados pelo backend</li>
+                              )}
+                            </ul>
+                          </section>
+                        )}
+
+                        {alerta.totalLojasConcluidasSemMovimentacao > 0 && (
+                          <section>
+                            <p className="text-sm font-semibold text-orange-700">
+                              Lojas concluídas sem nenhuma máquina movimentada ({alerta.totalLojasConcluidasSemMovimentacao})
+                            </p>
+                            <ul className="mt-1 list-disc pl-5 text-sm text-orange-900 space-y-1">
+                              {alerta.lojasConcluidasSemMovimentacao.length > 0 ? (
+                                alerta.lojasConcluidasSemMovimentacao.map((loja) => (
+                                  <li key={loja.id}>
+                                    {loja.nome || "Loja sem nome"}
+                                  </li>
+                                ))
+                              ) : (
+                                <li>Detalhes não informados pelo backend</li>
+                              )}
+                            </ul>
+                          </section>
+                        )}
                       </div>
                     )}
-                  </div>
 
-                  {/* Observação do roteiro */}
-                  {roteiro.observacoes && (
-                    <div className="mt-4 bg-yellow-50 border-2 border-orange-400 rounded-lg p-3">
-                      <p className="text-sm font-bold text-orange-700 mb-1">⚠️ Observações</p>
-                      <p className="text-sm text-gray-800 whitespace-pre-wrap">{roteiro.observacoes}</p>
-                    </div>
-                  )}
+                    {/* Observação do roteiro */}
+                    {roteiro.observacoes && (
+                      <div className="mt-4 bg-yellow-50 border-2 border-orange-400 rounded-lg p-3">
+                        <p className="text-sm font-bold text-orange-700 mb-1">⚠️ Observações</p>
+                        <p className="text-sm text-gray-800 whitespace-pre-wrap">{roteiro.observacoes}</p>
+                      </div>
+                    )}
 
-                  {/* Mensagem de roteiro bloqueado */}
-                  <div className="mt-4 p-4 bg-green-200 border-l-4 border-green-600 rounded">
-                    <p className="text-sm font-semibold text-green-800 text-center">
-                      🎉 Roteiro finalizado! Não pode mais ser acessado hoje.
-                    </p>
-                  </div>
-                  {/* Botão de desfazer finalização para admin */}
-                  {usuario?.role === "ADMIN" && (
-                    <button
-                      onClick={() => desfazerFinalizacao(roteiro.id)}
-                      className="btn-danger w-full mt-4"
-                      title="Desfazer finalização do roteiro (apenas admin)"
+                    {/* Mensagem de roteiro bloqueado */}
+                    <div
+                      className={`mt-4 p-4 border-l-4 rounded ${
+                        possuiAlertaFinalizacao
+                          ? "bg-amber-200 border-amber-600"
+                          : "bg-green-200 border-green-600"
+                      }`}
                     >
-                      ⬅️ Desfazer Finalização
-                    </button>
-                  )}
-                </div>
-              ))}
+                      <p
+                        className={`text-sm font-semibold text-center ${
+                          possuiAlertaFinalizacao
+                            ? "text-amber-900"
+                            : "text-green-800"
+                        }`}
+                      >
+                        {possuiAlertaFinalizacao
+                          ? "⚠️ Roteiro finalizado com inconsistências. Revise os alertas acima."
+                          : "🎉 Roteiro finalizado sem pendências! Não pode mais ser acessado hoje."}
+                      </p>
+                    </div>
+                    {/* Botão de desfazer finalização para admin */}
+                    {usuario?.role === "ADMIN" && (
+                      <button
+                        onClick={() => desfazerFinalizacao(roteiro.id)}
+                        className="btn-danger w-full mt-4"
+                        title="Desfazer finalização do roteiro (apenas admin)"
+                      >
+                        ⬅️ Desfazer Finalização
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
+        )}
+
+        {isAdmin && !loadingAlertas && alertasRoteiro.length > 0 && (
+          <section className="mt-8 rounded-lg border-2 border-red-300 bg-red-50 p-4 shadow-sm">
+            <h3 className="font-bold text-red-800 text-lg flex items-center gap-2">
+              <span>🚨</span>
+              Alertas de roteiros concluídos (resumo)
+            </h3>
+            <p className="mt-1 text-sm text-red-700">
+              Lista de roteiros finalizados com lojas não concluídas e/ou lojas concluídas sem nenhuma máquina movimentada.
+            </p>
+            <div className="mt-3 space-y-3">
+              {alertasRoteiro.map((item) => {
+                const lojasNaoConcluidas = Array.isArray(item?.lojasNaoConcluidas)
+                  ? item.lojasNaoConcluidas
+                  : Array.isArray(item?.alertaFinalizacao?.lojasNaoConcluidas)
+                    ? item.alertaFinalizacao.lojasNaoConcluidas
+                    : [];
+                const lojasConcluidasSemMovimentacao = Array.isArray(
+                  item?.lojasConcluidasSemMovimentacao,
+                )
+                  ? item.lojasConcluidasSemMovimentacao
+                  : Array.isArray(
+                    item?.alertaFinalizacao?.lojasConcluidasSemMovimentacao,
+                  )
+                    ? item.alertaFinalizacao.lojasConcluidasSemMovimentacao
+                    : [];
+                const totalLojasConcluidasSemMovimentacao =
+                  Number(item?.totalLojasConcluidasSemMovimentacao || 0) ||
+                  lojasConcluidasSemMovimentacao.length;
+
+                return (
+                  <div key={item.roteiro.id} className="rounded border border-red-200 bg-white p-3">
+                    <p className="font-semibold text-red-700">
+                      Roteiro: {item.roteiro.zona} ({item.roteiro.data})
+                    </p>
+                    <p className="text-xs text-gray-600 mb-1">Responsável: {item.roteiro.funcionarioNome || "-"}</p>
+
+                    {lojasNaoConcluidas.length > 0 && (
+                      <>
+                        <p className="mt-2 text-sm font-semibold text-red-700">
+                          Lojas não concluídas ({lojasNaoConcluidas.length})
+                        </p>
+                        <ul className="mt-1 list-disc pl-5 text-sm text-gray-800 space-y-1">
+                          {lojasNaoConcluidas.map((loja) => (
+                            <li key={loja.id}>
+                              <span className="font-semibold text-red-800">{loja.nome || "Loja sem nome"}</span>
+                              {" - "}
+                              <span className="text-gray-700">{formatarEnderecoAlerta(loja)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+
+                    {totalLojasConcluidasSemMovimentacao > 0 && (
+                      <>
+                        <p className="mt-3 text-sm font-semibold text-orange-700">
+                          Lojas concluídas sem nenhuma máquina movimentada ({totalLojasConcluidasSemMovimentacao})
+                        </p>
+                        <ul className="mt-1 list-disc pl-5 text-sm text-gray-800 space-y-1">
+                          {lojasConcluidasSemMovimentacao.length > 0 ? (
+                            lojasConcluidasSemMovimentacao.map((loja) => (
+                              <li key={loja.id}>
+                                <span className="font-semibold text-orange-800">{loja.nome || "Loja sem nome"}</span>
+                                {" - "}
+                                <span className="text-gray-700">{formatarEnderecoAlerta(loja)}</span>
+                              </li>
+                            ))
+                          ) : (
+                            <li>Detalhes não informados pelo backend</li>
+                          )}
+                        </ul>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
         )}
       </div>
 
