@@ -19,6 +19,7 @@ export function Financeiro() {
     valorEntradaCartao: "",
   });
   const [bagBusca, setBagBusca] = useState("");
+  const [lojaBusca, setLojaBusca] = useState("");
 
   useEffect(() => {
     carregarPendenciasFinanceiras();
@@ -141,15 +142,24 @@ export function Financeiro() {
 
             {/* Pendentes de Valores */}
             <div className="bg-white shadow-md rounded-lg overflow-hidden">
-              <div className="p-4 border-b flex items-center justify-between">
+              <div className="p-4 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-0">
                 <h2 className="text-xl font-bold">Pendentes de Valores (Bags)</h2>
-                <input
-                  type="text"
-                  placeholder="Buscar por Nº Bag..."
-                  value={bagBusca}
-                  onChange={e => setBagBusca(e.target.value)}
-                  className="ml-4 px-2 py-1 border rounded text-sm w-48"
-                />
+                <div className="flex gap-2 mt-2 md:mt-0">
+                  <input
+                    type="text"
+                    placeholder="Buscar por Nº Bag..."
+                    value={bagBusca}
+                    onChange={e => setBagBusca(e.target.value)}
+                    className="px-2 py-1 border rounded text-sm w-44"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Buscar por nome da loja..."
+                    value={lojaBusca}
+                    onChange={e => setLojaBusca(e.target.value)}
+                    className="px-2 py-1 border rounded text-sm w-56"
+                  />
+                </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -166,9 +176,12 @@ export function Financeiro() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {movimentacoes
-                      .filter(mov =>
-                        bagBusca.trim() === "" || (mov.numeroBag && mov.numeroBag.toString().includes(bagBusca.trim()))
-                      )
+                      .filter(mov => {
+                        const bagOk = bagBusca.trim() === "" || (mov.numeroBag && mov.numeroBag.toString().includes(bagBusca.trim()));
+                        const lojaNome = mov.maquina?.loja?.nome?.toLowerCase() || "";
+                        const lojaOk = lojaBusca.trim() === "" || lojaNome.includes(lojaBusca.trim().toLowerCase());
+                        return bagOk && lojaOk;
+                      })
                       .map((mov) => (
                       <tr key={mov.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(mov.dataColeta).toLocaleDateString("pt-BR")}</td>

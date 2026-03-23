@@ -103,8 +103,8 @@ export default function ControleVeiculos({
       return;
     }
 
-    // Bloquear se KM for diferente da referência
-    if (kmRef > 0 && kmInformado !== kmRef) {
+    // Bloquear se KM for diferente da referência, exceto para admin
+    if (!isAdmin() && kmRef > 0 && kmInformado !== kmRef) {
       const diferenca = kmInformado - kmRef;
       const tipo = diferenca > 0 ? 'maior' : 'menor';
 
@@ -198,7 +198,8 @@ export default function ControleVeiculos({
       setErroFinalCompleto("Informe o KM para finalizar o veículo.");
       return;
     }
-    if (kmInformado < kmBase) {
+    // Bloquear apenas para não-admin se KM for menor
+    if (!isAdmin() && kmInformado < kmBase) {
       setErroFinalCompleto(`O KM de finalização não pode ser menor que o último KM registrado (${kmBase}).`);
       return;
     }
