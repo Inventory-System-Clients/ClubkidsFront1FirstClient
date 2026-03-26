@@ -21,6 +21,11 @@ export function Relatorios() {
   const [error, setError] = useState("");
   const [gastosLoja, setGastosLoja] = useState([]);
 
+  const toNumber = (value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
   useEffect(() => {
     carregarRoteiros();
     carregarLojas();
@@ -115,7 +120,17 @@ export function Relatorios() {
       let comissoes = [];
       let totalComissao = 0;
       let totalLucro = 0;
+      let maquinasDaLoja = [];
       if (lojaId) {
+        try {
+          const maquinasRes = await api.get(`/maquinas`);
+          maquinasDaLoja = (maquinasRes.data || []).filter(
+            (maq) => String(maq.lojaId ?? maq.loja_id ?? "") === String(lojaId)
+          );
+        } catch {
+          maquinasDaLoja = [];
+        }
+
         // Buscar roteiros do período para garantir cálculo
         const roteirosRes = await api.get(`/roteiros?data=${dataFim}`);
         const roteiros = roteirosRes.data || [];
@@ -141,8 +156,8 @@ export function Relatorios() {
           params: { lojaId, dataInicio, dataFim },
         });
         comissoes = comissaoRes.data?.comissoes || [];
-        totalComissao = comissoes.reduce((acc, c) => acc + (parseFloat(c.totalComissao) || 0), 0);
-        totalLucro = comissoes.reduce((acc, c) => acc + (parseFloat(c.totalLucro) || 0), 0);
+        totalComissao = comissoes.reduce((acc, c) => acc + toNumber(c.totalComissao), 0);
+        totalLucro = comissoes.reduce((acc, c) => acc + toNumber(c.totalLucro), 0);
 
         // Buscar gastos por loja
         const gastosRes = await api.get(`/gastos`, {
@@ -156,26 +171,83 @@ export function Relatorios() {
       relatorioData.totais.comissao = totalComissao;
       relatorioData.totais.lucroComDescontoComissao = totalLucro - totalComissao;
 
-      // Atualizar máquinas com detalhes de comissão
-      if (Array.isArray(relatorioData.maquinas) && comissoes.length > 0) {
-        relatorioData.maquinas = relatorioData.maquinas.map((maq) => {
-          // Procura detalhe da máquina em todos os registros de comissão
-          let detalhe = null;
-          for (const c of comissoes) {
-            if (Array.isArray(c.detalhes)) {
-              detalhe = c.detalhes.find((d) => d.maquinaId == maq.maquina.id);
-              if (detalhe) break;
-            }
-          }
-          if (detalhe) {
-            return {
-              ...maq,
-              valoresComissao: detalhe.comissao,
-              lucroComDescontoComissao: (parseFloat(detalhe.lucro || 0)) - (parseFloat(detalhe.comissao || 0)),
-            };
-          }
-          return maq;
+      // Atualizar máquinas com detalhes de comissão agregados no período e fallback por percentual cadastrado
+      if (Array.isArray(relatorioData.maquinas)) {
+        const percentualPorMaquina = new Map();
+
+        maquinasDaLoja.forEach((maq) => {
+          percentualPorMaquina.set(String(maq.id), toNumber(maq.percentualComissao ?? maq.percentual_comissao));
         });
+
+        const detalhesComissaoPorMaquina = new Map();
+
+        comissoes.forEach((comissao) => {
+          if (!Array.isArray(comissao.detalhes)) {
+            return;
+          }
+
+          comissao.detalhes.forEach((detalhe) => {
+            const maquinaId = String(detalhe.maquinaId);
+            const acumulado = detalhesComissaoPorMaquina.get(maquinaId) || {
+              lucro: 0,
+              comissao: 0,
+              percentualComissao: null,
+            };
+
+            const percentualDetalhe = toNumber(detalhe.percentualComissao ?? detalhe.percentual_comissao);
+
+            acumulado.lucro += toNumber(detalhe.lucro);
+            acumulado.comissao += toNumber(detalhe.comissao);
+            acumulado.percentualComissao = percentualDetalhe > 0
+              ? percentualDetalhe
+              : (acumulado.percentualComissao ?? null);
+
+            detalhesComissaoPorMaquina.set(maquinaId, acumulado);
+          });
+        });
+
+        relatorioData.maquinas = relatorioData.maquinas.map((maq) => {
+          const maquinaId = String(maq.maquina?.id);
+          const detalhe = detalhesComissaoPorMaquina.get(maquinaId);
+
+          const notas = toNumber(maq.valoresEntrada?.notas);
+          const cartao = toNumber(maq.valoresEntrada?.cartao);
+          const totalRecebimento = notas + cartao;
+
+          const percentualCadastro =
+            toNumber(maq.maquina?.percentualComissao ?? maq.maquina?.percentual_comissao) ||
+            toNumber(percentualPorMaquina.get(maquinaId));
+
+          const percentualAplicado =
+            toNumber(detalhe?.percentualComissao) > 0
+              ? toNumber(detalhe.percentualComissao)
+              : percentualCadastro;
+
+          const comissaoCalculadaPorPercentual =
+            percentualAplicado > 0 ? totalRecebimento * (percentualAplicado / 100) : 0;
+
+          const valoresComissao = detalhe ? toNumber(detalhe.comissao) : comissaoCalculadaPorPercentual;
+
+          return {
+            ...maq,
+            valoresComissao,
+            lucroComDescontoComissao: totalRecebimento - valoresComissao,
+          };
+        });
+
+        const comissaoRecalculada = relatorioData.maquinas.reduce(
+          (acc, maq) => acc + toNumber(maq.valoresComissao),
+          0
+        );
+
+        const lucroLiquidoRecalculado = relatorioData.maquinas.reduce((acc, maq) => {
+          const notas = toNumber(maq.valoresEntrada?.notas);
+          const cartao = toNumber(maq.valoresEntrada?.cartao);
+          return acc + (notas + cartao - toNumber(maq.valoresComissao));
+        }, 0);
+
+        relatorioData.totais.comissao = comissaoRecalculada;
+        relatorioData.totais.lucroComDescontoComissao = lucroLiquidoRecalculado;
       }
 
       setRelatorio(relatorioData);
