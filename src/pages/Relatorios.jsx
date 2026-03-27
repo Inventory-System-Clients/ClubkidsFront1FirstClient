@@ -218,19 +218,31 @@ export function Relatorios() {
             toNumber(maq.maquina?.percentualComissao ?? maq.maquina?.percentual_comissao) ||
             toNumber(percentualPorMaquina.get(maquinaId));
 
+          const percentualDetalhe = toNumber(detalhe?.percentualComissao);
+          const percentualInferidoDaComissao =
+            totalRecebimento > 0
+              ? (toNumber(detalhe?.comissao) / totalRecebimento) * 100
+              : 0;
+
           const percentualAplicado =
-            toNumber(detalhe?.percentualComissao) > 0
-              ? toNumber(detalhe.percentualComissao)
-              : percentualCadastro;
+            percentualDetalhe > 0
+              ? percentualDetalhe
+              : percentualCadastro > 0
+                ? percentualCadastro
+                : percentualInferidoDaComissao;
 
           const comissaoCalculadaPorPercentual =
             percentualAplicado > 0 ? totalRecebimento * (percentualAplicado / 100) : 0;
 
-          const valoresComissao = detalhe ? toNumber(detalhe.comissao) : comissaoCalculadaPorPercentual;
+          const valoresComissao =
+            percentualAplicado > 0
+              ? comissaoCalculadaPorPercentual
+              : toNumber(detalhe?.comissao);
 
           return {
             ...maq,
             valoresComissao,
+            percentualComissaoAplicado: percentualAplicado,
             lucroComDescontoComissao: totalRecebimento - valoresComissao,
           };
         });
