@@ -10,6 +10,54 @@ const NUMEROS_BAG_BLOQUEADOS = new Set(["0", "00", "1", "2", "3", "4", "01", "02
 const numeroBagBloqueado = (numeroBag = "") =>
   NUMEROS_BAG_BLOQUEADOS.has(numeroBag.trim());
 
+const toNumberOrNull = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const lojaTemMovimentacaoReal = (loja, lojasRoteiro = []) => {
+  if (!loja || loja.concluido === true || loja.movimentacao_em_andamento !== true) {
+    return false;
+  }
+
+  const indicadoresDiretos = [
+    loja.movimentacoes_count,
+    loja.movimentacao_count,
+    loja.totalMovimentacoes,
+    loja.total_movimentacoes,
+    loja.maquinasAtendidas,
+    loja.maquinas_atendidas,
+  ];
+
+  if (indicadoresDiretos.some((valor) => Number(valor) > 0)) {
+    return true;
+  }
+
+  if (Array.isArray(loja.movimentacoes) && loja.movimentacoes.length > 0) {
+    return true;
+  }
+
+  if (Array.isArray(loja.maquinas) && loja.maquinas.some((m) => m?.atendida === true || m?.ultimaMovimentacao)) {
+    return true;
+  }
+
+  const lojaNoRoteiro = lojasRoteiro.find((l) => {
+    const idLoja = toNumberOrNull(loja.id);
+    const idLista = toNumberOrNull(l.id);
+    return idLoja !== null && idLista !== null ? idLoja === idLista : String(loja.id) === String(l.id);
+  });
+
+  if (!lojaNoRoteiro) {
+    return false;
+  }
+
+  if (Array.isArray(lojaNoRoteiro.maquinas)) {
+    return lojaNoRoteiro.maquinas.some((m) => m?.atendida === true || m?.ultimaMovimentacao);
+  }
+
+  return false;
+};
+
 export function MovimentacoesLoja() {
   const { roteiroId, lojaId } = useParams();
   const navigate = useNavigate();
@@ -73,18 +121,20 @@ export function MovimentacoesLoja() {
       const maquinasRes = await api.get(`/maquinas?lojaId=${lojaId}`);
       setMaquinas(maquinasRes.data);
 
+      const lojasDoRoteiro = Array.isArray(roteiroRes.data?.lojas) ? roteiroRes.data.lojas : [];
+
       // Buscar todas as lojas do roteiro para verificar bloqueios
       try {
         const lojasRoteiroRes = await api.get(`/roteiros/${roteiroId}/lojas`);
         const lojasBloqueadas = lojasRoteiroRes.data.filter(
-          l => l.movimentacao_em_andamento && l.id !== lojaId
+          l => lojaTemMovimentacaoReal(l, lojasDoRoteiro) && String(l.id) !== String(lojaId)
         );
         
         if (lojasBloqueadas.length > 0) {
           setLojaComMovimentacao(lojasBloqueadas[0]);
           // Atualiza localStorage
           localStorage.setItem('lojaAtiva', lojasBloqueadas[0].id);
-        } else if (lojaRes.data.movimentacao_em_andamento) {
+        } else if (lojaTemMovimentacaoReal(lojaRes.data, lojasDoRoteiro)) {
           // A loja atual está com movimentação em andamento
           localStorage.setItem('lojaAtiva', lojaId);
           setLojaComMovimentacao(null);
@@ -98,7 +148,16 @@ export function MovimentacoesLoja() {
         // Fallback para localStorage em caso de erro
         const lojaAtiva = localStorage.getItem('lojaAtiva');
         if (lojaAtiva && lojaAtiva !== lojaId) {
-          setLojaComMovimentacao({ id: lojaAtiva, nome: 'Loja bloqueada' });
+          const lojaDoRoteiro = lojasDoRoteiro.find((l) => String(l.id) === String(lojaAtiva));
+          if (lojaTemMovimentacaoReal(lojaDoRoteiro, lojasDoRoteiro)) {
+            setLojaComMovimentacao({
+              id: lojaAtiva,
+              nome: lojaDoRoteiro?.nome || 'Loja bloqueada'
+            });
+          } else {
+            localStorage.removeItem('lojaAtiva');
+            setLojaComMovimentacao(null);
+          }
         }
       }
 
@@ -110,7 +169,7 @@ export function MovimentacoesLoja() {
       } catch {}
 
       // Sincronizar localStorage com o estado do backend
-      if (lojaRes.data.movimentacao_em_andamento) {
+      if (lojaTemMovimentacaoReal(lojaRes.data, lojasDoRoteiro)) {
         localStorage.setItem('lojaAtiva', lojaId);
       } else if (lojaRes.data.concluido === true) {
         localStorage.removeItem('lojaAtiva');
@@ -265,6 +324,7 @@ export function MovimentacoesLoja() {
 
   // Bloqueio de movimentação em outras lojas - baseado no backend
   const bloqueadoPorOutraLoja = lojaComMovimentacao !== null;
+  const lojaEmAtendimento = lojaTemMovimentacaoReal(loja, roteiro?.lojas || []);
   const bagInvalida = numeroBagBloqueado(formData.numeroBag);
 
   if (loading) return <PageLoader />;
@@ -322,7 +382,7 @@ export function MovimentacoesLoja() {
               📊 Progresso da Loja
             </h3>
             {/* Indicador de loja em uso */}
-            {loja?.movimentacao_em_andamento && (
+            {lojaEmAtendimento && (
               <span className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold border border-green-300">
                 <span className="animate-pulse">🟢</span>
                 Em atendimento
