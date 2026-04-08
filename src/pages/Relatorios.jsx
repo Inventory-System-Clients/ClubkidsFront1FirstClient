@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
@@ -8,6 +9,7 @@ import { useAuth } from "../contexts/AuthContext";
 
 export function Relatorios() {
   const { usuario, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const [roteiros, setRoteiros] = useState([]);
   const [roteiroSelecionado, setRoteiroSelecionado] = useState("");
   const [lojas, setLojas] = useState([]);
@@ -309,6 +311,56 @@ export function Relatorios() {
   const produtosSairam = relatorio && Array.isArray(relatorio.produtosSairam) ? relatorio.produtosSairam : [];
   const produtosEntraram = relatorio && Array.isArray(relatorio.produtosEntraram) ? relatorio.produtosEntraram : [];
 
+  const lojasComMovimentacoes = (() => {
+    if (!relatorio) return [];
+
+    const mapa = new Map();
+
+    if (Array.isArray(relatorio.lojas)) {
+      relatorio.lojas.forEach((item) => {
+        const loja = item?.loja;
+        const id = loja?.id;
+        if (!id) return;
+
+        const movs = toNumber(item?.totais?.movimentacoes ?? item?.movimentacoes);
+
+        if (!mapa.has(String(id))) {
+          mapa.set(String(id), {
+            id,
+            nome: loja?.nome || `Loja ${id}`,
+            movimentacoes: movs,
+          });
+        } else {
+          const atual = mapa.get(String(id));
+          mapa.set(String(id), {
+            ...atual,
+            movimentacoes: atual.movimentacoes + movs,
+          });
+        }
+      });
+    }
+
+    if (mapa.size === 0 && lojaSelecionada) {
+      const loja = lojas.find((l) => String(l.id) === String(lojaSelecionada));
+      mapa.set(String(lojaSelecionada), {
+        id: lojaSelecionada,
+        nome: loja?.nome || `Loja ${lojaSelecionada}`,
+        movimentacoes: toNumber(totais.movimentacoes),
+      });
+    }
+
+    return Array.from(mapa.values())
+      .filter((item) => item.movimentacoes > 0)
+      .sort((a, b) => b.movimentacoes - a.movimentacoes);
+  })();
+
+  const lojaDestinoMovimentacoesId = lojaSelecionada || lojasComMovimentacoes[0]?.id;
+
+  const abrirLojaMovimentacoes = (lojaId) => {
+    if (!lojaId) return;
+    navigate(`/lojas/${lojaId}`);
+  };
+
   return (
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
       <Navbar />
@@ -504,7 +556,12 @@ export function Relatorios() {
                   </div>
                 </div>
 
-                <div className="card bg-linear-to-br from-purple-500 to-purple-600 text-white">
+                <div
+                  onClick={() => abrirLojaMovimentacoes(lojaDestinoMovimentacoesId)}
+                  className={`card bg-linear-to-br from-purple-500 to-purple-600 text-white text-left transition-transform ${
+                    lojaDestinoMovimentacoesId ? "hover:scale-[1.02] cursor-pointer" : "opacity-70 cursor-not-allowed"
+                  }`}
+                >
                   <div className="text-2xl sm:text-3xl mb-2">🔄</div>
                   <div className="text-xl sm:text-2xl font-bold">
                     {typeof totais.movimentacoes === "number" ? totais.movimentacoes.toLocaleString("pt-BR") : "0"}
@@ -512,6 +569,33 @@ export function Relatorios() {
                   <div className="text-xs sm:text-sm opacity-90">
                     Total de Movimentações
                   </div>
+                  {lojasComMovimentacoes.length > 0 && (
+                    <div className="mt-3 border-t border-white/30 pt-3">
+                      <div className="text-[11px] sm:text-xs opacity-90 mb-2">
+                        Lojas com movimentações:
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {lojasComMovimentacoes.map((lojaMov) => (
+                          <button
+                            key={lojaMov.id}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              abrirLojaMovimentacoes(lojaMov.id);
+                            }}
+                            className="px-2 py-1 rounded-full text-[11px] sm:text-xs bg-white/20 hover:bg-white/30"
+                          >
+                            {lojaMov.nome} ({lojaMov.movimentacoes})
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {lojaDestinoMovimentacoesId && (
+                    <div className="mt-3 text-[11px] sm:text-xs opacity-90">
+                      Clique para abrir a loja e acessar o histórico de movimentações.
+                    </div>
+                  )}
                 </div>
               </div>
 
