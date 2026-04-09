@@ -20,11 +20,33 @@ export function Relatorios() {
   const [loading, setLoading] = useState(false);
   const [loadingRoteiros, setLoadingRoteiros] = useState(true);
   const [loadingLojas, setLoadingLojas] = useState(true);
+  const [loadingPdfPlanilha, setLoadingPdfPlanilha] = useState(false);
   const [relatorio, setRelatorio] = useState(null);
   const [error, setError] = useState("");
   const [gastosLoja, setGastosLoja] = useState([]);
 
   const toNumber = (value) => {
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : 0;
+    }
+
+    if (typeof value === "string") {
+      let normalized = value.trim();
+      if (!normalized) return 0;
+
+      normalized = normalized.replace(/\s+/g, "").replace(/R\$/gi, "");
+      normalized = normalized.replace(/[^\d,.-]/g, "");
+
+      if (normalized.includes(",") && normalized.includes(".")) {
+        normalized = normalized.replace(/\./g, "").replace(/,/g, ".");
+      } else if (normalized.includes(",")) {
+        normalized = normalized.replace(/,/g, ".");
+      }
+
+      const parsed = Number(normalized);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
   };
@@ -593,6 +615,235 @@ export function Relatorios() {
     window.print();
   };
 
+  const gerarPdfPlanilha = async () => {
+    if (!dataInicio || !dataFim) {
+      setError("Preencha o período para gerar o PDF em planilha.");
+      return;
+    }
+
+    const idsLojas = roteiroSelecionado
+      ? (relatorio?.lojas || []).map((item) => item?.loja?.id).filter(Boolean)
+      : lojasSelecionadas;
+
+    if (!idsLojas || idsLojas.length === 0) {
+      setError("Selecione pelo menos uma loja (ou um roteiro com lojas) para gerar o PDF em planilha.");
+      return;
+    }
+
+    try {
+      setLoadingPdfPlanilha(true);
+      setError("");
+
+      // Reaproveita a mesma estratégia do relatório principal:
+      // tenta calcular comissão por loja no período antes de buscar os dados.
+      const roteirosDoPeriodo = await api
+        .get(`/roteiros?data=${dataFim}`)
+        .then((res) => res.data || [])
+        .catch(() => []);
+
+      const linhas = await Promise.all(
+        idsLojas.map(async (lojaId) => {
+          let roteiroIdParaComissao = roteiroSelecionado || null;
+
+          if (!roteiroIdParaComissao && Array.isArray(roteirosDoPeriodo) && roteirosDoPeriodo.length > 0) {
+            for (const roteiro of roteirosDoPeriodo) {
+              if ((roteiro.lojas || []).some((l) => String(l.id) === String(lojaId))) {
+                roteiroIdParaComissao = roteiro.id;
+                break;
+              }
+            }
+          }
+
+          if (roteiroIdParaComissao) {
+            try {
+              await api.post(`/roteiros/lojas/${lojaId}/calcular-comissao`, {
+                roteiroId: roteiroIdParaComissao,
+              });
+            } catch {
+              // Pode já estar calculada para a loja/período
+            }
+          }
+
+          const [resRelatorio, resComissoesPayload] = await Promise.all([
+            api
+              .get("/relatorios/impressao", {
+                params: { lojaId, dataInicio, dataFim },
+              })
+              .then((res) => res.data)
+              .catch(() => null),
+            api
+              .get("/relatorios/comissoes", {
+                params: { lojaId, dataInicio, dataFim },
+              })
+              .then((res) => res.data || null)
+              .catch(() => null),
+          ]);
+
+          const loja = lojas.find((item) => String(item.id) === String(lojaId));
+          const nomeLoja = loja?.nome || resRelatorio?.loja?.nome || `Loja ${lojaId}`;
+
+          const dinheiro = toNumber(resRelatorio?.totais?.valoresEntrada?.notas);
+          const cartao = toNumber(resRelatorio?.totais?.valoresEntrada?.cartao);
+          const conferidoTotal =
+            toNumber(resRelatorio?.totais?.valoresEntrada?.total) ||
+            (dinheiro + cartao);
+
+          const listaComissoes = Array.isArray(resComissoesPayload?.comissoes)
+            ? resComissoesPayload.comissoes
+            : [];
+
+          const comissaoPorItens = listaComissoes.reduce(
+            (acc, item) => {
+              const comissaoDiretaItem = toNumber(item?.totalComissao ?? item?.comissao);
+              if (comissaoDiretaItem > 0) {
+                return acc + comissaoDiretaItem;
+              }
+
+              const comissaoPelosDetalhes = Array.isArray(item?.detalhes)
+                ? item.detalhes.reduce((sum, det) => sum + toNumber(det?.comissao), 0)
+                : 0;
+
+              return acc + comissaoPelosDetalhes;
+            },
+            0
+          );
+
+          const comissaoDiretaPayload =
+            toNumber(resComissoesPayload?.totalComissao) ||
+            toNumber(resComissoesPayload?.comissao);
+
+          const comissaoNoRelatorio = toNumber(resRelatorio?.totais?.comissao);
+
+          const comissaoPelasMaquinas = Array.isArray(resRelatorio?.maquinas)
+            ? resRelatorio.maquinas.reduce(
+                (sum, maq) => sum + toNumber(maq?.valoresComissao),
+                0
+              )
+            : 0;
+
+          const comissao =
+            comissaoPorItens ||
+            comissaoDiretaPayload ||
+            comissaoNoRelatorio ||
+            comissaoPelasMaquinas;
+
+          const pelucias = (resRelatorio?.produtosSairam || []).reduce((acc, produto) => {
+            const nome = String(produto?.nome || "");
+            const ehPelucia = /pel[uú]cia/i.test(nome);
+            return ehPelucia ? acc + toNumber(produto?.quantidade) : acc;
+          }, 0);
+
+          return {
+            nomeLoja,
+            dinheiro,
+            cartao,
+            comissao,
+            conferidoTotal,
+            pelucias,
+          };
+        })
+      );
+
+      const linhasOrdenadas = linhas.sort((a, b) => a.nomeLoja.localeCompare(b.nomeLoja, "pt-BR"));
+
+      const totalDinheiro = linhasOrdenadas.reduce((acc, l) => acc + l.dinheiro, 0);
+      const totalCartao = linhasOrdenadas.reduce((acc, l) => acc + l.cartao, 0);
+      const totalComissao = linhasOrdenadas.reduce((acc, l) => acc + l.comissao, 0);
+      const totalConferido = linhasOrdenadas.reduce((acc, l) => acc + l.conferidoTotal, 0);
+      const totalPelucias = linhasOrdenadas.reduce((acc, l) => acc + l.pelucias, 0);
+
+      const formatarMoeda = (valor) => `R$ ${toNumber(valor).toFixed(2).replace(".", ",")}`;
+
+      const linhasHtml = linhasOrdenadas
+        .map(
+          (linha) => `
+            <tr>
+              <td>${linha.nomeLoja}</td>
+              <td class="num">${formatarMoeda(linha.dinheiro)}</td>
+              <td class="num">${formatarMoeda(linha.cartao)}</td>
+              <td class="num">${formatarMoeda(linha.comissao)}</td>
+              <td class="num">${formatarMoeda(linha.conferidoTotal)}</td>
+              <td class="num">${Math.round(linha.pelucias)}</td>
+            </tr>
+          `
+        )
+        .join("");
+
+      const htmlPlanilha = `
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Relatório Planilha</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 16px; color: #1f2937; }
+            h1 { font-size: 18px; margin: 0 0 6px; }
+            .sub { font-size: 12px; margin-bottom: 12px; color: #4b5563; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            th, td { border: 1px solid #9ca3af; padding: 6px 8px; }
+            th { background: #f3f4f6; text-align: left; }
+            .num { text-align: right; white-space: nowrap; }
+            tfoot td { font-weight: bold; background: #eef2ff; }
+            @media print {
+              body { padding: 0; }
+              @page { size: A4 landscape; margin: 1cm; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Relatório de Impressão - Estilo Planilha</h1>
+          <div class="sub">Período: ${dataInicio} até ${dataFim}</div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>DINHEIRO</th>
+                <th>Conf. Cartão</th>
+                <th>Comissão</th>
+                <th>Conferido Total</th>
+                <th>Pelúcias (Qtd Saída)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${linhasHtml}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>TOTAL GERAL</td>
+                <td class="num">${formatarMoeda(totalDinheiro)}</td>
+                <td class="num">${formatarMoeda(totalCartao)}</td>
+                <td class="num">${formatarMoeda(totalComissao)}</td>
+                <td class="num">${formatarMoeda(totalConferido)}</td>
+                <td class="num">${Math.round(totalPelucias)}</td>
+              </tr>
+            </tfoot>
+          </table>
+
+          <script>
+            window.onload = () => window.print();
+          </script>
+        </body>
+        </html>
+      `;
+
+      const janela = window.open("", "_blank", "width=1200,height=800");
+      if (!janela) {
+        setError("Não foi possível abrir a janela de impressão. Verifique se o navegador bloqueou pop-up.");
+        return;
+      }
+
+      janela.document.open();
+      janela.document.write(htmlPlanilha);
+      janela.document.close();
+    } catch (e) {
+      setError("Erro ao gerar PDF em formato planilha. Tente novamente.");
+    } finally {
+      setLoadingPdfPlanilha(false);
+    }
+  };
+
   if (loadingRoteiros || loadingLojas) return <PageLoader />;
 
   // Proteções extras para evitar erros de undefined/null
@@ -780,6 +1031,13 @@ export function Relatorios() {
               className="btn-secondary"
             >
               🖨️ Imprimir
+            </button>
+            <button
+              onClick={gerarPdfPlanilha}
+              disabled={!relatorio || loadingPdfPlanilha}
+              className="btn-secondary"
+            >
+              {loadingPdfPlanilha ? "⏳ Gerando PDF..." : "📄 Gerar PDF Planilha"}
             </button>
           </div>
         </div>
