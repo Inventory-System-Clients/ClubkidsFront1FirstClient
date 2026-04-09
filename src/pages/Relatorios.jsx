@@ -13,7 +13,8 @@ export function Relatorios() {
   const [roteiros, setRoteiros] = useState([]);
   const [roteiroSelecionado, setRoteiroSelecionado] = useState("");
   const [lojas, setLojas] = useState([]);
-  const [lojaSelecionada, setLojaSelecionada] = useState("");
+  const [lojasSelecionadas, setLojasSelecionadas] = useState([]);
+  const [buscaLoja, setBuscaLoja] = useState("");
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [loading, setLoading] = useState(false);
@@ -27,6 +28,169 @@ export function Relatorios() {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
   };
+
+  const obterDataMovimentacao = (movimentacao) => {
+    return new Date(
+      movimentacao?.dataColeta ||
+      movimentacao?.dataMovimentacao ||
+      movimentacao?.createdAt ||
+      movimentacao?.data ||
+      0
+    );
+  };
+
+  const obterTotalFinanceiroMovimentacao = (movimentacao) => {
+    const notas = toNumber(movimentacao?.valorEntradaNotas ?? movimentacao?.valor_entrada_notas);
+    const cartao = toNumber(movimentacao?.valorEntradaCartao ?? movimentacao?.valor_entrada_cartao);
+    const fichas = toNumber(movimentacao?.valorEntradaFichas ?? movimentacao?.valor_entrada_fichas);
+    const valorFaturado = toNumber(movimentacao?.valorFaturado ?? movimentacao?.valor_faturado);
+
+    return valorFaturado > 0 ? valorFaturado : notas + cartao + fichas;
+  };
+
+  const agregarProdutos = (produtos = []) => {
+    const mapa = new Map();
+
+    produtos.forEach((produto) => {
+      const chave = `${produto?.id ?? "sem-id"}-${produto?.codigo ?? "sem-codigo"}`;
+      const atual = mapa.get(chave) || {
+        ...produto,
+        quantidade: 0,
+      };
+
+      atual.quantidade += toNumber(produto?.quantidade);
+      mapa.set(chave, atual);
+    });
+
+    return Array.from(mapa.values());
+  };
+
+  const combinarRelatoriosPorLojas = (relatorios, idsLojas = []) => {
+    if (!Array.isArray(relatorios) || relatorios.length === 0) {
+      return null;
+    }
+
+    const totaisCombinados = {
+      produtosSairam: 0,
+      produtosEntraram: 0,
+      movimentacoes: 0,
+      valoresEntrada: {
+        notas: 0,
+        cartao: 0,
+        total: 0,
+      },
+      comissao: 0,
+      lucroComDescontoComissao: 0,
+    };
+
+    const produtosSairamTodos = [];
+    const produtosEntraramTodos = [];
+    const mapaMaquinas = new Map();
+
+    relatorios.forEach((relatorioAtual) => {
+      const totais = relatorioAtual?.totais || {};
+
+      totaisCombinados.produtosSairam += toNumber(totais.produtosSairam);
+      totaisCombinados.produtosEntraram += toNumber(totais.produtosEntraram);
+      totaisCombinados.movimentacoes += toNumber(totais.movimentacoes);
+      totaisCombinados.valoresEntrada.notas += toNumber(totais.valoresEntrada?.notas);
+      totaisCombinados.valoresEntrada.cartao += toNumber(totais.valoresEntrada?.cartao);
+      totaisCombinados.valoresEntrada.total += toNumber(totais.valoresEntrada?.total);
+
+      if (Array.isArray(relatorioAtual?.produtosSairam)) {
+        produtosSairamTodos.push(...relatorioAtual.produtosSairam);
+      }
+
+      if (Array.isArray(relatorioAtual?.produtosEntraram)) {
+        produtosEntraramTodos.push(...relatorioAtual.produtosEntraram);
+      }
+
+      (relatorioAtual?.maquinas || []).forEach((maquinaAtual) => {
+        const maquinaId = String(maquinaAtual?.maquina?.id ?? "");
+        if (!maquinaId) return;
+
+        if (!mapaMaquinas.has(maquinaId)) {
+          mapaMaquinas.set(maquinaId, {
+            ...maquinaAtual,
+            totais: {
+              produtosSairam: toNumber(maquinaAtual?.totais?.produtosSairam),
+              produtosEntraram: toNumber(maquinaAtual?.totais?.produtosEntraram),
+              movimentacoes: toNumber(maquinaAtual?.totais?.movimentacoes),
+            },
+            valoresEntrada: {
+              notas: toNumber(maquinaAtual?.valoresEntrada?.notas),
+              cartao: toNumber(maquinaAtual?.valoresEntrada?.cartao),
+            },
+            produtosSairam: Array.isArray(maquinaAtual?.produtosSairam) ? [...maquinaAtual.produtosSairam] : [],
+            produtosEntraram: Array.isArray(maquinaAtual?.produtosEntraram) ? [...maquinaAtual.produtosEntraram] : [],
+          });
+          return;
+        }
+
+        const acumulada = mapaMaquinas.get(maquinaId);
+        acumulada.totais.produtosSairam += toNumber(maquinaAtual?.totais?.produtosSairam);
+        acumulada.totais.produtosEntraram += toNumber(maquinaAtual?.totais?.produtosEntraram);
+        acumulada.totais.movimentacoes += toNumber(maquinaAtual?.totais?.movimentacoes);
+        acumulada.valoresEntrada.notas += toNumber(maquinaAtual?.valoresEntrada?.notas);
+        acumulada.valoresEntrada.cartao += toNumber(maquinaAtual?.valoresEntrada?.cartao);
+        acumulada.produtosSairam.push(...(Array.isArray(maquinaAtual?.produtosSairam) ? maquinaAtual.produtosSairam : []));
+        acumulada.produtosEntraram.push(...(Array.isArray(maquinaAtual?.produtosEntraram) ? maquinaAtual.produtosEntraram : []));
+      });
+    });
+
+    const lojasResumo = idsLojas.map((id) => {
+      const loja = lojas.find((l) => String(l.id) === String(id));
+      return {
+        loja: {
+          id,
+          nome: loja?.nome || `Loja ${id}`,
+        },
+        totais: {
+          movimentacoes: 0,
+        },
+      };
+    });
+
+    const maquinasCombinadas = Array.from(mapaMaquinas.values()).map((maquina) => ({
+      ...maquina,
+      produtosSairam: agregarProdutos(maquina.produtosSairam),
+      produtosEntraram: agregarProdutos(maquina.produtosEntraram),
+    }));
+
+    return {
+      totais: totaisCombinados,
+      maquinas: maquinasCombinadas,
+      produtosSairam: agregarProdutos(produtosSairamTodos),
+      produtosEntraram: agregarProdutos(produtosEntraramTodos),
+      lojas: lojasResumo,
+    };
+  };
+
+  const toggleLojaSelecionada = (lojaId) => {
+    setRoteiroSelecionado("");
+    setLojasSelecionadas((prev) => {
+      const chave = String(lojaId);
+      if (prev.some((id) => String(id) === chave)) {
+        return prev.filter((id) => String(id) !== chave);
+      }
+      return [...prev, lojaId];
+    });
+  };
+
+  const selecionarTodasAsLojas = () => {
+    setRoteiroSelecionado("");
+    setLojasSelecionadas(lojas.map((loja) => loja.id));
+  };
+
+  const limparSelecaoLojas = () => {
+    setLojasSelecionadas([]);
+  };
+
+  const lojasFiltradas = lojas.filter((loja) => {
+    const termo = buscaLoja.trim().toLowerCase();
+    if (!termo) return true;
+    return (loja?.nome || "").toLowerCase().includes(termo);
+  });
 
   useEffect(() => {
     carregarRoteiros();
@@ -79,8 +243,8 @@ export function Relatorios() {
   };
 
   const gerarRelatorio = async () => {
-    if ((!roteiroSelecionado && !lojaSelecionada) || !dataInicio || !dataFim) {
-      setError("Por favor, selecione um roteiro ou uma loja e preencha as datas.");
+    if ((!roteiroSelecionado && lojasSelecionadas.length === 0) || !dataInicio || !dataFim) {
+      setError("Por favor, selecione um roteiro ou pelo menos uma loja e preencha as datas.");
       return;
     }
 
@@ -99,23 +263,60 @@ export function Relatorios() {
       setRelatorio(null);
       setGastosLoja([]);
 
-      let lojaId = lojaSelecionada;
       let roteiroId = roteiroSelecionado;
       let relatorioData = null;
+      let lojasParaProcessar = [...lojasSelecionadas];
 
       // Buscar relatório base
       if (roteiroId) {
         relatorioData = (await api.get("/relatorios/roteiro", {
           params: { roteiroId, dataInicio, dataFim },
         })).data;
-        // Se só uma loja no roteiro, usar o id dela
-        if (relatorioData && relatorioData.lojas && relatorioData.lojas.length === 1) {
-          lojaId = relatorioData.lojas[0].loja.id;
-        }
-      } else if (lojaId) {
+
+        lojasParaProcessar = (relatorioData?.lojas || [])
+          .map((item) => item?.loja?.id)
+          .filter((id) => id !== undefined && id !== null);
+      } else if (lojasSelecionadas.length === 1) {
+        const lojaIdUnica = lojasSelecionadas[0];
         relatorioData = (await api.get("/relatorios/impressao", {
-          params: { lojaId, dataInicio, dataFim },
+          params: { lojaId: lojaIdUnica, dataInicio, dataFim },
         })).data;
+      } else {
+        const respostasRelatorios = await Promise.all(
+          lojasSelecionadas.map((lojaId) =>
+            api
+              .get("/relatorios/impressao", {
+                params: { lojaId, dataInicio, dataFim },
+              })
+              .then((res) => ({ lojaId, data: res.data }))
+              .catch(() => ({ lojaId, data: null }))
+          )
+        );
+
+        const relatoriosValidos = respostasRelatorios
+          .filter((item) => item.data)
+          .map((item) => item.data);
+
+        if (relatoriosValidos.length === 0) {
+          throw new Error("Nenhum dado encontrado para as lojas selecionadas no período.");
+        }
+
+        relatorioData = combinarRelatoriosPorLojas(relatoriosValidos, lojasSelecionadas);
+
+        relatorioData.lojas = respostasRelatorios
+          .filter((item) => item.data)
+          .map((item) => {
+            const loja = lojas.find((l) => String(l.id) === String(item.lojaId));
+            return {
+              loja: {
+                id: item.lojaId,
+                nome: loja?.nome || `Loja ${item.lojaId}`,
+              },
+              totais: {
+                movimentacoes: toNumber(item.data?.totais?.movimentacoes),
+              },
+            };
+          });
       }
 
       // Buscar e calcular comissão igual ao dashboard
@@ -123,11 +324,13 @@ export function Relatorios() {
       let totalComissao = 0;
       let totalLucro = 0;
       let maquinasDaLoja = [];
-      if (lojaId) {
+      const idsLojasUnicos = Array.from(new Set(lojasParaProcessar.map((id) => String(id))));
+
+      if (idsLojasUnicos.length > 0) {
         try {
           const maquinasRes = await api.get(`/maquinas`);
           maquinasDaLoja = (maquinasRes.data || []).filter(
-            (maq) => String(maq.lojaId ?? maq.loja_id ?? "") === String(lojaId)
+            (maq) => idsLojasUnicos.includes(String(maq.lojaId ?? maq.loja_id ?? ""))
           );
         } catch {
           maquinasDaLoja = [];
@@ -136,36 +339,63 @@ export function Relatorios() {
         // Buscar roteiros do período para garantir cálculo
         const roteirosRes = await api.get(`/roteiros?data=${dataFim}`);
         const roteiros = roteirosRes.data || [];
-        let roteiroIdParaComissao = roteiroId;
-        if (!roteiroIdParaComissao && roteiros.length > 0) {
-          // Pega o primeiro roteiro do dia que contenha a loja
-          for (const roteiro of roteiros) {
-            if ((roteiro.lojas || []).some(l => l.id == lojaId)) {
-              roteiroIdParaComissao = roteiro.id;
-              break;
+
+        for (const lojaId of idsLojasUnicos) {
+          let roteiroIdParaComissao = roteiroId;
+
+          if (!roteiroIdParaComissao && roteiros.length > 0) {
+            for (const roteiro of roteiros) {
+              if ((roteiro.lojas || []).some((l) => String(l.id) === String(lojaId))) {
+                roteiroIdParaComissao = roteiro.id;
+                break;
+              }
+            }
+          }
+
+          if (roteiroIdParaComissao) {
+            try {
+              await api.post(`/roteiros/lojas/${lojaId}/calcular-comissao`, {
+                roteiroId: roteiroIdParaComissao,
+              });
+            } catch (e) {
+              // Pode já estar calculada
             }
           }
         }
-        if (roteiroIdParaComissao) {
-          try {
-            await api.post(`/roteiros/lojas/${lojaId}/calcular-comissao`, { roteiroId: roteiroIdParaComissao });
-          } catch (e) {
-            // Pode já estar calculada
-          }
-        }
+
         // Buscar comissões do período
-        const comissaoRes = await api.get(`/relatorios/comissoes`, {
-          params: { lojaId, dataInicio, dataFim },
-        });
-        comissoes = comissaoRes.data?.comissoes || [];
+        const comissoesPorLoja = await Promise.all(
+          idsLojasUnicos.map((lojaId) =>
+            api
+              .get(`/relatorios/comissoes`, {
+                params: { lojaId, dataInicio, dataFim },
+              })
+              .then((res) => res.data?.comissoes || [])
+              .catch(() => [])
+          )
+        );
+
+        comissoes = comissoesPorLoja.flat();
         totalComissao = comissoes.reduce((acc, c) => acc + toNumber(c.totalComissao), 0);
         totalLucro = comissoes.reduce((acc, c) => acc + toNumber(c.totalLucro), 0);
 
         // Buscar gastos por loja
-        const gastosRes = await api.get(`/gastos`, {
-          params: { lojaId },
-        });
-        setGastosLoja(gastosRes.data || []);
+        const gastosPorLoja = await Promise.all(
+          idsLojasUnicos.map((lojaId) =>
+            api
+              .get(`/gastos`, {
+                params: { lojaId },
+              })
+              .then((res) => res.data || [])
+              .catch(() => [])
+          )
+        );
+
+        setGastosLoja(
+          gastosPorLoja
+            .flat()
+            .sort((a, b) => new Date(b?.data || 0) - new Date(a?.data || 0))
+        );
       }
 
       // Atualizar totais gerais
@@ -264,6 +494,66 @@ export function Relatorios() {
         relatorioData.totais.lucroComDescontoComissao = lucroLiquidoRecalculado;
       }
 
+      // Buscar movimentações de cada máquina para detalhar no relatório de impressão
+      if (Array.isArray(relatorioData?.maquinas) && relatorioData.maquinas.length > 0) {
+        const inicioPeriodo = new Date(`${dataInicio}T00:00:00`);
+        const fimPeriodo = new Date(`${dataFim}T23:59:59`);
+
+        const movimentosPorMaquina = await Promise.all(
+          relatorioData.maquinas.map(async (maquina) => {
+            const maquinaId = maquina?.maquina?.id;
+            if (!maquinaId) {
+              return { maquinaId: null, movimentacoes: [] };
+            }
+
+            try {
+              const responseMovimentacoes = await api.get(`/movimentacoes?maquinaId=${maquinaId}`);
+              const movimentacoesFiltradas = (responseMovimentacoes.data || [])
+                .filter((mov) => {
+                  const dataMov = obterDataMovimentacao(mov);
+                  return dataMov >= inicioPeriodo && dataMov <= fimPeriodo;
+                })
+                .sort((a, b) => obterDataMovimentacao(b) - obterDataMovimentacao(a))
+                .map((mov) => {
+                  const notas = toNumber(mov.valorEntradaNotas ?? mov.valor_entrada_notas);
+                  const cartao = toNumber(mov.valorEntradaCartao ?? mov.valor_entrada_cartao);
+                  const fichas = toNumber(mov.valorEntradaFichas ?? mov.valor_entrada_fichas);
+                  const totalFinanceiro = obterTotalFinanceiroMovimentacao(mov);
+                  const numeroBag = String(mov.numeroBag || "").trim();
+
+                  return {
+                    ...mov,
+                    valorEntradaNotasNormalizado: notas,
+                    valorEntradaCartaoNormalizado: cartao,
+                    valorEntradaFichasNormalizado: fichas,
+                    valorFinanceiroTotal: totalFinanceiro,
+                    numeroBagNormalizado: numeroBag,
+                    financeiroPendente: Boolean(numeroBag) && totalFinanceiro <= 0,
+                  };
+                });
+
+              return { maquinaId: String(maquinaId), movimentacoes: movimentacoesFiltradas };
+            } catch {
+              return { maquinaId: String(maquinaId), movimentacoes: [] };
+            }
+          })
+        );
+
+        const mapaMovimentos = new Map(
+          movimentosPorMaquina
+            .filter((item) => item.maquinaId)
+            .map((item) => [item.maquinaId, item.movimentacoes])
+        );
+
+        relatorioData.maquinas = relatorioData.maquinas.map((maquina) => {
+          const maquinaId = String(maquina?.maquina?.id ?? "");
+          return {
+            ...maquina,
+            movimentacoesDetalhes: mapaMovimentos.get(maquinaId) || [],
+          };
+        });
+      }
+
       setRelatorio(relatorioData);
     } catch (error) {
       console.error("Erro ao gerar relatório:", error);
@@ -340,12 +630,14 @@ export function Relatorios() {
       });
     }
 
-    if (mapa.size === 0 && lojaSelecionada) {
-      const loja = lojas.find((l) => String(l.id) === String(lojaSelecionada));
-      mapa.set(String(lojaSelecionada), {
-        id: lojaSelecionada,
-        nome: loja?.nome || `Loja ${lojaSelecionada}`,
-        movimentacoes: toNumber(totais.movimentacoes),
+    if (mapa.size === 0 && lojasSelecionadas.length > 0) {
+      lojasSelecionadas.forEach((lojaId) => {
+        const loja = lojas.find((l) => String(l.id) === String(lojaId));
+        mapa.set(String(lojaId), {
+          id: lojaId,
+          nome: loja?.nome || `Loja ${lojaId}`,
+          movimentacoes: 0,
+        });
       });
     }
 
@@ -354,7 +646,7 @@ export function Relatorios() {
       .sort((a, b) => b.movimentacoes - a.movimentacoes);
   })();
 
-  const lojaDestinoMovimentacoesId = lojaSelecionada || lojasComMovimentacoes[0]?.id;
+  const lojaDestinoMovimentacoesId = lojasSelecionadas[0] || lojasComMovimentacoes[0]?.id;
 
   const abrirLojaMovimentacoes = (lojaId) => {
     if (!lojaId) return;
@@ -382,7 +674,7 @@ export function Relatorios() {
                 value={roteiroSelecionado}
                 onChange={e => {
                   setRoteiroSelecionado(e.target.value);
-                  setLojaSelecionada("");
+                  setLojasSelecionadas([]);
                 }}
                 className="input-field w-full"
               >
@@ -395,20 +687,58 @@ export function Relatorios() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">🏪 Loja</label>
-              <select
-                value={lojaSelecionada}
-                onChange={e => {
-                  setLojaSelecionada(e.target.value);
-                  setRoteiroSelecionado("");
-                }}
-                className="input-field w-full"
-              >
-                <option value="">Selecione uma loja (opcional)</option>
-                {lojas.map((loja) => (
-                  <option key={loja.id} value={loja.id}>{loja.nome}</option>
-                ))}
-              </select>
+              <label className="block text-sm font-medium text-gray-700 mb-2">🏪 Lojas (múltipla seleção)</label>
+              <div className="flex gap-2 mb-2">
+                <button
+                  type="button"
+                  onClick={selecionarTodasAsLojas}
+                  className="px-3 py-1 rounded-lg border border-gray-300 text-xs font-semibold hover:bg-gray-50"
+                >
+                  Selecionar todas
+                </button>
+                <button
+                  type="button"
+                  onClick={limparSelecaoLojas}
+                  className="px-3 py-1 rounded-lg border border-gray-300 text-xs font-semibold hover:bg-gray-50"
+                >
+                  Limpar
+                </button>
+              </div>
+              <input
+                type="text"
+                value={buscaLoja}
+                onChange={(e) => setBuscaLoja(e.target.value)}
+                placeholder="Buscar loja por nome..."
+                className="input-field w-full mb-2"
+              />
+              <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2 bg-white">
+                {lojasFiltradas.map((loja) => {
+                  const marcada = lojasSelecionadas.some((id) => String(id) === String(loja.id));
+                  return (
+                    <label
+                      key={loja.id}
+                      className="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={marcada}
+                        onChange={() => toggleLojaSelecionada(loja.id)}
+                      />
+                      <span>{loja.nome}</span>
+                    </label>
+                  );
+                })}
+                {lojasFiltradas.length === 0 && (
+                  <p className="text-sm text-gray-500 py-2 px-1">
+                    Nenhuma loja encontrada com esse nome.
+                  </p>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                {lojasSelecionadas.length > 0
+                  ? `${lojasSelecionadas.length} loja(s) selecionada(s)`
+                  : "Nenhuma loja selecionada"}
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">📅 Data Inicial *</label>
@@ -490,7 +820,7 @@ export function Relatorios() {
               <div className="card bg-linear-to-r from-yellow-50 to-orange-100 border-2 border-yellow-300">
                 <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                   <span className="text-xl sm:text-2xl">💸</span>
-                  Gastos registrados nesta loja
+                  Gastos registrados nas lojas selecionadas
                 </h3>
                 <div className="overflow-x-auto">
                   <table className="min-w-full table-auto">
@@ -532,7 +862,9 @@ export function Relatorios() {
                 <span className="text-2xl sm:text-3xl">📊</span>
                 {roteiroSelecionado && relatorio && relatorio.roteiro && relatorio.roteiro.zona
                   ? `Resumo Geral do Roteiro (${relatorio.roteiro.zona})`
-                  : 'Resumo Geral da Loja'}
+                  : lojasSelecionadas.length > 1
+                    ? 'Resumo Geral das Lojas Selecionadas'
+                    : 'Resumo Geral da Loja'}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
 
@@ -645,7 +977,7 @@ export function Relatorios() {
                         })()
                     ).toFixed(2)}
                   </div>
-                  <div className="text-sm opacity-90">Lucro Total da Loja</div>
+                  <div className="text-sm opacity-90">Lucro Total</div>
                 </div>
               </div>
             </div>
@@ -797,6 +1129,79 @@ export function Relatorios() {
                       </div>
                     </div>
 
+                    {/* Movimentações da Máquina com valor financeiro */}
+                    <div className="mb-4 sm:mb-6 bg-blue-50 p-3 sm:p-5 rounded-xl border-2 border-blue-200">
+                      <h4 className="text-base sm:text-xl font-bold mb-3 sm:mb-4 flex items-center gap-2 bg-blue-600 text-white p-2 sm:p-3 rounded-lg">
+                        <span className="text-xl sm:text-2xl">🔄</span>
+                        <span className="text-sm sm:text-base">
+                          Movimentações e Valores Financeiros
+                        </span>
+                      </h4>
+
+                      {Array.isArray(maquina.movimentacoesDetalhes) && maquina.movimentacoesDetalhes.length > 0 ? (
+                        <div className="space-y-2 sm:space-y-3">
+                          {maquina.movimentacoesDetalhes.map((mov) => {
+                            const dataMov = obterDataMovimentacao(mov);
+                            return (
+                              <div
+                                key={mov.id}
+                                className="p-3 bg-white border-2 border-blue-200 rounded-lg"
+                              >
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                  <div className="text-xs sm:text-sm text-gray-600">
+                                    {dataMov.getTime() > 0
+                                      ? `${dataMov.toLocaleDateString("pt-BR")} às ${dataMov.toLocaleTimeString("pt-BR")}`
+                                      : "Data não informada"}
+                                  </div>
+                                  <div className="text-xs sm:text-sm font-semibold text-gray-700">
+                                    {mov.numeroBagNormalizado
+                                      ? `Bag: ${mov.numeroBagNormalizado}`
+                                      : "Sem bag"}
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 mt-3 text-xs sm:text-sm">
+                                  <div>
+                                    <p className="text-gray-500">Total Pré</p>
+                                    <p className="font-semibold">{toNumber(mov.totalPre)}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-gray-500">Saíram</p>
+                                    <p className="font-semibold text-red-600">{toNumber(mov.produtosVendidos ?? mov.sairam)}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-gray-500">Abastecidas</p>
+                                    <p className="font-semibold text-green-600">{toNumber(mov.abastecidas)}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-gray-500">Notas / Digital</p>
+                                    <p className="font-semibold text-blue-700">
+                                      R$ {toNumber(mov.valorEntradaNotasNormalizado).toFixed(2)} / R$ {toNumber(mov.valorEntradaCartaoNormalizado).toFixed(2)}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-gray-500">Valor Financeiro</p>
+                                    <p className={`font-bold ${mov.financeiroPendente ? "text-amber-600" : "text-emerald-700"}`}>
+                                      {mov.financeiroPendente
+                                        ? "Pendente"
+                                        : `R$ ${toNumber(mov.valorFinanceiroTotal).toFixed(2)}`}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="text-center py-6 sm:py-8 bg-white rounded-lg">
+                          <p className="text-4xl sm:text-6xl mb-2">📭</p>
+                          <p className="text-sm sm:text-base text-gray-500 font-medium">
+                            Nenhuma movimentação encontrada no período
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Produtos da Máquina */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                       {/* Produtos que Saíram */}
@@ -924,7 +1329,7 @@ export function Relatorios() {
                 Consolidado Geral de Produtos
               </h3>
               <p className="text-sm text-gray-600 mb-6">
-                Resumo de todos os produtos (todas as máquinas somadas)
+                Resumo de todos os produtos (todas as máquinas das lojas selecionadas)
               </p>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1025,7 +1430,7 @@ export function Relatorios() {
           <div className="text-center py-12 card">
             <p className="text-6xl mb-4">📄</p>
             <p className="text-gray-600 text-lg">
-              Selecione uma loja e o período para gerar o relatório
+              Selecione uma ou mais lojas e o período para gerar o relatório
             </p>
           </div>
         )}

@@ -2196,6 +2196,17 @@ export function Dashboard() {
                           return true;
                         })
                         .map((mov) => (
+                          (() => {
+                            const valorNotas = Number(mov.valorEntradaNotas ?? mov.valor_entrada_notas ?? 0) || 0;
+                            const valorCartao = Number(mov.valorEntradaCartao ?? mov.valor_entrada_cartao ?? 0) || 0;
+                            const valorFichas = Number(mov.valorEntradaFichas ?? mov.valor_entrada_fichas ?? 0) || 0;
+                            const valorTotalFinanceiro =
+                              Number(mov.valorFaturado ?? mov.valor_faturado ?? 0) ||
+                              (valorNotas + valorCartao + valorFichas);
+                            const temBag = Boolean(String(mov.numeroBag || "").trim());
+                            const financeiroPreenchido = valorTotalFinanceiro > 0;
+
+                            return (
                           <div
                             key={mov.id}
                             className="p-4 border border-gray-200 rounded-lg bg-white"
@@ -2229,7 +2240,7 @@ export function Dashboard() {
                                 </button>
                               </div>
                             </div>
-                            <div className="grid grid-cols-5 gap-4 mt-3 text-sm">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mt-3 text-sm">
                               <div>
                                 <p className="text-gray-600">Total Pré</p>
                                 <p className="font-semibold">
@@ -2256,7 +2267,35 @@ export function Dashboard() {
                                   {(mov.totalPre || 0) + (mov.abastecidas || 0)}
                                 </p>
                               </div>
-                              {/* Removido: coluna de moedas/fichas */}
+                              <div className="sm:col-span-2 lg:col-span-2">
+                                <p className="text-gray-600 flex items-center gap-1">
+                                  <span>💰</span> Financeiro da Movimentação
+                                </p>
+                                {temBag && (
+                                  <p className="text-xs text-gray-500 mb-1">
+                                    Bag: <span className="font-semibold">{mov.numeroBag}</span>
+                                  </p>
+                                )}
+                                {financeiroPreenchido ? (
+                                  <div className="space-y-0.5">
+                                    <p className="font-semibold text-emerald-700">
+                                      Total: R$ {valorTotalFinanceiro.toFixed(2)}
+                                    </p>
+                                    <p className="text-xs text-gray-600">
+                                      Notas: R$ {valorNotas.toFixed(2)} | Digital: R$ {valorCartao.toFixed(2)}
+                                      {valorFichas > 0 ? ` | Fichas: R$ ${valorFichas.toFixed(2)}` : ""}
+                                    </p>
+                                  </div>
+                                ) : temBag ? (
+                                  <p className="text-xs font-semibold text-amber-600">
+                                    Bag levada, aguardando preenchimento no Financeiro.
+                                  </p>
+                                ) : (
+                                  <p className="text-xs text-gray-500">
+                                    Sem bag informada nesta movimentação.
+                                  </p>
+                                )}
+                              </div>
                             </div>
 
                             {/* Contadores da Máquina */}
@@ -2386,6 +2425,8 @@ export function Dashboard() {
                               </div>
                             )}
                           </div>
+                            );
+                          })()
                         ))}
                     </div>
                   ) : (
