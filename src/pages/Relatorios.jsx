@@ -727,11 +727,17 @@ export function Relatorios() {
             comissaoNoRelatorio ||
             comissaoPelasMaquinas;
 
+          const lucroLojaPeriodo = conferidoTotal - comissao;
+
           const pelucias = (resRelatorio?.produtosSairam || []).reduce((acc, produto) => {
             const nome = String(produto?.nome || "");
             const ehPelucia = /pel[uú]cia/i.test(nome);
             return ehPelucia ? acc + toNumber(produto?.quantidade) : acc;
           }, 0);
+
+          const mediaValorPorPelucia = pelucias > 0
+            ? lucroLojaPeriodo / pelucias
+            : 0;
 
           return {
             nomeLoja,
@@ -740,6 +746,8 @@ export function Relatorios() {
             comissao,
             conferidoTotal,
             pelucias,
+            lucroLojaPeriodo,
+            mediaValorPorPelucia,
           };
         })
       );
@@ -751,6 +759,10 @@ export function Relatorios() {
       const totalComissao = linhasOrdenadas.reduce((acc, l) => acc + l.comissao, 0);
       const totalConferido = linhasOrdenadas.reduce((acc, l) => acc + l.conferidoTotal, 0);
       const totalPelucias = linhasOrdenadas.reduce((acc, l) => acc + l.pelucias, 0);
+      const totalLucroLojas = linhasOrdenadas.reduce((acc, l) => acc + l.lucroLojaPeriodo, 0);
+      const mediaGeralValorPorPelucia = totalPelucias > 0
+        ? totalLucroLojas / totalPelucias
+        : 0;
 
       const formatarMoeda = (valor) => `R$ ${toNumber(valor).toFixed(2).replace(".", ",")}`;
 
@@ -764,6 +776,7 @@ export function Relatorios() {
               <td class="num">${formatarMoeda(linha.comissao)}</td>
               <td class="num">${formatarMoeda(linha.conferidoTotal)}</td>
               <td class="num">${Math.round(linha.pelucias)}</td>
+              <td class="num">${formatarMoeda(linha.mediaValorPorPelucia)}</td>
             </tr>
           `
         )
@@ -804,6 +817,7 @@ export function Relatorios() {
                 <th>Comissão</th>
                 <th>Conferido Total</th>
                 <th>Pelúcias (Qtd Saída)</th>
+                <th>Média Valor/Pelúcia</th>
               </tr>
             </thead>
             <tbody>
@@ -817,6 +831,7 @@ export function Relatorios() {
                 <td class="num">${formatarMoeda(totalComissao)}</td>
                 <td class="num">${formatarMoeda(totalConferido)}</td>
                 <td class="num">${Math.round(totalPelucias)}</td>
+                <td class="num">${formatarMoeda(mediaGeralValorPorPelucia)}</td>
               </tr>
             </tfoot>
           </table>
