@@ -55,7 +55,7 @@ export function Login() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6" autoComplete="on">
           {error && (
             <div className="alert-error animate-pulse">
               <div className="flex items-center gap-2">
@@ -97,6 +97,7 @@ export function Login() {
               onChange={(e) => setEmail(e.target.value)}
               className="input-field"
               placeholder="seu@email.com"
+              autoComplete="username"
               required
             />
           </div>
@@ -126,6 +127,7 @@ export function Login() {
               onChange={(e) => setSenha(e.target.value)}
               className="input-field"
               placeholder="••••••••"
+              autoComplete="current-password"
               required
             />
           </div>

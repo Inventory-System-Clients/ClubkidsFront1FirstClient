@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import api from "../services/api";
@@ -43,8 +43,6 @@ export function Maquinas() {
         api.get(urlMaquinas),
         api.get("/lojas"),
       ]);
-      console.log("Máquinas recebidas:", maquinasRes.data);
-      console.log("Lojas recebidas:", lojasRes.data);
       setMaquinas(maquinasRes.data);
       setLojas(lojasRes.data);
     } catch (error) {
@@ -97,6 +95,14 @@ export function Maquinas() {
     return lojaOk && buscaOk;
   });
 
+  const lojasMap = useMemo(() => {
+    const map = new Map();
+    for (const loja of lojas) {
+      map.set(loja.id, loja.nome);
+    }
+    return map;
+  }, [lojas]);
+
   const stats = [
     {
       label: "Total de Máquinas",
@@ -147,9 +153,7 @@ export function Maquinas() {
       key: "loja",
       label: "Loja",
       render: (maquina) => {
-        console.log("Buscando loja para máquina:", maquina.lojaId, "em", lojas);
-        const loja = lojas.find((l) => l.id === maquina.lojaId);
-        return loja ? loja.nome : `N/A (ID: ${maquina.lojaId})`;
+        return lojasMap.get(maquina.lojaId) || `N/A (ID: ${maquina.lojaId})`;
       },
     },
     {

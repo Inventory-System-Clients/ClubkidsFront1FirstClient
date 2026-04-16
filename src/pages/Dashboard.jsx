@@ -16,8 +16,15 @@ import Swal from "sweetalert2";
 export function Dashboard() {
     // Estado para manutenções urgentes atribuídas ao funcionário
     const [manutencoesUrgentes, setManutencoesUrgentes] = useState([]);
-  const [mostrarTodosAlertasMaquinas, setMostrarTodosAlertasMaquinas] =
+  const [mostrarBuscaLojasMaquinas, setMostrarBuscaLojasMaquinas] =
     useState(false);
+  const [loadingBuscaLojasMaquinas, setLoadingBuscaLojasMaquinas] =
+    useState(false);
+  const [limiteLojasVisiveis, setLimiteLojasVisiveis] = useState(20);
+  const [mostrarAlertasMaquinas, setMostrarAlertasMaquinas] = useState(false);
+  const [limiteAlertasMaquinas, setLimiteAlertasMaquinas] = useState(20);
+  const [mostrarPerformanceLojas, setMostrarPerformanceLojas] = useState(false);
+  const [limitePerformanceLojas, setLimitePerformanceLojas] = useState(20);
   // Estado para carrinho de produtos
   const [carrinhoSelecionado, setCarrinhoSelecionado] = useState(null);
   const [mostrarModalDevolucao, setMostrarModalDevolucao] = useState(false);
@@ -305,12 +312,12 @@ export function Dashboard() {
 
   // Função para remover produto do estoque da loja (usando o id do registro)
 
-  const carregarDados = useCallback(async () => {
-    try {
-      const isAdmin = usuario?.role === "ADMIN";
+  const carregarLojasEMaquinas = useCallback(async () => {
+    if (lojas.length > 0 && maquinas.length > 0) return;
 
-      // Buscar lojas e máquinas (acessível para todos)
-      const requisicoes = [
+    try {
+      setLoadingBuscaLojasMaquinas(true);
+      const [lojasRes, maquinasRes] = await Promise.all([
         api.get("/lojas").catch((err) => {
           console.error("Erro ao carregar lojas:", err.message);
           return { data: [] };
@@ -319,6 +326,32 @@ export function Dashboard() {
           console.error("Erro ao carregar máquinas:", err.message);
           return { data: [] };
         }),
+      ]);
+
+      setLojas(lojasRes.data || []);
+      setMaquinas(maquinasRes.data || []);
+
+      // Carregar alertas de estoque de lojas quando as lojas forem carregadas
+      if (lojasRes.data && lojasRes.data.length > 0 && alertasEstoqueLoja.length === 0) {
+        carregarAlertasEstoqueLoja(lojasRes.data);
+      }
+    } finally {
+      setLoadingBuscaLojasMaquinas(false);
+    }
+  }, [lojas.length, maquinas.length, alertasEstoqueLoja.length]);
+
+  const abrirBuscaLojasMaquinas = async () => {
+    setMostrarBuscaLojasMaquinas(true);
+    setLimiteLojasVisiveis(20);
+    await carregarLojasEMaquinas();
+  };
+
+  const carregarDados = useCallback(async () => {
+    try {
+      const isAdmin = usuario?.role === "ADMIN";
+
+      // Buscar dados mínimos para render inicial do dashboard
+      const requisicoes = [
         api.get("/produtos").catch((err) => {
           console.error("Erro ao carregar produtos:", err.message);
           return { data: [] };
@@ -358,29 +391,15 @@ export function Dashboard() {
 
       const resultados = await Promise.all(requisicoes);
 
-      let alertasRes, balancoRes, lojasRes, maquinasRes, produtosRes, roteirosRes;
+      let alertasRes, balancoRes, produtosRes, roteirosRes;
 
       if (isAdmin) {
-        [alertasRes, balancoRes, lojasRes, maquinasRes, produtosRes, roteirosRes] =
-          resultados;
+        [alertasRes, balancoRes, produtosRes, roteirosRes] = resultados;
       } else {
-        [lojasRes, maquinasRes, produtosRes] = resultados;
+        [produtosRes] = resultados;
         alertasRes = { data: { alertas: [] } };
         balancoRes = { data: null };
         roteirosRes = { data: [] };
-      }
-
-      console.log("Lojas carregadas:", lojasRes.data);
-      console.log("Máquinas carregadas:", maquinasRes.data);
-      console.log("Produtos carregados:", produtosRes.data);
-      if (isAdmin) {
-        console.log("Balanço semanal:", balancoRes.data);
-        console.log("Estrutura completa de totais:", balancoRes.data?.totais);
-        // Removido: console.log de moedas
-        console.log(
-          "Total de Faturamento:",
-          balancoRes.data?.totais?.totalFaturamento
-        );
       }
 
       setStats({
@@ -388,20 +407,11 @@ export function Dashboard() {
         balanco: balancoRes.data,
         loading: false,
       });
-      setLojas(lojasRes.data || []);
-      setMaquinas(maquinasRes.data || []);
       setProdutos(produtosRes.data || []);
       setRoteirosHoje(roteirosRes.data || []);
-
-      // Carregar alertas de estoque de lojas (para todos os usuários)
-      if (lojasRes.data && lojasRes.data.length > 0) {
-        carregarAlertasEstoqueLoja(lojasRes.data);
-      }
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
       setStats({ alertas: [], balanco: null, loading: false });
-      setLojas([]);
-      setMaquinas([]);
     }
   }, [usuario]);
 
@@ -1580,6 +1590,12 @@ export function Dashboard() {
       loja.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
       loja.endereco?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  const lojasFiltradasVisiveis = lojasFiltradas.slice(0, limiteLojasVisiveis);
+  const alertasMaquinasVisiveis = stats.alertas.slice(0, limiteAlertasMaquinas);
+  const distribuicaoLojasVisiveis = (stats.balanco?.distribuicaoLojas || []).slice(
+    0,
+    limitePerformanceLojas
+  );
 
   // Máquinas da loja selecionada
   const maquinasDaLoja = lojaSelecionada
@@ -1589,9 +1605,6 @@ export function Dashboard() {
   if (stats.loading) {
     return <PageLoader />;
   }
-
-  console.log("Estado stats no render:", stats);
-  // Removido: moedas no render
 
   return (
 
@@ -1825,6 +1838,18 @@ export function Dashboard() {
             Buscar Lojas e Máquinas
           </h2>
 
+          {!mostrarBuscaLojasMaquinas && !lojaSelecionada && !maquinaSelecionada && (
+            <button
+              onClick={abrirBuscaLojasMaquinas}
+              className="btn-primary w-full sm:w-auto"
+              disabled={loadingBuscaLojasMaquinas}
+            >
+              {loadingBuscaLojasMaquinas
+                ? "Carregando lojas e máquinas..."
+                : "Abrir e ver lojas e máquinas"}
+            </button>
+          )}
+
           {/* Breadcrumb de Navegação */}
           {(lojaSelecionada || maquinaSelecionada) && (
             <div className="mb-6 flex items-center gap-2 text-sm">
@@ -1854,7 +1879,7 @@ export function Dashboard() {
           )}
 
           {/* Barra de Pesquisa - Visível apenas quando não há seleção */}
-          {!lojaSelecionada && !maquinaSelecionada && (
+          {mostrarBuscaLojasMaquinas && !lojaSelecionada && !maquinaSelecionada && (
             <div className="relative mb-6">
               <input
                 type="text"
@@ -1880,10 +1905,15 @@ export function Dashboard() {
           )}
 
           {/* Lista de Lojas Filtradas */}
-          {!lojaSelecionada && !maquinaSelecionada && (
+          {mostrarBuscaLojasMaquinas && !lojaSelecionada && !maquinaSelecionada && (
             <div className="space-y-3">
-              {lojasFiltradas.length > 0 ? (
-                lojasFiltradas.map((loja) => {
+              {loadingBuscaLojasMaquinas ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto"></div>
+                  <p className="text-gray-600 mt-3">Carregando lojas e máquinas...</p>
+                </div>
+              ) : lojasFiltradas.length > 0 ? (
+                lojasFiltradasVisiveis.map((loja) => {
                   const qtdMaquinas = maquinas.filter(
                     (m) => m.lojaId === loja.id
                   ).length;
@@ -1952,6 +1982,19 @@ export function Dashboard() {
                       : "Digite para buscar lojas"}
                   </p>
                 </div>
+              )}
+
+              {lojasFiltradas.length > limiteLojasVisiveis && (
+                <button
+                  onClick={() =>
+                    setLimiteLojasVisiveis((prev) =>
+                      Math.min(prev + 20, lojasFiltradas.length)
+                    )
+                  }
+                  className="w-full bg-linear-to-r from-primary/10 to-accent-yellow/10 hover:from-primary/20 hover:to-accent-yellow/20 text-primary font-bold py-3 rounded-xl transition-all duration-200"
+                >
+                  Carregar mais ({Math.min(20, lojasFiltradas.length - limiteLojasVisiveis)} de {lojasFiltradas.length - limiteLojasVisiveis} restantes)
+                </button>
               )}
             </div>
           )}
@@ -2456,70 +2499,19 @@ export function Dashboard() {
                 {stats.alertas.length === 1 ? "alerta" : "alertas"}
               </span>
             </div>
-            <div className="space-y-3">
-              {stats.alertas.slice(0, 5).map((alerta, index) => (
-                <div
-                  key={index}
-                  className={`p-5 rounded-xl border-l-4 transition-all duration-200 hover:scale-[1.02] ${
-                    alerta.nivelAlerta === "CRÍTICO"
-                      ? "bg-linear-to-r from-red-50 to-red-100/50 border-red-500 shadow-red-100 shadow-md"
-                      : alerta.nivelAlerta === "ALTO"
-                      ? "bg-linear-to-r from-orange-50 to-orange-100/50 border-orange-500 shadow-orange-100 shadow-md"
-                      : "bg-linear-to-r from-yellow-50 to-yellow-100/50 border-yellow-500 shadow-yellow-100 shadow-md"
-                  }`}
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-bold text-lg text-gray-900">
-                          {alerta.maquina.codigo}
-                        </span>
-                        <span className="text-gray-600">-</span>
-                        <span className="text-gray-800 font-medium">
-                          {alerta.maquina.nome}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600 flex items-center gap-1">
-                        <svg
-                          className="w-4 h-4"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                        {alerta.maquina.loja}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-bold text-gray-900">
-                          {alerta.percentualAtual}
-                        </span>
-                        <span className="text-lg text-gray-600">%</span>
-                      </div>
-                      <p className="text-xs text-gray-600 mt-1 bg-white/60 px-2 py-1 rounded-full">
-                        {alerta.estoqueAtual}/{alerta.capacidadePadrao} unidades
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            {stats.alertas.length > 5 && !mostrarTodosAlertasMaquinas && (
+            {!mostrarAlertasMaquinas ? (
               <button
                 className="block mt-6 w-full text-center bg-linear-to-r from-primary/10 to-accent-yellow/10 hover:from-primary/20 hover:to-accent-yellow/20 text-primary font-bold py-3 rounded-xl transition-all duration-200"
-                onClick={() => setMostrarTodosAlertasMaquinas(true)}
+                onClick={() => {
+                  setMostrarAlertasMaquinas(true);
+                  setLimiteAlertasMaquinas(20);
+                }}
               >
-                Ver todos os alertas ({stats.alertas.length})
+                Abrir e ver alertas de estoque em máquinas
               </button>
-            )}
-            {mostrarTodosAlertasMaquinas && (
+            ) : (
               <div className="mt-6 space-y-3">
-                {stats.alertas.slice(5).map((alerta, index) => (
+                {alertasMaquinasVisiveis.map((alerta, index) => (
                   <div
                     key={index}
                     className={`p-5 rounded-xl border-l-4 transition-all duration-200 hover:scale-[1.02] ${
@@ -2571,11 +2563,23 @@ export function Dashboard() {
                     </div>
                   </div>
                 ))}
+                {stats.alertas.length > limiteAlertasMaquinas && (
+                  <button
+                    className="w-full text-center bg-linear-to-r from-primary/10 to-accent-yellow/10 hover:from-primary/20 hover:to-accent-yellow/20 text-primary font-bold py-3 rounded-xl transition-all duration-200"
+                    onClick={() =>
+                      setLimiteAlertasMaquinas((prev) =>
+                        Math.min(prev + 20, stats.alertas.length)
+                      )
+                    }
+                  >
+                    Carregar mais ({Math.min(20, stats.alertas.length - limiteAlertasMaquinas)} de {stats.alertas.length - limiteAlertasMaquinas} restantes)
+                  </button>
+                )}
                 <button
                   className="mt-4 w-full text-center bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 rounded-xl transition-all duration-200"
-                  onClick={() => setMostrarTodosAlertasMaquinas(false)}
+                  onClick={() => setMostrarAlertasMaquinas(false)}
                 >
-                  Fechar lista de alertas
+                  Fechar alertas
                 </button>
               </div>
             )}
@@ -2705,113 +2709,145 @@ export function Dashboard() {
                   : "lojas"}
               </span>
             </div>
-            <div className="overflow-x-auto rounded-xl border border-gray-200">
-              <table className="table-modern">
-                <thead>
-                  <tr>
-                    <th>
-                      <div className="flex items-center gap-2">
-                        <svg
-                          className="w-4 h-4 text-primary"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                        Loja
-                      </div>
-                    </th>
-                    {/* Removido: coluna Moedas do resumo por loja */}
-                    <th>
-                      <div className="flex items-center gap-2">
-                        <svg
-                          className="w-4 h-4 text-green-600"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
-                        </svg>
-                        Prêmios
-                      </div>
-                    </th>
-                    <th>
-                      <div className="flex items-center gap-2">
-                        <svg
-                          className="w-4 h-4 text-accent-yellow"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
-                          <path
-                            fillRule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                        Faturamento
-                      </div>
-                    </th>
-                    <th>
-                      <div className="flex items-center gap-2">
-                        <svg
-                          className="w-4 h-4 text-purple-600"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
-                        </svg>
-                        Média F/P
-                      </div>
-                    </th>
-                    <th>
-                      <div className="flex items-center gap-2">
-                        <svg
-                          className="w-4 h-4 text-pink-600"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
-                        </svg>
-                        Produtos Vendidos
-                      </div>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.balanco.distribuicaoLojas.map((loja, index) => (
-                    <tr key={index}>
-                      <td className="font-bold text-gray-900">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-linear-to-r from-primary to-accent-yellow"></div>
-                          {loja.nome}
-                        </div>
-                      </td>
-                      {/* Removido: valor de fichas/moedas por loja */}
-                      <td>
-                        <span className="badge bg-green-50 text-green-700 border-green-200">
-                          {loja.produtosVendidos ?? loja.sairam ?? 0}
-                        </span>
-                      </td>
-                      <td>
-                        <span className="font-bold text-green-600 text-lg">
-                          R$ {loja.faturamento.toFixed(2)}
-                        </span>
-                      </td>
-                      {/* Removido: média fichas/prêmio */}
-                      <td>
-                        <span className="badge bg-pink-50 text-pink-700 border-pink-200">
-                          {loja.produtosVendidos ?? loja.sairam ?? 0} unidades
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            {!mostrarPerformanceLojas ? (
+              <button
+                className="block mt-6 w-full text-center bg-linear-to-r from-primary/10 to-accent-yellow/10 hover:from-primary/20 hover:to-accent-yellow/20 text-primary font-bold py-3 rounded-xl transition-all duration-200"
+                onClick={() => {
+                  setMostrarPerformanceLojas(true);
+                  setLimitePerformanceLojas(20);
+                }}
+              >
+                Abrir e ver performance por loja
+              </button>
+            ) : (
+              <>
+                <div className="overflow-x-auto rounded-xl border border-gray-200">
+                  <table className="table-modern">
+                    <thead>
+                      <tr>
+                        <th>
+                          <div className="flex items-center gap-2">
+                            <svg
+                              className="w-4 h-4 text-primary"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            Loja
+                          </div>
+                        </th>
+                        {/* Removido: coluna Moedas do resumo por loja */}
+                        <th>
+                          <div className="flex items-center gap-2">
+                            <svg
+                              className="w-4 h-4 text-green-600"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
+                            </svg>
+                            Prêmios
+                          </div>
+                        </th>
+                        <th>
+                          <div className="flex items-center gap-2">
+                            <svg
+                              className="w-4 h-4 text-accent-yellow"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
+                              <path
+                                fillRule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            Faturamento
+                          </div>
+                        </th>
+                        <th>
+                          <div className="flex items-center gap-2">
+                            <svg
+                              className="w-4 h-4 text-purple-600"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                            </svg>
+                            Média F/P
+                          </div>
+                        </th>
+                        <th>
+                          <div className="flex items-center gap-2">
+                            <svg
+                              className="w-4 h-4 text-pink-600"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
+                            </svg>
+                            Produtos Vendidos
+                          </div>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {distribuicaoLojasVisiveis.map((loja, index) => (
+                        <tr key={index}>
+                          <td className="font-bold text-gray-900">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-linear-to-r from-primary to-accent-yellow"></div>
+                              {loja.nome}
+                            </div>
+                          </td>
+                          {/* Removido: valor de fichas/moedas por loja */}
+                          <td>
+                            <span className="badge bg-green-50 text-green-700 border-green-200">
+                              {loja.produtosVendidos ?? loja.sairam ?? 0}
+                            </span>
+                          </td>
+                          <td>
+                            <span className="font-bold text-green-600 text-lg">
+                              R$ {loja.faturamento.toFixed(2)}
+                            </span>
+                          </td>
+                          {/* Removido: média fichas/prêmio */}
+                          <td>
+                            <span className="badge bg-pink-50 text-pink-700 border-pink-200">
+                              {loja.produtosVendidos ?? loja.sairam ?? 0} unidades
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {stats.balanco.distribuicaoLojas.length > limitePerformanceLojas && (
+                  <button
+                    className="mt-4 w-full text-center bg-linear-to-r from-primary/10 to-accent-yellow/10 hover:from-primary/20 hover:to-accent-yellow/20 text-primary font-bold py-3 rounded-xl transition-all duration-200"
+                    onClick={() =>
+                      setLimitePerformanceLojas((prev) =>
+                        Math.min(prev + 20, stats.balanco.distribuicaoLojas.length)
+                      )
+                    }
+                  >
+                    Carregar mais ({Math.min(20, stats.balanco.distribuicaoLojas.length - limitePerformanceLojas)} de {stats.balanco.distribuicaoLojas.length - limitePerformanceLojas} restantes)
+                  </button>
+                )}
+                <button
+                  className="mt-3 w-full text-center bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 rounded-xl transition-all duration-200"
+                  onClick={() => setMostrarPerformanceLojas(false)}
+                >
+                  Fechar performance
+                </button>
+              </>
+            )}
           </div>
         )}
 
