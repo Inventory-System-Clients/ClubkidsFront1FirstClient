@@ -9,6 +9,19 @@ export default function ControleVeiculos({
   onRefresh,
   loading,
 }) {
+  const getUsuarioIdDaMovimentacao = (mov) =>
+    mov?.usuarioId ?? mov?.usuario?.id ?? mov?.usuario_id ?? null;
+
+  const podeFinalizarVeiculo = (veiculo) => {
+    if (!veiculo?.emUso || !usuario?.id) return false;
+
+    const ultimaMov = ultimasMovs[veiculo.id];
+    return (
+      ultimaMov?.tipo === "retirada" &&
+      String(getUsuarioIdDaMovimentacao(ultimaMov)) === String(usuario.id)
+    );
+  };
+
   // Estados para edição de nome/modelo (admin)
   const [editandoId, setEditandoId] = useState(null);
   const [editNome, setEditNome] = useState("");
@@ -56,6 +69,15 @@ export default function ControleVeiculos({
   };
 
   const abrirModalFinalizar = (veiculo) => {
+    if (!podeFinalizarVeiculo(veiculo)) {
+      Swal.fire(
+        "Em uso",
+        "Somente quem iniciou a pilotagem pode finalizar este veículo.",
+        "info"
+      );
+      return;
+    }
+
     setVeiculoSelecionado(veiculo);
     setFormFinalCompleto({
       estado: veiculo.estado,
@@ -189,6 +211,16 @@ export default function ControleVeiculos({
   const finalizarVeiculo = async () => {
     setErroFinalCompleto("");
     if (!veiculoSelecionado || finalizando) return;
+    if (!podeFinalizarVeiculo(veiculoSelecionado)) {
+      Swal.fire(
+        "Em uso",
+        "Somente quem iniciou a pilotagem pode finalizar este veículo.",
+        "info"
+      );
+      fecharModalFinalizar();
+      return;
+    }
+
     const kmInformado = Number(formFinalCompleto.km);
     const ultimaMov = ultimasMovs[veiculoSelecionado.id];
     const kmUltimaMov = ultimaMov ? Number(ultimaMov.km) : 0;
@@ -508,13 +540,15 @@ export default function ControleVeiculos({
             ) : (
               <>
                 <div className="absolute top-2 right-2 bg-black text-white text-xs px-2 py-1 rounded">Em uso</div>
-                <button
-                  className="mt-2 px-4 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                  onClick={() => {
-                    setModalFinalizarAberto(false); // Garante que o modal de finalizar não fique aberto
-                    abrirModalFinalizar(veiculo);
-                  }}
-                >Finalizar</button>
+                {podeFinalizarVeiculo(veiculo) && (
+                  <button
+                    className="mt-2 px-4 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                    onClick={() => {
+                      setModalFinalizarAberto(false); // Garante que o modal de finalizar não fique aberto
+                      abrirModalFinalizar(veiculo);
+                    }}
+                  >Finalizar</button>
+                )}
               </>
             )}
           </div>
