@@ -33,6 +33,11 @@ function normalizarLocalizacaoRoteiro(item) {
     accuracy: origem.accuracy ?? origem.precisao,
     capturedAt: origem.capturedAt ?? origem.captured_at ?? origem.dataCaptura,
     updatedAt: origem.updatedAt ?? origem.updated_at ?? origem.capturedAt ?? origem.captured_at,
+    ativa: Boolean(origem.ativa),
+    encerradaEm: origem.encerradaEm ?? origem.encerrada_em ?? null,
+    recente: Boolean(origem.recente),
+    minutosSemAtualizar:
+      origem.minutosSemAtualizar !== undefined ? Number(origem.minutosSemAtualizar) : null,
   };
 }
 
@@ -62,6 +67,17 @@ function formatarHorarioLocalizacao(localizacao) {
   });
 }
 
+function obterStatusLocalizacao(localizacao) {
+  if (!localizacao) return "";
+  if (localizacao.recente) return "Ao vivo";
+  if (localizacao.ativa) {
+    return localizacao.minutosSemAtualizar !== null
+      ? `Ultima localizacao conhecida ha ${localizacao.minutosSemAtualizar} min`
+      : "Ultima localizacao conhecida";
+  }
+  return "Compartilhamento encerrado";
+}
+
 function RoteiroMapaLocalizacao({ localizacao, grande = false, onClick }) {
   if (!localizacao) {
     return (
@@ -86,7 +102,20 @@ function RoteiroMapaLocalizacao({ localizacao, grande = false, onClick }) {
         loading="lazy"
       />
       <div className="p-2 text-xs text-gray-700">
-        <p className="font-semibold">{localizacao.usuarioNome}</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-semibold">{localizacao.usuarioNome}</p>
+          <span
+            className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+              localizacao.recente
+                ? "bg-green-100 text-green-700"
+                : localizacao.ativa
+                  ? "bg-yellow-100 text-yellow-700"
+                  : "bg-gray-100 text-gray-600"
+            }`}
+          >
+            {obterStatusLocalizacao(localizacao)}
+          </span>
+        </div>
         <p>
           Atualizado: {formatarHorarioLocalizacao(localizacao)}
           {localizacao.accuracy ? ` | Precisao aprox.: ${Math.round(localizacao.accuracy)}m` : ""}
@@ -94,6 +123,18 @@ function RoteiroMapaLocalizacao({ localizacao, grande = false, onClick }) {
       </div>
     </button>
   );
+}
+
+function calcularProgressoMaquinasRoteiro(roteiro) {
+  const total = Number(roteiro?.totalMaquinas || 0);
+  const atendidas = Number(roteiro?.maquinasConcluidas || 0);
+  const porcentagem = total > 0 ? Math.min(Math.max((atendidas / total) * 100, 0), 100) : 0;
+
+  return {
+    total,
+    atendidas,
+    porcentagem,
+  };
 }
 
 export function SelecionarRoteiro() {
@@ -537,7 +578,9 @@ export function SelecionarRoteiro() {
 
     return (
       <div className="mb-3">
-        <p className="text-xs font-bold text-gray-700">LOCALIZACAO AO VIVO</p>
+        <p className="text-xs font-bold text-gray-700">
+          {localizacao?.recente ? "LOCALIZACAO AO VIVO" : "ULTIMA LOCALIZACAO CONHECIDA"}
+        </p>
         <RoteiroMapaLocalizacao
           localizacao={localizacao}
           onClick={
@@ -666,7 +709,10 @@ export function SelecionarRoteiro() {
               🔄 Roteiros Disponíveis
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {roteirosPendentes.map((roteiro) => (
+              {roteirosPendentes.map((roteiro) => {
+                const progressoMaquinas = calcularProgressoMaquinasRoteiro(roteiro);
+
+                return (
                 <div
                   key={roteiro.id + '-' + (roteiro.zona || '')}
                   className={`transition-all duration-300 ${
@@ -868,7 +914,7 @@ export function SelecionarRoteiro() {
                       <span className="text-2xl mr-3">🎰</span>
                       <div>
                         <div className="font-semibold">
-                          {roteiro.totalMaquinas || 0} Máquinas
+                          {progressoMaquinas.total} Máquinas
                         </div>
                       </div>
                     </div>
@@ -888,19 +934,15 @@ export function SelecionarRoteiro() {
                       <div className="mt-4 bg-yellow-100 border-l-4 border-yellow-500 p-3 rounded">
                         <div className="flex items-center">
                           <span className="text-yellow-700 font-semibold">
-                            Progresso: {roteiro.maquinasConcluidas || 0}/
-                            {roteiro.totalMaquinas || 0}
+                            Progresso: {progressoMaquinas.atendidas}/
+                            {progressoMaquinas.total}
                           </span>
                         </div>
                         <div className="w-full bg-yellow-200 rounded-full h-2 mt-2">
                           <div
                             className="bg-yellow-600 h-2 rounded-full transition-all duration-300"
                             style={{
-                              width: `${
-                                ((roteiro.maquinasConcluidas || 0) /
-                                  (roteiro.totalMaquinas || 1)) *
-                                100
-                              }%`,
+                              width: `${progressoMaquinas.porcentagem}%`,
                             }}
                           ></div>
                         </div>
@@ -948,7 +990,8 @@ export function SelecionarRoteiro() {
                     </button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ) : (

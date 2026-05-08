@@ -33,6 +33,11 @@ function normalizarLocalizacaoRoteiro(item) {
     accuracy: origem.accuracy ?? origem.precisao,
     capturedAt: origem.capturedAt ?? origem.captured_at ?? origem.dataCaptura,
     updatedAt: origem.updatedAt ?? origem.updated_at ?? origem.capturedAt ?? origem.captured_at,
+    ativa: Boolean(origem.ativa),
+    encerradaEm: origem.encerradaEm ?? origem.encerrada_em ?? null,
+    recente: Boolean(origem.recente),
+    minutosSemAtualizar:
+      origem.minutosSemAtualizar !== undefined ? Number(origem.minutosSemAtualizar) : null,
   };
 }
 
@@ -67,6 +72,17 @@ function formatarHorarioLocalizacao(localizacao) {
   });
 }
 
+function obterStatusLocalizacao(localizacao) {
+  if (!localizacao) return "";
+  if (localizacao.recente) return "Ao vivo";
+  if (localizacao.ativa) {
+    return localizacao.minutosSemAtualizar !== null
+      ? `Ultima localizacao conhecida ha ${localizacao.minutosSemAtualizar} min`
+      : "Ultima localizacao conhecida";
+  }
+  return "Compartilhamento encerrado";
+}
+
 function RoteiroMapaLocalizacao({ localizacao, grande = false, onClick }) {
   if (!localizacao) {
     return (
@@ -93,7 +109,20 @@ function RoteiroMapaLocalizacao({ localizacao, grande = false, onClick }) {
         loading="lazy"
       />
       <div className="p-2 text-xs text-gray-700">
-        <p className="font-semibold">{localizacao.usuarioNome}</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-semibold">{localizacao.usuarioNome}</p>
+          <span
+            className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+              localizacao.recente
+                ? "bg-green-100 text-green-700"
+                : localizacao.ativa
+                  ? "bg-yellow-100 text-yellow-700"
+                  : "bg-gray-100 text-gray-600"
+            }`}
+          >
+            {obterStatusLocalizacao(localizacao)}
+          </span>
+        </div>
         <p>
           Atualizado: {formatarHorarioLocalizacao(localizacao)}
           {localizacao.accuracy ? ` | Precisao aprox.: ${Math.round(localizacao.accuracy)}m` : ""}
@@ -369,7 +398,9 @@ export function Roteiros() {
 
     return (
       <div className="mt-3 pt-3 border-t border-gray-200">
-        <p className="text-xs font-bold text-gray-700">LOCALIZACAO AO VIVO</p>
+        <p className="text-xs font-bold text-gray-700">
+          {localizacao?.recente ? "LOCALIZACAO AO VIVO" : "ULTIMA LOCALIZACAO CONHECIDA"}
+        </p>
         <RoteiroMapaLocalizacao
           localizacao={localizacao}
           onClick={localizacao ? () => setMapaExpandido({ roteiro, localizacao }) : undefined}

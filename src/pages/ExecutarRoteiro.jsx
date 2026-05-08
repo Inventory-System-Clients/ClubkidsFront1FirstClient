@@ -65,6 +65,8 @@ export function ExecutarRoteiro() {
     compartilhando: false,
     status: "idle",
     mensagem: "",
+    deveCompartilhar: false,
+    ultimaLocalizacao: null,
   });
   
   // Controle de gastos
@@ -87,6 +89,7 @@ export function ExecutarRoteiro() {
 
   useEffect(() => {
     sincronizarEstadoLocalizacaoRota();
+    carregarStatusLocalizacaoRota();
 
     const handleStatusLocalizacao = (event) => {
       const detail = event.detail || {};
@@ -94,6 +97,7 @@ export function ExecutarRoteiro() {
 
       setLocalizacaoRota((prev) => ({
         ...prev,
+        compartilhando: detail.status === "idle" ? false : prev.compartilhando,
         status: detail.status || prev.status,
         mensagem: detail.mensagem || "",
       }));
@@ -181,22 +185,32 @@ export function ExecutarRoteiro() {
     const compartilhando = String(ativa?.roteiroId || "") === String(id);
 
     setLocalizacaoRota((prev) => ({
+      ...prev,
       compartilhando,
       status: compartilhando ? prev.status || "sharing" : "idle",
       mensagem: compartilhando ? prev.mensagem : "",
     }));
   };
 
-  const iniciarCompartilhamentoLocalizacao = () => {
-    setError("");
+  const ativarCompartilhamentoLocal = (mensagem = "Solicitando permissao de localizacao...") => {
+    if (!usuario?.id || !localStorage.getItem("token")) {
+      setLocalizacaoRota((prev) => ({
+        ...prev,
+        compartilhando: false,
+        status: "error",
+        mensagem: "Entre novamente para compartilhar sua localizacao.",
+      }));
+      return false;
+    }
 
     if (!navigator.geolocation) {
-      setLocalizacaoRota({
+      setLocalizacaoRota((prev) => ({
+        ...prev,
         compartilhando: false,
         status: "error",
         mensagem: "Este navegador nao oferece suporte a geolocalizacao.",
-      });
-      return;
+      }));
+      return false;
     }
 
     const payload = {
@@ -208,15 +222,53 @@ export function ExecutarRoteiro() {
     };
 
     localStorage.setItem(ROTEIRO_LOCATION_STORAGE_KEY, JSON.stringify(payload));
-    setLocalizacaoRota({
+    setLocalizacaoRota((prev) => ({
+      ...prev,
       compartilhando: true,
       status: "requesting",
-      mensagem: "Solicitando permissao de localizacao...",
-    });
+      mensagem,
+    }));
     window.dispatchEvent(new CustomEvent(ROTEIRO_LOCATION_CHANGED_EVENT, { detail: payload }));
+    return true;
   };
 
-  const pararCompartilhamentoLocalizacao = async () => {
+  const carregarStatusLocalizacaoRota = async () => {
+    if (!id || !localStorage.getItem("token")) return;
+
+    try {
+      const response = await api.get(`/roteiros/${id}/localizacao/status`);
+      const status = response.data || {};
+
+      setLocalizacaoRota((prev) => ({
+        ...prev,
+        compartilhando: Boolean(status.deveCompartilhar),
+        status: status.deveCompartilhar ? "requesting" : "idle",
+        mensagem: status.deveCompartilhar
+          ? "Compartilhamento ativo. Retomando atualizacao da localizacao..."
+          : "",
+        deveCompartilhar: Boolean(status.deveCompartilhar),
+        ultimaLocalizacao: status.ultimaLocalizacao || null,
+      }));
+
+      if (status.deveCompartilhar) {
+        ativarCompartilhamentoLocal("Compartilhamento ativo. Retomando atualizacao da localizacao...");
+      } else {
+        const ativa = lerLocalizacaoRotaAtiva();
+        if (String(ativa?.roteiroId || "") === String(id)) {
+          encerrarCompartilhamentoLocal("Compartilhamento de localizacao desativado.");
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao consultar status de localizacao:", error);
+    }
+  };
+
+  const iniciarCompartilhamentoLocalizacao = () => {
+    setError("");
+    ativarCompartilhamentoLocal();
+  };
+
+  const encerrarCompartilhamentoLocal = (mensagem = "Compartilhamento de localizacao encerrado.") => {
     const ativa = lerLocalizacaoRotaAtiva();
     const devePararRotaAtual = String(ativa?.roteiroId || "") === String(id);
 
@@ -225,26 +277,34 @@ export function ExecutarRoteiro() {
       window.dispatchEvent(new CustomEvent(ROTEIRO_LOCATION_CHANGED_EVENT, { detail: null }));
     }
 
-    setLocalizacaoRota({
+    setLocalizacaoRota((prev) => ({
+      ...prev,
       compartilhando: false,
       status: "idle",
-      mensagem: "Compartilhamento de localizacao encerrado.",
-    });
+      mensagem,
+      deveCompartilhar: false,
+    }));
 
+    return devePararRotaAtual;
+  };
+
+  const pararCompartilhamentoLocalizacao = async () => {
+    const devePararRotaAtual = encerrarCompartilhamentoLocal();
     if (!devePararRotaAtual) return;
 
     try {
       await api.delete(`/roteiros/${id}/localizacao`);
     } catch (error) {
       console.error("Erro ao encerrar localizacao no backend:", error);
-      setLocalizacaoRota({
+      setLocalizacaoRota((prev) => ({
+        ...prev,
         compartilhando: false,
         status: "error",
         mensagem:
           error.response?.data?.error ||
           error.response?.data?.message ||
           "A localizacao parou no navegador, mas o backend nao confirmou o encerramento.",
-      });
+      }));
     }
   };
 
@@ -355,7 +415,7 @@ export function ExecutarRoteiro() {
     
     try {
       await api.post(`/roteiros/${id}/concluir`);
-      await pararCompartilhamentoLocalizacao();
+      encerrarCompartilhamentoLocal("Roteiro concluido. Compartilhamento local encerrado.");
       setSuccess("Roteiro concluído com sucesso!");
       setTimeout(() => navigate("/roteiros"), 2000);
     } catch (error) {
@@ -443,7 +503,7 @@ export function ExecutarRoteiro() {
               }
               className={localizacaoRota.compartilhando ? "btn-danger" : "btn-primary"}
             >
-              {localizacaoRota.compartilhando ? "Parar localizacao" : "Compartilhar localizacao"}
+              {localizacaoRota.compartilhando ? "Parar compartilhamento" : "Compartilhar localizacao"}
             </button>
           </div>
         </div>

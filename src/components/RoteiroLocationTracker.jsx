@@ -18,6 +18,10 @@ function lerRoteiroAtivo() {
   }
 }
 
+function temTokenAutenticacao() {
+  return Boolean(localStorage.getItem("token"));
+}
+
 function dispararStatus(status) {
   window.dispatchEvent(
     new CustomEvent(ROTEIRO_LOCATION_STATUS_EVENT, {
@@ -69,6 +73,10 @@ export default function RoteiroLocationTracker({ usuario }) {
     const enviarLocalizacao = async (position) => {
       const roteiroAtivo = activeRoteiroRef.current || lerRoteiroAtivo();
       if (!roteiroAtivo?.roteiroId || sendingRef.current) return;
+      if (!usuario?.id || !temTokenAutenticacao()) {
+        pararWatcher("Entre novamente para continuar compartilhando sua localizacao.");
+        return;
+      }
 
       const coords = position.coords;
       const localizacaoAtual = {
@@ -90,16 +98,20 @@ export default function RoteiroLocationTracker({ usuario }) {
       try {
         const capturedAt = new Date(position.timestamp || agora).toISOString();
 
-        await api.post(`/roteiros/${roteiroAtivo.roteiroId}/localizacao`, {
-          latitude: coords.latitude,
-          longitude: coords.longitude,
-          accuracy: coords.accuracy,
-          altitude: coords.altitude,
-          heading: coords.heading,
-          speed: coords.speed,
-          capturedAt,
-          roteiroId: roteiroAtivo.roteiroId,
-        });
+        await api.post(
+          `/roteiros/${roteiroAtivo.roteiroId}/localizacao`,
+          {
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            accuracy: coords.accuracy,
+            altitude: coords.altitude,
+            heading: coords.heading,
+            speed: coords.speed,
+            capturedAt,
+            roteiroId: roteiroAtivo.roteiroId,
+          },
+          { skipAuthRedirect: true }
+        );
 
         lastSentRef.current = {
           sentAt: agora,
@@ -113,6 +125,12 @@ export default function RoteiroLocationTracker({ usuario }) {
         });
       } catch (error) {
         console.error("Erro ao enviar localizacao do roteiro:", error);
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          localStorage.removeItem(ROTEIRO_LOCATION_STORAGE_KEY);
+          pararWatcher("Sessao sem permissao para compartilhar localizacao. Entre novamente.");
+          return;
+        }
+
         dispararStatus({
           status: "error",
           mensagem:
@@ -147,6 +165,11 @@ export default function RoteiroLocationTracker({ usuario }) {
 
       if (!roteiroAtivo?.roteiroId) {
         pararWatcher();
+        return;
+      }
+
+      if (!usuario?.id || !temTokenAutenticacao()) {
+        pararWatcher("Entre novamente para compartilhar sua localizacao.");
         return;
       }
 
