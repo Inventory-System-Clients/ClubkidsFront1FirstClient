@@ -322,6 +322,19 @@ export function SelecionarRoteiro() {
     }
   };
 
+  const removerLojaDoRoteiro = async (roteiroId, lojaId) => {
+    if (!window.confirm("Deseja realmente remover esta loja deste roteiro?")) return;
+
+    try {
+      setError("");
+      await api.delete(`/roteiros/${roteiroId}/lojas/${lojaId}`);
+      setSuccess("Loja removida do roteiro!");
+      await carregarRoteiros();
+    } catch (error) {
+      setError("Erro ao remover loja: " + (error.response?.data?.error || error.message));
+    }
+  };
+
   const carregarLocalizacoesRotas = async () => {
     try {
       const response = await api.get("/roteiros/localizacoes-ativas");
@@ -391,6 +404,20 @@ export function SelecionarRoteiro() {
     e.stopPropagation();
 
     if (!draggedLoja || !draggedFromRoteiro) return;
+
+    const roteiroOrigem = roteiros.find((r) => r.id === draggedFromRoteiro);
+    const roteiroDestino = roteiros.find((r) => r.id === roteiroDestinoId);
+
+    if (
+      !isAdmin ||
+      !podeMoverLojas(roteiroOrigem) ||
+      !podeMoverLojas(roteiroDestino)
+    ) {
+      setError("Voce nao tem permissao para mover lojas entre estes roteiros.");
+      setDraggedLoja(null);
+      setDraggedFromRoteiro(null);
+      return;
+    }
 
     // Se é o mesmo roteiro, não fazer nada
     if (draggedFromRoteiro === roteiroDestinoId) {
@@ -571,6 +598,26 @@ export function SelecionarRoteiro() {
   // Verificar se usuário é admin
   const isAdmin = usuario?.role === "ADMIN";
 
+  function podeGerenciarLojas(roteiro) {
+    return isAdmin && Boolean(roteiro?.permiteGerenciarLojas);
+  }
+
+  function podeMoverLojas(roteiro) {
+    return podeGerenciarLojas(roteiro) && Boolean(roteiro?.permiteMoverLojas);
+  }
+
+  function podeRemoverLojas(roteiro) {
+    return podeGerenciarLojas(roteiro) && Boolean(roteiro?.permiteRemoverLojas);
+  }
+
+  function podeAdicionarLojas(roteiro) {
+    return podeGerenciarLojas(roteiro);
+  }
+
+  function podeFinalizarAdminComPendencias(roteiro) {
+    return isAdmin && Boolean(roteiro?.permiteFinalizacaoAdminComPendencias);
+  }
+
   const renderMapaAdmin = (roteiro) => {
     if (!isAdmin) return null;
 
@@ -594,6 +641,40 @@ export function SelecionarRoteiro() {
         />
       </div>
     );
+  };
+
+  const concluirRoteiroAdmin = async (roteiro) => {
+    if (!isAdmin) return;
+
+    const lojas = roteiro.lojas || [];
+    const lojasPendentes = lojas.filter((loja) => !loja.concluida);
+    const possuiPendencias =
+      lojasPendentes.length > 0 ||
+      getAlertaFinalizacao(roteiro).possuiAlertaFinalizacao;
+
+    if (
+      possuiPendencias &&
+      !window.confirm("Este roteiro possui lojas nao concluidas. Deseja finalizar mesmo assim?")
+    ) {
+      return;
+    }
+
+    try {
+      setError("");
+      const response = await api.post(`/roteiros/${roteiro.id}/concluir`);
+      const alertaFinalizacao =
+        response.data?.roteiro?.alertaFinalizacao || response.data?.alertaFinalizacao;
+
+      setSuccess(
+        alertaFinalizacao?.possuiAlertaFinalizacao
+          ? "Roteiro finalizado com alertas."
+          : "Roteiro finalizado com sucesso!"
+      );
+      await carregarRoteiros();
+      await carregarAlertasRoteirosIncompletos();
+    } catch (error) {
+      setError("Erro ao finalizar roteiro: " + (error.response?.data?.error || error.message));
+    }
   };
 
   // Função helper para verificar se uma loja já está em um roteiro
@@ -728,9 +809,9 @@ export function SelecionarRoteiro() {
                       ? "ring-2 ring-blue-400 ring-offset-2"
                       : ""
                   }`}
-                  onDragOver={isAdmin ? handleDragOver : undefined}
+                  onDragOver={podeMoverLojas(roteiro) ? handleDragOver : undefined}
                   onDrop={
-                    isAdmin ? (e) => handleDrop(e, roteiro.id) : undefined
+                    podeMoverLojas(roteiro) ? (e) => handleDrop(e, roteiro.id) : undefined
                   }
                 >
                   <div className="flex flex-col mb-4">
@@ -869,9 +950,9 @@ export function SelecionarRoteiro() {
                         {roteiro.lojas.map((loja, idx) => (
                           <div
                             key={loja.id + '-' + roteiro.id + '-' + idx}
-                            draggable={isAdmin}
+                            draggable={podeMoverLojas(roteiro)}
                             onDragStart={(e) => {
-                              if (isAdmin) {
+                              if (podeMoverLojas(roteiro)) {
                                 handleDragStart(e, loja, roteiro.id);
                               } else {
                                 e.preventDefault();
@@ -887,19 +968,19 @@ export function SelecionarRoteiro() {
                                 ? "border-blue-500 opacity-50 shadow-lg"
                                 : ""
                             } ${
-                              isAdmin
+                              podeMoverLojas(roteiro)
                                 ? "cursor-move hover:border-blue-400 hover:shadow-md select-none"
                                 : ""
                             }`}
                           >
                             <span>{loja.concluida ? "✅" : "🏪"} {loja.nome || "Loja sem nome"}</span>
-                            {isAdmin && (
+                            {podeRemoverLojas(roteiro) && (
                               <button
                                 className="ml-1 w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded hover:bg-red-600"
                                 title="Remover loja de todos os roteiros"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  removerLojaDeTodosOsRoteiros(loja.id);
+                                  removerLojaDoRoteiro(roteiro.id, loja.id);
                                 }}
                               >
                                 <span className="text-base" role="img" aria-label="Excluir">🗑️</span>
@@ -951,7 +1032,7 @@ export function SelecionarRoteiro() {
                   </div>
 
                   <div className="mt-6 space-y-2">
-                    {isAdmin && (
+                    {podeAdicionarLojas(roteiro) && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -960,6 +1041,17 @@ export function SelecionarRoteiro() {
                         className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
                       >
                         ➕ Adicionar Loja Manualmente
+                      </button>
+                    )}
+                    {podeFinalizarAdminComPendencias(roteiro) && roteiro.status !== "concluido" && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          concluirRoteiroAdmin(roteiro);
+                        }}
+                        className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm"
+                      >
+                        Finalizar Roteiro
                       </button>
                     )}
                     <button
@@ -1030,7 +1122,13 @@ export function SelecionarRoteiro() {
                         : roteiro.zona === "Roteiro Coringa"
                           ? "bg-purple-200 border-purple-400 rounded-xl"
                           : "bg-linear-to-br from-green-50 to-green-100 border-green-500"
+                    } ${
+                      podeMoverLojas(roteiro) && draggedLoja && draggedFromRoteiro !== roteiro.id
+                        ? "ring-2 ring-blue-400 ring-offset-2"
+                        : ""
                     }`}
+                    onDragOver={podeMoverLojas(roteiro) ? handleDragOver : undefined}
+                    onDrop={podeMoverLojas(roteiro) ? (e) => handleDrop(e, roteiro.id) : undefined}
                   >
                     {/* Ícone de bloqueio */}
                     <div className="absolute top-4 right-4 text-3xl">🔒</div>
@@ -1069,6 +1167,54 @@ export function SelecionarRoteiro() {
                         <span className="text-2xl mr-2">🏪</span>
                         <span>Lojas: {roteiro.lojas?.length || 0}</span>
                       </div>
+                      {roteiro.lojas && roteiro.lojas.length > 0 && (
+                        <div className="mb-3 space-y-1 max-h-32 overflow-y-auto">
+                          <p className="text-xs font-semibold text-gray-700 mb-1">
+                            Lojas neste roteiro:
+                          </p>
+                          {roteiro.lojas.map((loja, idx) => (
+                            <div
+                              key={loja.id + '-' + roteiro.id + '-' + idx}
+                              draggable={podeMoverLojas(roteiro)}
+                              onDragStart={(e) => {
+                                if (podeMoverLojas(roteiro)) {
+                                  handleDragStart(e, loja, roteiro.id);
+                                } else {
+                                  e.preventDefault();
+                                }
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              className={`text-xs p-2 rounded border transition-all flex items-center justify-between ${
+                                loja.concluida
+                                  ? "bg-green-50 border-green-400 text-green-800"
+                                  : "bg-white border-gray-300"
+                              } ${
+                                draggedLoja?.id === loja.id
+                                  ? "border-blue-500 opacity-50 shadow-lg"
+                                  : ""
+                              } ${
+                                podeMoverLojas(roteiro)
+                                  ? "cursor-move hover:border-blue-400 hover:shadow-md select-none"
+                                  : ""
+                              }`}
+                            >
+                              <span>{loja.concluida ? "✅" : "🏪"} {loja.nome || "Loja sem nome"}</span>
+                              {podeRemoverLojas(roteiro) && (
+                                <button
+                                  className="ml-1 w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded hover:bg-red-600"
+                                  title="Remover loja deste roteiro"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removerLojaDoRoteiro(roteiro.id, loja.id);
+                                  }}
+                                >
+                                  <span className="text-base" role="img" aria-label="Excluir">🗑️</span>
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       <div className="flex items-center">
                         <span className="text-2xl mr-2">🎰</span>
                         <span>Máquinas: {roteiro.totalMaquinas || 0}</span>
@@ -1153,13 +1299,26 @@ export function SelecionarRoteiro() {
                     </div>
                     {/* Botão de desfazer finalização para admin */}
                     {usuario?.role === "ADMIN" && (
-                      <button
-                        onClick={() => desfazerFinalizacao(roteiro.id)}
-                        className="btn-danger w-full mt-4"
-                        title="Desfazer finalização do roteiro (apenas admin)"
-                      >
-                        ⬅️ Desfazer Finalização
-                      </button>
+                      <div className="mt-4 space-y-2">
+                        {podeAdicionarLojas(roteiro) && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              abrirModalAdicionarLoja(roteiro);
+                            }}
+                            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+                          >
+                            ➕ Adicionar Loja Manualmente
+                          </button>
+                        )}
+                        <button
+                          onClick={() => desfazerFinalizacao(roteiro.id)}
+                          className="btn-danger w-full"
+                          title="Desfazer finalização do roteiro (apenas admin)"
+                        >
+                          ⬅️ Desfazer Finalização
+                        </button>
+                      </div>
                     )}
                   </div>
                 );
