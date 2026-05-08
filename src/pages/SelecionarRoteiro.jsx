@@ -7,6 +7,94 @@ import { PageHeader, AlertBox, Badge } from "../components/UIComponents";
 import { PageLoader, EmptyState } from "../components/Loading";
 import { useAuth } from "../contexts/AuthContext";
 
+function normalizarLocalizacaoRoteiro(item) {
+  if (!item) return null;
+
+  const origem = item.localizacao || item.ultimaLocalizacao || item;
+  const latitude = Number(origem.latitude ?? origem.lat);
+  const longitude = Number(origem.longitude ?? origem.lng ?? origem.lon);
+  const roteiroId = origem.roteiroId ?? origem.roteiro_id ?? item.roteiroId ?? item.id;
+
+  if (!roteiroId || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+
+  return {
+    roteiroId,
+    usuarioId: origem.usuarioId ?? origem.usuario_id ?? item.usuarioId,
+    usuarioNome:
+      origem.usuarioNome ??
+      origem.usuario_nome ??
+      origem.usuario?.nome ??
+      item.funcionarioNome ??
+      "Usuario em rota",
+    latitude,
+    longitude,
+    accuracy: origem.accuracy ?? origem.precisao,
+    capturedAt: origem.capturedAt ?? origem.captured_at ?? origem.dataCaptura,
+    updatedAt: origem.updatedAt ?? origem.updated_at ?? origem.capturedAt ?? origem.captured_at,
+  };
+}
+
+function criarUrlMapaRoteiro(localizacao) {
+  if (!localizacao) return "";
+
+  const lat = Number(localizacao.latitude);
+  const lng = Number(localizacao.longitude);
+  const delta = 0.004;
+  const bbox = [lng - delta, lat - delta, lng + delta, lat + delta].join(",");
+
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lng}`;
+}
+
+function formatarHorarioLocalizacao(localizacao) {
+  const data = localizacao?.updatedAt || localizacao?.capturedAt;
+  if (!data) return "Horario nao informado";
+
+  const date = new Date(data);
+  if (Number.isNaN(date.getTime())) return "Horario nao informado";
+
+  return date.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function RoteiroMapaLocalizacao({ localizacao, grande = false, onClick }) {
+  if (!localizacao) {
+    return (
+      <div className="mt-2 rounded border border-dashed border-gray-300 bg-gray-50 p-3 text-xs text-gray-500">
+        Sem localizacao compartilhada no momento.
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!onClick}
+      className="mt-2 w-full text-left rounded border border-gray-200 bg-white overflow-hidden hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-default disabled:hover:border-gray-200"
+    >
+      <iframe
+        title={`Localizacao do roteiro ${localizacao.roteiroId}`}
+        src={criarUrlMapaRoteiro(localizacao)}
+        className="w-full border-0 pointer-events-none"
+        style={{ height: grande ? "70vh" : "8rem" }}
+        loading="lazy"
+      />
+      <div className="p-2 text-xs text-gray-700">
+        <p className="font-semibold">{localizacao.usuarioNome}</p>
+        <p>
+          Atualizado: {formatarHorarioLocalizacao(localizacao)}
+          {localizacao.accuracy ? ` | Precisao aprox.: ${Math.round(localizacao.accuracy)}m` : ""}
+        </p>
+      </div>
+    </button>
+  );
+}
 
 export function SelecionarRoteiro() {
   const { usuario } = useAuth();
@@ -77,6 +165,8 @@ export function SelecionarRoteiro() {
   const [observacoesEditando, setObservacoesEditando] = useState({});
   const [alertasRoteiro, setAlertasRoteiro] = useState([]);
   const [loadingAlertas, setLoadingAlertas] = useState(false);
+  const [localizacoesRotas, setLocalizacoesRotas] = useState({});
+  const [mapaExpandido, setMapaExpandido] = useState(null);
 
 
   useEffect(() => {
@@ -90,6 +180,15 @@ export function SelecionarRoteiro() {
       carregarAlertasRoteirosIncompletos();
     }
   }, [usuario]);
+
+  useEffect(() => {
+    if (usuario?.role !== "ADMIN") return;
+
+    carregarLocalizacoesRotas();
+    const intervalId = window.setInterval(carregarLocalizacoesRotas, 15000);
+
+    return () => window.clearInterval(intervalId);
+  }, [usuario?.role]);
 
   const carregarAlertasRoteirosIncompletos = async (dataSelecionada) => {
     if (usuario?.role !== "ADMIN") return;
@@ -179,6 +278,34 @@ export function SelecionarRoteiro() {
       setTodasLojas(response.data || []);
     } catch (error) {
       console.error("Erro ao carregar lojas:", error);
+    }
+  };
+
+  const carregarLocalizacoesRotas = async () => {
+    try {
+      const response = await api.get("/roteiros/localizacoes-ativas");
+      const data = response.data;
+      const lista = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.localizacoes)
+          ? data.localizacoes
+          : Array.isArray(data?.rows)
+            ? data.rows
+            : data && typeof data === "object"
+              ? Object.values(data)
+              : [];
+
+      const agrupadas = {};
+      lista.forEach((item) => {
+        const localizacao = normalizarLocalizacaoRoteiro(item);
+        if (localizacao) {
+          agrupadas[String(localizacao.roteiroId)] = localizacao;
+        }
+      });
+
+      setLocalizacoesRotas(agrupadas);
+    } catch (error) {
+      console.error("Erro ao carregar localizacoes ativas:", error);
     }
   };
 
@@ -403,6 +530,29 @@ export function SelecionarRoteiro() {
   // Verificar se usuário é admin
   const isAdmin = usuario?.role === "ADMIN";
 
+  const renderMapaAdmin = (roteiro) => {
+    if (!isAdmin) return null;
+
+    const localizacao = localizacoesRotas[String(roteiro.id)];
+
+    return (
+      <div className="mb-3">
+        <p className="text-xs font-bold text-gray-700">LOCALIZACAO AO VIVO</p>
+        <RoteiroMapaLocalizacao
+          localizacao={localizacao}
+          onClick={
+            localizacao
+              ? (event) => {
+                  event.stopPropagation();
+                  setMapaExpandido({ roteiro, localizacao });
+                }
+              : undefined
+          }
+        />
+      </div>
+    );
+  };
+
   // Função helper para verificar se uma loja já está em um roteiro
 
   const obterRoteiroAtualDaLoja = (lojaId) => {
@@ -541,6 +691,7 @@ export function SelecionarRoteiro() {
                     <h3 className="text-xl font-bold text-primary mb-2">
                       {roteiro.zona}
                     </h3>
+                    {renderMapaAdmin(roteiro)}
 
                     <div className="flex items-center justify-between">
                       {isAdmin && (
@@ -857,6 +1008,7 @@ export function SelecionarRoteiro() {
                         <Badge variant="success">✅ Finalizado sem pendências</Badge>
                       )}
                     </div>
+                    {renderMapaAdmin(roteiro)}
 
                     <div className="space-y-2 text-gray-700">
                       <div className="flex items-center">
@@ -1053,6 +1205,33 @@ export function SelecionarRoteiro() {
           </section>
         )}
       </div>
+
+      {mapaExpandido && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[92vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  Localizacao ao vivo
+                </h2>
+                <p className="text-sm text-gray-600">
+                  {mapaExpandido.roteiro?.zona || mapaExpandido.roteiro?.nome || "Roteiro"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMapaExpandido(null)}
+                className="px-3 py-2 rounded bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold"
+              >
+                Fechar
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto">
+              <RoteiroMapaLocalizacao localizacao={mapaExpandido.localizacao} grande />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Adicionar Loja */}
       {showModalAdicionarLoja && roteiroSelecionadoParaAdicionar && (

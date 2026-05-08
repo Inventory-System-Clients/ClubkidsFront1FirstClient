@@ -3,9 +3,11 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Veiculos from "./pages/Veiculos";
 import { Suspense, lazy } from "react";
 import { AuthProvider } from "./contexts/AuthContext";
+import { useAuth } from "./contexts/AuthContext";
 import { PrivateRoute } from "./components/PrivateRoute";
 import { PageLoader } from "./components/Loading";
 import { AlertaFinanceiro } from "./components/AlertaFinanceiro";
+import RoteiroLocationTracker from "./components/RoteiroLocationTracker.jsx";
 
 // Lazy load das páginas para reduzir bundle inicial
 const Manutencoes = lazy(() => import("./pages/Manutencoes").then(m => ({ default: m.default })));
@@ -30,19 +32,22 @@ const SelecionarRoteiro = lazy(() => import("./pages/SelecionarRoteiro").then(m 
 const LojasRoteiro = lazy(() => import("./pages/LojasRoteiro").then(m => ({ default: m.LojasRoteiro })));
 const MovimentacoesLoja = lazy(() => import("./pages/MovimentacoesLoja").then(m => ({ default: m.MovimentacoesLoja })));
 const ExecutarRoteiro = lazy(() => import("./pages/ExecutarRoteiro").then(m => ({ default: m.ExecutarRoteiro })));
+const Roteiros = lazy(() => import("./pages/Roteiros").then(m => ({ default: m.Roteiros })));
 const GerenciarRoteiros = lazy(() => import("./pages/GerenciarRoteiros").then(m => ({ default: m.GerenciarRoteiros })));
 const Financeiro = lazy(() => import("./pages/Financeiro").then(m => ({ default: m.Financeiro })));
 const Graficos = lazy(() => import("./pages/Graficos").then(m => ({ default: m.Graficos })));
 const Relatorios = lazy(() => import("./pages/Relatorios").then(m => ({ default: m.Relatorios })));
 const StyleGuide = lazy(() => import("./pages/StyleGuide").then(m => ({ default: m.StyleGuide })));
 
-function App() {
+function AppRoutes() {
+  const { usuario } = useAuth();
+
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Suspense fallback={<PageLoader />}>
-          <AlertaFinanceiro />
-          <Routes>
+    <BrowserRouter>
+      <Suspense fallback={<PageLoader />}>
+        <RoteiroLocationTracker usuario={usuario} />
+        <AlertaFinanceiro />
+        <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/registrar" element={<Registrar />} />
           <Route path="/style-guide" element={<StyleGuide />} />
@@ -200,6 +205,14 @@ function App() {
             }
           />
           <Route
+            path="/roteiros"
+            element={
+              <PrivateRoute>
+                <Roteiros />
+              </PrivateRoute>
+            }
+          />
+          <Route
             path="/roteiros/:id/executar"
             element={
               <PrivateRoute>
@@ -252,8 +265,15 @@ function App() {
 
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
-        </Suspense>
-      </BrowserRouter>
+      </Suspense>
+    </BrowserRouter>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppRoutes />
     </AuthProvider>
   );
 }

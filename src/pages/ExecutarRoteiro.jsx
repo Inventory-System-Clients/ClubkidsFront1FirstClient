@@ -6,6 +6,11 @@ import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { PageHeader, AlertBox, Badge } from "../components/UIComponents";
 import { PageLoader } from "../components/Loading";
+import {
+  ROTEIRO_LOCATION_CHANGED_EVENT,
+  ROTEIRO_LOCATION_STATUS_EVENT,
+  ROTEIRO_LOCATION_STORAGE_KEY,
+} from "../components/RoteiroLocationTracker.jsx";
 
 export function ExecutarRoteiro() {
       const [manutencaoUrgente, setManutencaoUrgente] = useState(false);
@@ -56,6 +61,11 @@ export function ExecutarRoteiro() {
   const [lastUpdate, setLastUpdate] = useState(Date.now());
     const [aReceberPendentes, setAReceberPendentes] = useState(new Set());
   const [reloadConsumido, setReloadConsumido] = useState(false);
+  const [localizacaoRota, setLocalizacaoRota] = useState({
+    compartilhando: false,
+    status: "idle",
+    mensagem: "",
+  });
   
   // Controle de gastos
   const [mostrarFormGasto, setMostrarFormGasto] = useState(false);
@@ -73,6 +83,35 @@ export function ExecutarRoteiro() {
   useEffect(() => {
     console.log('🎯 [ExecutarRoteiro] Montado ou ID mudou, carregando...');
     carregarRoteiro();
+  }, [id]);
+
+  useEffect(() => {
+    sincronizarEstadoLocalizacaoRota();
+
+    const handleStatusLocalizacao = (event) => {
+      const detail = event.detail || {};
+      if (detail.roteiroId && String(detail.roteiroId) !== String(id)) return;
+
+      setLocalizacaoRota((prev) => ({
+        ...prev,
+        status: detail.status || prev.status,
+        mensagem: detail.mensagem || "",
+      }));
+    };
+
+    const handleLocalizacaoChanged = () => {
+      sincronizarEstadoLocalizacaoRota();
+    };
+
+    window.addEventListener(ROTEIRO_LOCATION_STATUS_EVENT, handleStatusLocalizacao);
+    window.addEventListener(ROTEIRO_LOCATION_CHANGED_EVENT, handleLocalizacaoChanged);
+    window.addEventListener("storage", handleLocalizacaoChanged);
+
+    return () => {
+      window.removeEventListener(ROTEIRO_LOCATION_STATUS_EVENT, handleStatusLocalizacao);
+      window.removeEventListener(ROTEIRO_LOCATION_CHANGED_EVENT, handleLocalizacaoChanged);
+      window.removeEventListener("storage", handleLocalizacaoChanged);
+    };
   }, [id]);
   
   // Recarregar quando location.state mudar (vindo de MovimentacoesLoja)
@@ -124,6 +163,88 @@ export function ExecutarRoteiro() {
       setError("Erro ao carregar roteiro: " + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const lerLocalizacaoRotaAtiva = () => {
+    try {
+      const raw = localStorage.getItem(ROTEIRO_LOCATION_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+      console.error("Erro ao ler localizacao ativa:", error);
+      return null;
+    }
+  };
+
+  const sincronizarEstadoLocalizacaoRota = () => {
+    const ativa = lerLocalizacaoRotaAtiva();
+    const compartilhando = String(ativa?.roteiroId || "") === String(id);
+
+    setLocalizacaoRota((prev) => ({
+      compartilhando,
+      status: compartilhando ? prev.status || "sharing" : "idle",
+      mensagem: compartilhando ? prev.mensagem : "",
+    }));
+  };
+
+  const iniciarCompartilhamentoLocalizacao = () => {
+    setError("");
+
+    if (!navigator.geolocation) {
+      setLocalizacaoRota({
+        compartilhando: false,
+        status: "error",
+        mensagem: "Este navegador nao oferece suporte a geolocalizacao.",
+      });
+      return;
+    }
+
+    const payload = {
+      roteiroId: id,
+      roteiroNome: roteiro?.zona || roteiro?.nome || "Roteiro",
+      usuarioId: usuario?.id,
+      usuarioNome: usuario?.nome,
+      startedAt: new Date().toISOString(),
+    };
+
+    localStorage.setItem(ROTEIRO_LOCATION_STORAGE_KEY, JSON.stringify(payload));
+    setLocalizacaoRota({
+      compartilhando: true,
+      status: "requesting",
+      mensagem: "Solicitando permissao de localizacao...",
+    });
+    window.dispatchEvent(new CustomEvent(ROTEIRO_LOCATION_CHANGED_EVENT, { detail: payload }));
+  };
+
+  const pararCompartilhamentoLocalizacao = async () => {
+    const ativa = lerLocalizacaoRotaAtiva();
+    const devePararRotaAtual = String(ativa?.roteiroId || "") === String(id);
+
+    if (devePararRotaAtual) {
+      localStorage.removeItem(ROTEIRO_LOCATION_STORAGE_KEY);
+      window.dispatchEvent(new CustomEvent(ROTEIRO_LOCATION_CHANGED_EVENT, { detail: null }));
+    }
+
+    setLocalizacaoRota({
+      compartilhando: false,
+      status: "idle",
+      mensagem: "Compartilhamento de localizacao encerrado.",
+    });
+
+    if (!devePararRotaAtual) return;
+
+    try {
+      await api.delete(`/roteiros/${id}/localizacao`);
+    } catch (error) {
+      console.error("Erro ao encerrar localizacao no backend:", error);
+      setLocalizacaoRota({
+        compartilhando: false,
+        status: "error",
+        mensagem:
+          error.response?.data?.error ||
+          error.response?.data?.message ||
+          "A localizacao parou no navegador, mas o backend nao confirmou o encerramento.",
+      });
     }
   };
 
@@ -234,6 +355,7 @@ export function ExecutarRoteiro() {
     
     try {
       await api.post(`/roteiros/${id}/concluir`);
+      await pararCompartilhamentoLocalizacao();
       setSuccess("Roteiro concluído com sucesso!");
       setTimeout(() => navigate("/roteiros"), 2000);
     } catch (error) {
@@ -264,6 +386,13 @@ export function ExecutarRoteiro() {
     return "Endereço não cadastrado";
   };
 
+  const localizacaoStatusClass =
+    localizacaoRota.status === "error"
+      ? "text-red-700"
+      : localizacaoRota.compartilhando
+        ? "text-green-700"
+        : "text-gray-600";
+
   return (
     <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100">
       <Navbar />
@@ -291,6 +420,33 @@ export function ExecutarRoteiro() {
 
         {error && <AlertBox type="error" message={error} onClose={() => setError("")} />}
         {success && <AlertBox type="success" message={success} onClose={() => setSuccess("")} />}
+
+        <div className="card mb-6 bg-white border border-blue-100">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Compartilhar localizacao da rota</h3>
+              <p className="text-sm text-gray-600 mt-1">
+                Sua localizacao sera enviada ao administrador ate voce finalizar a rota ou parar o compartilhamento.
+              </p>
+              {localizacaoRota.mensagem && (
+                <p className={`text-sm font-semibold mt-2 ${localizacaoStatusClass}`}>
+                  {localizacaoRota.mensagem}
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={
+                localizacaoRota.compartilhando
+                  ? pararCompartilhamentoLocalizacao
+                  : iniciarCompartilhamentoLocalizacao
+              }
+              className={localizacaoRota.compartilhando ? "btn-danger" : "btn-primary"}
+            >
+              {localizacaoRota.compartilhando ? "Parar localizacao" : "Compartilhar localizacao"}
+            </button>
+          </div>
+        </div>
 
         {/* Resumo do Roteiro */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
