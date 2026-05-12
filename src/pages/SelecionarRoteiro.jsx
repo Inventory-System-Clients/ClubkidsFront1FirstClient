@@ -390,6 +390,11 @@ export function SelecionarRoteiro() {
 
   const handleDragStart = (e, loja, roteiroId) => {
     e.stopPropagation();
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData(
+      "application/json",
+      JSON.stringify({ lojaId: loja.id, roteiroOrigemId: roteiroId }),
+    );
     setDraggedLoja(loja);
     setDraggedFromRoteiro(roteiroId);
   };
@@ -397,6 +402,12 @@ export function SelecionarRoteiro() {
   const handleDragOver = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDragEnd = () => {
+    setDraggedLoja(null);
+    setDraggedFromRoteiro(null);
   };
 
   const handleDrop = async (e, roteiroDestinoId) => {
@@ -598,16 +609,20 @@ export function SelecionarRoteiro() {
   // Verificar se usuário é admin
   const isAdmin = usuario?.role === "ADMIN";
 
+  function permissaoNaoBloqueada(roteiro, permissao) {
+    return roteiro?.[permissao] !== false;
+  }
+
   function podeGerenciarLojas(roteiro) {
-    return isAdmin && Boolean(roteiro?.permiteGerenciarLojas);
+    return isAdmin && permissaoNaoBloqueada(roteiro, "permiteGerenciarLojas");
   }
 
   function podeMoverLojas(roteiro) {
-    return podeGerenciarLojas(roteiro) && Boolean(roteiro?.permiteMoverLojas);
+    return podeGerenciarLojas(roteiro) && permissaoNaoBloqueada(roteiro, "permiteMoverLojas");
   }
 
   function podeRemoverLojas(roteiro) {
-    return podeGerenciarLojas(roteiro) && Boolean(roteiro?.permiteRemoverLojas);
+    return podeGerenciarLojas(roteiro) && permissaoNaoBloqueada(roteiro, "permiteRemoverLojas");
   }
 
   function podeAdicionarLojas(roteiro) {
@@ -958,6 +973,7 @@ export function SelecionarRoteiro() {
                                 e.preventDefault();
                               }
                             }}
+                            onDragEnd={handleDragEnd}
                             onClick={(e) => e.stopPropagation()}
                             className={`text-xs p-2 rounded border transition-all flex items-center justify-between ${
                               loja.concluida
@@ -1183,6 +1199,7 @@ export function SelecionarRoteiro() {
                                   e.preventDefault();
                                 }
                               }}
+                              onDragEnd={handleDragEnd}
                               onClick={(e) => e.stopPropagation()}
                               className={`text-xs p-2 rounded border transition-all flex items-center justify-between ${
                                 loja.concluida
