@@ -54,18 +54,26 @@ export function Relatorios() {
   const obterDataMovimentacao = (movimentacao) => {
     return new Date(
       movimentacao?.dataColeta ||
-      movimentacao?.dataMovimentacao ||
-      movimentacao?.createdAt ||
-      movimentacao?.data ||
-      0
+        movimentacao?.dataMovimentacao ||
+        movimentacao?.createdAt ||
+        movimentacao?.data ||
+        0,
     );
   };
 
   const obterTotalFinanceiroMovimentacao = (movimentacao) => {
-    const notas = toNumber(movimentacao?.valorEntradaNotas ?? movimentacao?.valor_entrada_notas);
-    const cartao = toNumber(movimentacao?.valorEntradaCartao ?? movimentacao?.valor_entrada_cartao);
-    const fichas = toNumber(movimentacao?.valorEntradaFichas ?? movimentacao?.valor_entrada_fichas);
-    const valorFaturado = toNumber(movimentacao?.valorFaturado ?? movimentacao?.valor_faturado);
+    const notas = toNumber(
+      movimentacao?.valorEntradaNotas ?? movimentacao?.valor_entrada_notas,
+    );
+    const cartao = toNumber(
+      movimentacao?.valorEntradaCartao ?? movimentacao?.valor_entrada_cartao,
+    );
+    const fichas = toNumber(
+      movimentacao?.valorEntradaFichas ?? movimentacao?.valor_entrada_fichas,
+    );
+    const valorFaturado = toNumber(
+      movimentacao?.valorFaturado ?? movimentacao?.valor_faturado,
+    );
 
     return valorFaturado > 0 ? valorFaturado : notas + cartao + fichas;
   };
@@ -115,9 +123,15 @@ export function Relatorios() {
       totaisCombinados.produtosSairam += toNumber(totais.produtosSairam);
       totaisCombinados.produtosEntraram += toNumber(totais.produtosEntraram);
       totaisCombinados.movimentacoes += toNumber(totais.movimentacoes);
-      totaisCombinados.valoresEntrada.notas += toNumber(totais.valoresEntrada?.notas);
-      totaisCombinados.valoresEntrada.cartao += toNumber(totais.valoresEntrada?.cartao);
-      totaisCombinados.valoresEntrada.total += toNumber(totais.valoresEntrada?.total);
+      totaisCombinados.valoresEntrada.notas += toNumber(
+        totais.valoresEntrada?.notas,
+      );
+      totaisCombinados.valoresEntrada.cartao += toNumber(
+        totais.valoresEntrada?.cartao,
+      );
+      totaisCombinados.valoresEntrada.total += toNumber(
+        totais.valoresEntrada?.total,
+      );
 
       if (Array.isArray(relatorioAtual?.produtosSairam)) {
         produtosSairamTodos.push(...relatorioAtual.produtosSairam);
@@ -136,27 +150,51 @@ export function Relatorios() {
             ...maquinaAtual,
             totais: {
               produtosSairam: toNumber(maquinaAtual?.totais?.produtosSairam),
-              produtosEntraram: toNumber(maquinaAtual?.totais?.produtosEntraram),
+              produtosEntraram: toNumber(
+                maquinaAtual?.totais?.produtosEntraram,
+              ),
               movimentacoes: toNumber(maquinaAtual?.totais?.movimentacoes),
             },
             valoresEntrada: {
               notas: toNumber(maquinaAtual?.valoresEntrada?.notas),
               cartao: toNumber(maquinaAtual?.valoresEntrada?.cartao),
             },
-            produtosSairam: Array.isArray(maquinaAtual?.produtosSairam) ? [...maquinaAtual.produtosSairam] : [],
-            produtosEntraram: Array.isArray(maquinaAtual?.produtosEntraram) ? [...maquinaAtual.produtosEntraram] : [],
+            produtosSairam: Array.isArray(maquinaAtual?.produtosSairam)
+              ? [...maquinaAtual.produtosSairam]
+              : [],
+            produtosEntraram: Array.isArray(maquinaAtual?.produtosEntraram)
+              ? [...maquinaAtual.produtosEntraram]
+              : [],
           });
           return;
         }
 
         const acumulada = mapaMaquinas.get(maquinaId);
-        acumulada.totais.produtosSairam += toNumber(maquinaAtual?.totais?.produtosSairam);
-        acumulada.totais.produtosEntraram += toNumber(maquinaAtual?.totais?.produtosEntraram);
-        acumulada.totais.movimentacoes += toNumber(maquinaAtual?.totais?.movimentacoes);
-        acumulada.valoresEntrada.notas += toNumber(maquinaAtual?.valoresEntrada?.notas);
-        acumulada.valoresEntrada.cartao += toNumber(maquinaAtual?.valoresEntrada?.cartao);
-        acumulada.produtosSairam.push(...(Array.isArray(maquinaAtual?.produtosSairam) ? maquinaAtual.produtosSairam : []));
-        acumulada.produtosEntraram.push(...(Array.isArray(maquinaAtual?.produtosEntraram) ? maquinaAtual.produtosEntraram : []));
+        acumulada.totais.produtosSairam += toNumber(
+          maquinaAtual?.totais?.produtosSairam,
+        );
+        acumulada.totais.produtosEntraram += toNumber(
+          maquinaAtual?.totais?.produtosEntraram,
+        );
+        acumulada.totais.movimentacoes += toNumber(
+          maquinaAtual?.totais?.movimentacoes,
+        );
+        acumulada.valoresEntrada.notas += toNumber(
+          maquinaAtual?.valoresEntrada?.notas,
+        );
+        acumulada.valoresEntrada.cartao += toNumber(
+          maquinaAtual?.valoresEntrada?.cartao,
+        );
+        acumulada.produtosSairam.push(
+          ...(Array.isArray(maquinaAtual?.produtosSairam)
+            ? maquinaAtual.produtosSairam
+            : []),
+        );
+        acumulada.produtosEntraram.push(
+          ...(Array.isArray(maquinaAtual?.produtosEntraram)
+            ? maquinaAtual.produtosEntraram
+            : []),
+        );
       });
     });
 
@@ -173,11 +211,13 @@ export function Relatorios() {
       };
     });
 
-    const maquinasCombinadas = Array.from(mapaMaquinas.values()).map((maquina) => ({
-      ...maquina,
-      produtosSairam: agregarProdutos(maquina.produtosSairam),
-      produtosEntraram: agregarProdutos(maquina.produtosEntraram),
-    }));
+    const maquinasCombinadas = Array.from(mapaMaquinas.values()).map(
+      (maquina) => ({
+        ...maquina,
+        produtosSairam: agregarProdutos(maquina.produtosSairam),
+        produtosEntraram: agregarProdutos(maquina.produtosEntraram),
+      }),
+    );
 
     return {
       totais: totaisCombinados,
@@ -245,16 +285,33 @@ export function Relatorios() {
     try {
       setLoadingRoteiros(true);
       // Buscar roteiros do dia 24/02/2026
-      const responseFixo = await api.get("/roteiros", { params: { data: "2026-02-24" } });
+      const responseFixo = await api.get("/roteiros", {
+        params: { data: "2026-02-24" },
+      });
       // Buscar roteiros bolinha do dia atual
       const hoje = new Date().toISOString().split("T")[0];
-      const responseBolinha = await api.get("/roteiros", { params: { data: hoje } });
+      const responseBolinha = await api.get("/roteiros", {
+        params: { data: hoje },
+      });
       // Filtrar apenas os de bolinha e o Roteiro Coringa do dia atual
-      const bolinhasHoje = (responseBolinha.data || []).filter(r => (r.zona || "").toLowerCase().startsWith("bolinha") || r.zona === "Roteiro Coringa");
+      const bolinhasHoje = (responseBolinha.data || []).filter(
+        (r) =>
+          (r.zona || "").toLowerCase().startsWith("bolinha") ||
+          r.zona === "Roteiro Coringa",
+      );
       // Priorizar roteiros do dia 24: se houver bolinha com mesmo nome/zona, não adicionar do dia atual
-      const zonasFixo = new Set((responseFixo.data || []).map(r => (r.zona || "").toLowerCase().trim()));
-      const bolinhasHojeNaoDuplicadas = bolinhasHoje.filter(r => !zonasFixo.has((r.zona || "").toLowerCase().trim()));
-      const roteirosCombinados = [...(responseFixo.data || []), ...bolinhasHojeNaoDuplicadas];
+      const zonasFixo = new Set(
+        (responseFixo.data || []).map((r) =>
+          (r.zona || "").toLowerCase().trim(),
+        ),
+      );
+      const bolinhasHojeNaoDuplicadas = bolinhasHoje.filter(
+        (r) => !zonasFixo.has((r.zona || "").toLowerCase().trim()),
+      );
+      const roteirosCombinados = [
+        ...(responseFixo.data || []),
+        ...bolinhasHojeNaoDuplicadas,
+      ];
       setRoteiros(roteirosCombinados);
     } catch (error) {
       console.error("Erro ao carregar roteiros:", error);
@@ -265,8 +322,14 @@ export function Relatorios() {
   };
 
   const gerarRelatorio = async () => {
-    if ((!roteiroSelecionado && lojasSelecionadas.length === 0) || !dataInicio || !dataFim) {
-      setError("Por favor, selecione um roteiro ou pelo menos uma loja e preencha as datas.");
+    if (
+      (!roteiroSelecionado && lojasSelecionadas.length === 0) ||
+      !dataInicio ||
+      !dataFim
+    ) {
+      setError(
+        "Por favor, selecione um roteiro ou pelo menos uma loja e preencha as datas.",
+      );
       return;
     }
 
@@ -291,18 +354,22 @@ export function Relatorios() {
 
       // Buscar relatório base
       if (roteiroId) {
-        relatorioData = (await api.get("/relatorios/roteiro", {
-          params: { roteiroId, dataInicio, dataFim },
-        })).data;
+        relatorioData = (
+          await api.get("/relatorios/roteiro", {
+            params: { roteiroId, dataInicio, dataFim },
+          })
+        ).data;
 
         lojasParaProcessar = (relatorioData?.lojas || [])
           .map((item) => item?.loja?.id)
           .filter((id) => id !== undefined && id !== null);
       } else if (lojasSelecionadas.length === 1) {
         const lojaIdUnica = lojasSelecionadas[0];
-        relatorioData = (await api.get("/relatorios/impressao", {
-          params: { lojaId: lojaIdUnica, dataInicio, dataFim },
-        })).data;
+        relatorioData = (
+          await api.get("/relatorios/impressao", {
+            params: { lojaId: lojaIdUnica, dataInicio, dataFim },
+          })
+        ).data;
       } else {
         const respostasRelatorios = await Promise.all(
           lojasSelecionadas.map((lojaId) =>
@@ -311,8 +378,8 @@ export function Relatorios() {
                 params: { lojaId, dataInicio, dataFim },
               })
               .then((res) => ({ lojaId, data: res.data }))
-              .catch(() => ({ lojaId, data: null }))
-          )
+              .catch(() => ({ lojaId, data: null })),
+          ),
         );
 
         const relatoriosValidos = respostasRelatorios
@@ -320,15 +387,22 @@ export function Relatorios() {
           .map((item) => item.data);
 
         if (relatoriosValidos.length === 0) {
-          throw new Error("Nenhum dado encontrado para as lojas selecionadas no período.");
+          throw new Error(
+            "Nenhum dado encontrado para as lojas selecionadas no período.",
+          );
         }
 
-        relatorioData = combinarRelatoriosPorLojas(relatoriosValidos, lojasSelecionadas);
+        relatorioData = combinarRelatoriosPorLojas(
+          relatoriosValidos,
+          lojasSelecionadas,
+        );
 
         relatorioData.lojas = respostasRelatorios
           .filter((item) => item.data)
           .map((item) => {
-            const loja = lojas.find((l) => String(l.id) === String(item.lojaId));
+            const loja = lojas.find(
+              (l) => String(l.id) === String(item.lojaId),
+            );
             return {
               loja: {
                 id: item.lojaId,
@@ -346,13 +420,15 @@ export function Relatorios() {
       let totalComissao = 0;
       let totalLucro = 0;
       let maquinasDaLoja = [];
-      const idsLojasUnicos = Array.from(new Set(lojasParaProcessar.map((id) => String(id))));
+      const idsLojasUnicos = Array.from(
+        new Set(lojasParaProcessar.map((id) => String(id))),
+      );
 
       if (idsLojasUnicos.length > 0) {
         try {
           const maquinasRes = await api.get(`/maquinas`);
-          maquinasDaLoja = (maquinasRes.data || []).filter(
-            (maq) => idsLojasUnicos.includes(String(maq.lojaId ?? maq.loja_id ?? ""))
+          maquinasDaLoja = (maquinasRes.data || []).filter((maq) =>
+            idsLojasUnicos.includes(String(maq.lojaId ?? maq.loja_id ?? "")),
           );
         } catch {
           maquinasDaLoja = [];
@@ -367,7 +443,11 @@ export function Relatorios() {
 
           if (!roteiroIdParaComissao && roteiros.length > 0) {
             for (const roteiro of roteiros) {
-              if ((roteiro.lojas || []).some((l) => String(l.id) === String(lojaId))) {
+              if (
+                (roteiro.lojas || []).some(
+                  (l) => String(l.id) === String(lojaId),
+                )
+              ) {
                 roteiroIdParaComissao = roteiro.id;
                 break;
               }
@@ -393,13 +473,19 @@ export function Relatorios() {
                 params: { lojaId, dataInicio, dataFim },
               })
               .then((res) => res.data?.comissoes || [])
-              .catch(() => [])
-          )
+              .catch(() => []),
+          ),
         );
 
         comissoes = comissoesPorLoja.flat();
-        totalComissao = comissoes.reduce((acc, c) => acc + toNumber(c.totalComissao), 0);
-        totalLucro = comissoes.reduce((acc, c) => acc + toNumber(c.totalLucro), 0);
+        totalComissao = comissoes.reduce(
+          (acc, c) => acc + toNumber(c.totalComissao),
+          0,
+        );
+        totalLucro = comissoes.reduce(
+          (acc, c) => acc + toNumber(c.totalLucro),
+          0,
+        );
 
         // Buscar gastos por loja
         const gastosPorLoja = await Promise.all(
@@ -409,28 +495,32 @@ export function Relatorios() {
                 params: { lojaId },
               })
               .then((res) => res.data || [])
-              .catch(() => [])
-          )
+              .catch(() => []),
+          ),
         );
 
         setGastosLoja(
           gastosPorLoja
             .flat()
-            .sort((a, b) => new Date(b?.data || 0) - new Date(a?.data || 0))
+            .sort((a, b) => new Date(b?.data || 0) - new Date(a?.data || 0)),
         );
       }
 
       // Atualizar totais gerais
       if (!relatorioData.totais) relatorioData.totais = {};
       relatorioData.totais.comissao = totalComissao;
-      relatorioData.totais.lucroComDescontoComissao = totalLucro - totalComissao;
+      relatorioData.totais.lucroComDescontoComissao =
+        totalLucro - totalComissao;
 
       // Atualizar máquinas com detalhes de comissão agregados no período e fallback por percentual cadastrado
       if (Array.isArray(relatorioData.maquinas)) {
         const percentualPorMaquina = new Map();
 
         maquinasDaLoja.forEach((maq) => {
-          percentualPorMaquina.set(String(maq.id), toNumber(maq.percentualComissao ?? maq.percentual_comissao));
+          percentualPorMaquina.set(
+            String(maq.id),
+            toNumber(maq.percentualComissao ?? maq.percentual_comissao),
+          );
         });
 
         const detalhesComissaoPorMaquina = new Map();
@@ -448,13 +538,16 @@ export function Relatorios() {
               percentualComissao: null,
             };
 
-            const percentualDetalhe = toNumber(detalhe.percentualComissao ?? detalhe.percentual_comissao);
+            const percentualDetalhe = toNumber(
+              detalhe.percentualComissao ?? detalhe.percentual_comissao,
+            );
 
             acumulado.lucro += toNumber(detalhe.lucro);
             acumulado.comissao += toNumber(detalhe.comissao);
-            acumulado.percentualComissao = percentualDetalhe > 0
-              ? percentualDetalhe
-              : (acumulado.percentualComissao ?? null);
+            acumulado.percentualComissao =
+              percentualDetalhe > 0
+                ? percentualDetalhe
+                : (acumulado.percentualComissao ?? null);
 
             detalhesComissaoPorMaquina.set(maquinaId, acumulado);
           });
@@ -469,8 +562,10 @@ export function Relatorios() {
           const totalRecebimento = notas + cartao;
 
           const percentualCadastro =
-            toNumber(maq.maquina?.percentualComissao ?? maq.maquina?.percentual_comissao) ||
-            toNumber(percentualPorMaquina.get(maquinaId));
+            toNumber(
+              maq.maquina?.percentualComissao ??
+                maq.maquina?.percentual_comissao,
+            ) || toNumber(percentualPorMaquina.get(maquinaId));
 
           const percentualDetalhe = toNumber(detalhe?.percentualComissao);
           const percentualInferidoDaComissao =
@@ -486,7 +581,9 @@ export function Relatorios() {
                 : percentualInferidoDaComissao;
 
           const comissaoCalculadaPorPercentual =
-            percentualAplicado > 0 ? totalRecebimento * (percentualAplicado / 100) : 0;
+            percentualAplicado > 0
+              ? totalRecebimento * (percentualAplicado / 100)
+              : 0;
 
           const valoresComissao =
             percentualAplicado > 0
@@ -503,21 +600,27 @@ export function Relatorios() {
 
         const comissaoRecalculada = relatorioData.maquinas.reduce(
           (acc, maq) => acc + toNumber(maq.valoresComissao),
-          0
+          0,
         );
 
-        const lucroLiquidoRecalculado = relatorioData.maquinas.reduce((acc, maq) => {
-          const notas = toNumber(maq.valoresEntrada?.notas);
-          const cartao = toNumber(maq.valoresEntrada?.cartao);
-          return acc + (notas + cartao - toNumber(maq.valoresComissao));
-        }, 0);
+        const lucroLiquidoRecalculado = relatorioData.maquinas.reduce(
+          (acc, maq) => {
+            const notas = toNumber(maq.valoresEntrada?.notas);
+            const cartao = toNumber(maq.valoresEntrada?.cartao);
+            return acc + (notas + cartao - toNumber(maq.valoresComissao));
+          },
+          0,
+        );
 
         relatorioData.totais.comissao = comissaoRecalculada;
         relatorioData.totais.lucroComDescontoComissao = lucroLiquidoRecalculado;
       }
 
       // Buscar movimentações de cada máquina para detalhar no relatório de impressão
-      if (Array.isArray(relatorioData?.maquinas) && relatorioData.maquinas.length > 0) {
+      if (
+        Array.isArray(relatorioData?.maquinas) &&
+        relatorioData.maquinas.length > 0
+      ) {
         const inicioPeriodo = new Date(`${dataInicio}T00:00:00`);
         const fimPeriodo = new Date(`${dataFim}T23:59:59`);
 
@@ -529,17 +632,27 @@ export function Relatorios() {
             }
 
             try {
-              const responseMovimentacoes = await api.get(`/movimentacoes?maquinaId=${maquinaId}`);
+              const responseMovimentacoes = await api.get(
+                `/movimentacoes?maquinaId=${maquinaId}`,
+              );
               const movimentacoesFiltradas = (responseMovimentacoes.data || [])
                 .filter((mov) => {
                   const dataMov = obterDataMovimentacao(mov);
                   return dataMov >= inicioPeriodo && dataMov <= fimPeriodo;
                 })
-                .sort((a, b) => obterDataMovimentacao(b) - obterDataMovimentacao(a))
+                .sort(
+                  (a, b) => obterDataMovimentacao(b) - obterDataMovimentacao(a),
+                )
                 .map((mov) => {
-                  const notas = toNumber(mov.valorEntradaNotas ?? mov.valor_entrada_notas);
-                  const cartao = toNumber(mov.valorEntradaCartao ?? mov.valor_entrada_cartao);
-                  const fichas = toNumber(mov.valorEntradaFichas ?? mov.valor_entrada_fichas);
+                  const notas = toNumber(
+                    mov.valorEntradaNotas ?? mov.valor_entrada_notas,
+                  );
+                  const cartao = toNumber(
+                    mov.valorEntradaCartao ?? mov.valor_entrada_cartao,
+                  );
+                  const fichas = toNumber(
+                    mov.valorEntradaFichas ?? mov.valor_entrada_fichas,
+                  );
                   const totalFinanceiro = obterTotalFinanceiroMovimentacao(mov);
                   const numeroBag = String(mov.numeroBag || "").trim();
 
@@ -550,21 +663,25 @@ export function Relatorios() {
                     valorEntradaFichasNormalizado: fichas,
                     valorFinanceiroTotal: totalFinanceiro,
                     numeroBagNormalizado: numeroBag,
-                    financeiroPendente: Boolean(numeroBag) && totalFinanceiro <= 0,
+                    financeiroPendente:
+                      Boolean(numeroBag) && totalFinanceiro <= 0,
                   };
                 });
 
-              return { maquinaId: String(maquinaId), movimentacoes: movimentacoesFiltradas };
+              return {
+                maquinaId: String(maquinaId),
+                movimentacoes: movimentacoesFiltradas,
+              };
             } catch {
               return { maquinaId: String(maquinaId), movimentacoes: [] };
             }
-          })
+          }),
         );
 
         const mapaMovimentos = new Map(
           movimentosPorMaquina
             .filter((item) => item.maquinaId)
-            .map((item) => [item.maquinaId, item.movimentacoes])
+            .map((item) => [item.maquinaId, item.movimentacoes]),
         );
 
         relatorioData.maquinas = relatorioData.maquinas.map((maquina) => {
@@ -621,12 +738,8 @@ export function Relatorios() {
       return;
     }
 
-    const idsLojas = roteiroSelecionado
-      ? (relatorio?.lojas || []).map((item) => item?.loja?.id).filter(Boolean)
-      : lojasSelecionadas;
-
-    if (!idsLojas || idsLojas.length === 0) {
-      setError("Selecione pelo menos uma loja (ou um roteiro com lojas) para gerar o PDF em planilha.");
+    if (!relatorio) {
+      setError("Gere o relatório primeiro antes de criar o PDF.");
       return;
     }
 
@@ -634,137 +747,95 @@ export function Relatorios() {
       setLoadingPdfPlanilha(true);
       setError("");
 
-      // Reaproveita a mesma estratégia do relatório principal:
-      // tenta calcular comissão por loja no período antes de buscar os dados.
-      const roteirosDoPeriodo = await api
-        .get(`/roteiros?data=${dataFim}`)
-        .then((res) => res.data || [])
-        .catch(() => []);
+      // Usar os mesmos dados do relatório principal
+      // Agrupar maquinas por loja para calcular totais
+      const dadosPorLoja = {};
 
-      const linhas = await Promise.all(
-        idsLojas.map(async (lojaId) => {
-          let roteiroIdParaComissao = roteiroSelecionado || null;
+      (relatorio?.maquinas || []).forEach((maquina) => {
+        const lojaInfo = relatorio?.lojas?.find(
+          (l) =>
+            maquina.maquina?.id === l.loja?.id ||
+            lojas.find((lo) => lo.id === maquina.maquina?.id)?.nome ===
+              l.loja?.nome,
+        );
 
-          if (!roteiroIdParaComissao && Array.isArray(roteirosDoPeriodo) && roteirosDoPeriodo.length > 0) {
-            for (const roteiro of roteirosDoPeriodo) {
-              if ((roteiro.lojas || []).some((l) => String(l.id) === String(lojaId))) {
-                roteiroIdParaComissao = roteiro.id;
-                break;
-              }
-            }
-          }
+        // Se não encontrou por relação, tenta pegar da máquina
+        const lojaId = maquina.maquina?.lojaId || lojaInfo?.loja?.id;
+        const loja = lojas.find((l) => String(l.id) === String(lojaId));
+        const nomeLoja = loja?.nome || `Loja ${lojaId}`;
 
-          if (roteiroIdParaComissao) {
-            try {
-              await api.post(`/roteiros/lojas/${lojaId}/calcular-comissao`, {
-                roteiroId: roteiroIdParaComissao,
-              });
-            } catch {
-              // Pode já estar calculada para a loja/período
-            }
-          }
+        if (!dadosPorLoja[nomeLoja]) {
+          dadosPorLoja[nomeLoja] = {
+            nomeLoja,
+            dinheiro: 0,
+            cartao: 0,
+            comissao: 0,
+            conferidoTotal: 0,
+            pelucias: 0,
+            lucroLojaPeriodo: 0,
+          };
+        }
 
-          const [resRelatorio, resComissoesPayload] = await Promise.all([
-            api
-              .get("/relatorios/impressao", {
-                params: { lojaId, dataInicio, dataFim },
-              })
-              .then((res) => res.data)
-              .catch(() => null),
-            api
-              .get("/relatorios/comissoes", {
-                params: { lojaId, dataInicio, dataFim },
-              })
-              .then((res) => res.data || null)
-              .catch(() => null),
-          ]);
+        const dadosLoja = dadosPorLoja[nomeLoja];
 
-          const loja = lojas.find((item) => String(item.id) === String(lojaId));
-          const nomeLoja = loja?.nome || resRelatorio?.loja?.nome || `Loja ${lojaId}`;
+        // Somar valores de entrada
+        dadosLoja.dinheiro += toNumber(maquina.valoresEntrada?.notas || 0);
+        dadosLoja.cartao += toNumber(maquina.valoresEntrada?.cartao || 0);
+        dadosLoja.conferidoTotal +=
+          toNumber(maquina.valoresEntrada?.notas || 0) +
+          toNumber(maquina.valoresEntrada?.cartao || 0);
+        dadosLoja.comissao += toNumber(maquina.valoresComissao || 0);
 
-          const dinheiro = toNumber(resRelatorio?.totais?.valoresEntrada?.notas);
-          const cartao = toNumber(resRelatorio?.totais?.valoresEntrada?.cartao);
-          const conferidoTotal =
-            toNumber(resRelatorio?.totais?.valoresEntrada?.total) ||
-            (dinheiro + cartao);
-
-          const listaComissoes = Array.isArray(resComissoesPayload?.comissoes)
-            ? resComissoesPayload.comissoes
-            : [];
-
-          const comissaoPorItens = listaComissoes.reduce(
-            (acc, item) => {
-              const comissaoDiretaItem = toNumber(item?.totalComissao ?? item?.comissao);
-              if (comissaoDiretaItem > 0) {
-                return acc + comissaoDiretaItem;
-              }
-
-              const comissaoPelosDetalhes = Array.isArray(item?.detalhes)
-                ? item.detalhes.reduce((sum, det) => sum + toNumber(det?.comissao), 0)
-                : 0;
-
-              return acc + comissaoPelosDetalhes;
-            },
-            0
-          );
-
-          const comissaoDiretaPayload =
-            toNumber(resComissoesPayload?.totalComissao) ||
-            toNumber(resComissoesPayload?.comissao);
-
-          const comissaoNoRelatorio = toNumber(resRelatorio?.totais?.comissao);
-
-          const comissaoPelasMaquinas = Array.isArray(resRelatorio?.maquinas)
-            ? resRelatorio.maquinas.reduce(
-                (sum, maq) => sum + toNumber(maq?.valoresComissao),
-                0
-              )
-            : 0;
-
-          const comissao =
-            comissaoPorItens ||
-            comissaoDiretaPayload ||
-            comissaoNoRelatorio ||
-            comissaoPelasMaquinas;
-
-          const lucroLojaPeriodo = conferidoTotal - comissao;
-
-          const pelucias = (resRelatorio?.produtosSairam || []).reduce((acc, produto) => {
+        // Contar pelúcias de produtos saíram
+        const peluciasDoMaquina = (maquina.produtosSairam || []).reduce(
+          (acc, produto) => {
             const nome = String(produto?.nome || "");
             const ehPelucia = /pel[uú]cia/i.test(nome);
             return ehPelucia ? acc + toNumber(produto?.quantidade) : acc;
-          }, 0);
+          },
+          0,
+        );
 
-          const mediaValorPorPelucia = pelucias > 0
-            ? lucroLojaPeriodo / pelucias
-            : 0;
+        dadosLoja.pelucias += peluciasDoMaquina;
+      });
 
-          return {
-            nomeLoja,
-            dinheiro,
-            cartao,
-            comissao,
-            conferidoTotal,
-            pelucias,
-            lucroLojaPeriodo,
-            mediaValorPorPelucia,
-          };
-        })
+      const linhas = Object.values(dadosPorLoja).map((linha) => {
+        linha.lucroLojaPeriodo = linha.conferidoTotal - linha.comissao;
+        linha.mediaValorPorPelucia =
+          linha.pelucias > 0 ? linha.lucroLojaPeriodo / linha.pelucias : 0;
+        return linha;
+      });
+
+      const linhasOrdenadas = linhas.sort((a, b) =>
+        a.nomeLoja.localeCompare(b.nomeLoja, "pt-BR"),
       );
 
-      const linhasOrdenadas = linhas.sort((a, b) => a.nomeLoja.localeCompare(b.nomeLoja, "pt-BR"));
-
-      const totalDinheiro = linhasOrdenadas.reduce((acc, l) => acc + l.dinheiro, 0);
+      const totalDinheiro = linhasOrdenadas.reduce(
+        (acc, l) => acc + l.dinheiro,
+        0,
+      );
       const totalCartao = linhasOrdenadas.reduce((acc, l) => acc + l.cartao, 0);
-      const totalComissao = linhasOrdenadas.reduce((acc, l) => acc + l.comissao, 0);
-      const totalConferido = linhasOrdenadas.reduce((acc, l) => acc + l.conferidoTotal, 0);
-      const totalPelucias = linhasOrdenadas.reduce((acc, l) => acc + l.pelucias, 0);
-      const totalLucroLojas = linhasOrdenadas.reduce((acc, l) => acc + l.lucroLojaPeriodo, 0);
-      const mediaGeralValorPorPelucia = totalPelucias > 0
-        ? totalLucroLojas / totalPelucias
-        : 0;
+      const totalComissao = linhasOrdenadas.reduce(
+        (acc, l) => acc + l.comissao,
+        0,
+      );
+      const totalConferido = linhasOrdenadas.reduce(
+        (acc, l) => acc + l.conferidoTotal,
+        0,
+      );
+      const totalPelucias = linhasOrdenadas.reduce(
+        (acc, l) => acc + l.pelucias,
+        0,
+      );
+      const totalLucroLojas = linhasOrdenadas.reduce(
+        (acc, l) => acc + l.lucroLojaPeriodo,
+        0,
+      );
+      const mediaGeralValorPorPelucia =
+        totalPelucias > 0 ? totalLucroLojas / totalPelucias : 0;
 
-      const formatarMoeda = (valor) => `R$ ${toNumber(valor).toFixed(2).replace(".", ",")}`;
+      const formatarMoeda = (valor) =>
+        `R$ ${toNumber(valor).toFixed(2).replace(".", ",")}`;
 
       const linhasHtml = linhasOrdenadas
         .map(
@@ -778,7 +849,7 @@ export function Relatorios() {
               <td class="num">${Math.round(linha.pelucias)}</td>
               <td class="num">${formatarMoeda(linha.mediaValorPorPelucia)}</td>
             </tr>
-          `
+          `,
         )
         .join("");
 
@@ -845,7 +916,9 @@ export function Relatorios() {
 
       const janela = window.open("", "_blank", "width=1200,height=800");
       if (!janela) {
-        setError("Não foi possível abrir a janela de impressão. Verifique se o navegador bloqueou pop-up.");
+        setError(
+          "Não foi possível abrir a janela de impressão. Verifique se o navegador bloqueou pop-up.",
+        );
         return;
       }
 
@@ -862,10 +935,18 @@ export function Relatorios() {
   if (loadingRoteiros || loadingLojas) return <PageLoader />;
 
   // Proteções extras para evitar erros de undefined/null
-  const totais = relatorio && typeof relatorio.totais === 'object' ? relatorio.totais : {};
-  const maquinas = relatorio && Array.isArray(relatorio.maquinas) ? relatorio.maquinas : [];
-  const produtosSairam = relatorio && Array.isArray(relatorio.produtosSairam) ? relatorio.produtosSairam : [];
-  const produtosEntraram = relatorio && Array.isArray(relatorio.produtosEntraram) ? relatorio.produtosEntraram : [];
+  const totais =
+    relatorio && typeof relatorio.totais === "object" ? relatorio.totais : {};
+  const maquinas =
+    relatorio && Array.isArray(relatorio.maquinas) ? relatorio.maquinas : [];
+  const produtosSairam =
+    relatorio && Array.isArray(relatorio.produtosSairam)
+      ? relatorio.produtosSairam
+      : [];
+  const produtosEntraram =
+    relatorio && Array.isArray(relatorio.produtosEntraram)
+      ? relatorio.produtosEntraram
+      : [];
 
   const lojasComMovimentacoes = (() => {
     if (!relatorio) return [];
@@ -878,7 +959,9 @@ export function Relatorios() {
         const id = loja?.id;
         if (!id) return;
 
-        const movs = toNumber(item?.totais?.movimentacoes ?? item?.movimentacoes);
+        const movs = toNumber(
+          item?.totais?.movimentacoes ?? item?.movimentacoes,
+        );
 
         if (!mapa.has(String(id))) {
           mapa.set(String(id), {
@@ -912,7 +995,8 @@ export function Relatorios() {
       .sort((a, b) => b.movimentacoes - a.movimentacoes);
   })();
 
-  const lojaDestinoMovimentacoesId = lojasSelecionadas[0] || lojasComMovimentacoes[0]?.id;
+  const lojaDestinoMovimentacoesId =
+    lojasSelecionadas[0] || lojasComMovimentacoes[0]?.id;
 
   const abrirLojaMovimentacoes = (lojaId) => {
     if (!lojaId) return;
@@ -935,10 +1019,12 @@ export function Relatorios() {
           <h3 className="text-lg font-bold text-gray-900 mb-4">Filtros</h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">🚚 Roteiro</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                🚚 Roteiro
+              </label>
               <select
                 value={roteiroSelecionado}
-                onChange={e => {
+                onChange={(e) => {
                   setRoteiroSelecionado(e.target.value);
                   setLojasSelecionadas([]);
                 }}
@@ -947,13 +1033,16 @@ export function Relatorios() {
                 <option value="">Selecione um roteiro (opcional)</option>
                 {roteiros.map((roteiro) => (
                   <option key={roteiro.id} value={roteiro.id}>
-                    {roteiro.nome} {roteiro.zona ? `- Zona: ${roteiro.zona}` : ''}
+                    {roteiro.nome}{" "}
+                    {roteiro.zona ? `- Zona: ${roteiro.zona}` : ""}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">🏪 Lojas (múltipla seleção)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                🏪 Lojas (múltipla seleção)
+              </label>
               <div className="flex gap-2 mb-2">
                 <button
                   type="button"
@@ -979,7 +1068,9 @@ export function Relatorios() {
               />
               <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2 bg-white">
                 {lojasFiltradas.map((loja) => {
-                  const marcada = lojasSelecionadas.some((id) => String(id) === String(loja.id));
+                  const marcada = lojasSelecionadas.some(
+                    (id) => String(id) === String(loja.id),
+                  );
                   return (
                     <label
                       key={loja.id}
@@ -1007,7 +1098,9 @@ export function Relatorios() {
               </p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">📅 Data Inicial *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                📅 Data Inicial *
+              </label>
               <input
                 type="date"
                 value={dataInicio}
@@ -1016,7 +1109,9 @@ export function Relatorios() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">📅 Data Final *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                📅 Data Final *
+              </label>
               <input
                 type="date"
                 value={dataFim}
@@ -1028,7 +1123,12 @@ export function Relatorios() {
 
           {error && (
             <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-600">⚠️ {error.includes('Nenhuma loja encontrada para o roteiro') ? 'Este roteiro não possui nenhuma loja cadastrada. Selecione outro roteiro ou cadastre lojas para este roteiro.' : error}</p>
+              <p className="text-sm text-red-600">
+                ⚠️{" "}
+                {error.includes("Nenhuma loja encontrada para o roteiro")
+                  ? "Este roteiro não possui nenhuma loja cadastrada. Selecione outro roteiro ou cadastre lojas para este roteiro."
+                  : error}
+              </p>
             </div>
           )}
 
@@ -1052,7 +1152,9 @@ export function Relatorios() {
               disabled={!relatorio || loadingPdfPlanilha}
               className="btn-secondary"
             >
-              {loadingPdfPlanilha ? "⏳ Gerando PDF..." : "📄 Gerar PDF Planilha"}
+              {loadingPdfPlanilha
+                ? "⏳ Gerando PDF..."
+                : "📄 Gerar PDF Planilha"}
             </button>
           </div>
         </div>
@@ -1071,22 +1173,24 @@ export function Relatorios() {
             {/* Header do Relatório */}
 
             {/* Exibir lojas do roteiro, se filtrando por roteiro */}
-            {roteiroSelecionado && relatorio.lojas && relatorio.lojas.length > 0 && (
-              <div className="card bg-linear-to-r from-blue-50 to-blue-100 border-2 border-blue-300">
-                <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2 flex items-center gap-2">
-                  <span className="text-xl sm:text-2xl">🏪</span>
-                  Lojas deste roteiro
-                </h3>
-                <ul className="list-disc pl-6">
-                  {relatorio.lojas.map((l) => (
-                    <li key={l.loja.id} className="mb-1">
-                      <span className="font-bold">{l.loja.nome}</span>
-                      {l.loja.endereco ? ` — ${l.loja.endereco}` : ''}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            {roteiroSelecionado &&
+              relatorio.lojas &&
+              relatorio.lojas.length > 0 && (
+                <div className="card bg-linear-to-r from-blue-50 to-blue-100 border-2 border-blue-300">
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+                    <span className="text-xl sm:text-2xl">🏪</span>
+                    Lojas deste roteiro
+                  </h3>
+                  <ul className="list-disc pl-6">
+                    {relatorio.lojas.map((l) => (
+                      <li key={l.loja.id} className="mb-1">
+                        <span className="font-bold">{l.loja.nome}</span>
+                        {l.loja.endereco ? ` — ${l.loja.endereco}` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
             {/* Tabela de Gastos por Loja */}
             {gastosLoja.length > 0 && (
@@ -1099,30 +1203,73 @@ export function Relatorios() {
                   <table className="min-w-full table-auto">
                     <thead>
                       <tr className="bg-yellow-100">
-                        <th className="px-3 py-2 text-left text-xs font-bold text-gray-700">Data</th>
-                        <th className="px-3 py-2 text-left text-xs font-bold text-gray-700">Categoria</th>
-                        <th className="px-3 py-2 text-left text-xs font-bold text-gray-700">Descrição</th>
-                        <th className="px-3 py-2 text-right text-xs font-bold text-gray-700">Valor (R$)</th>
-                        {isAdmin() && <th className="px-3 py-2 text-left text-xs font-bold text-gray-700">KM Abastecimento</th>}
-                        <th className="px-3 py-2 text-left text-xs font-bold text-gray-700">Litros Abastecidos</th>
-                        <th className="px-3 py-2 text-left text-xs font-bold text-gray-700">Roteiro</th>
+                        <th className="px-3 py-2 text-left text-xs font-bold text-gray-700">
+                          Data
+                        </th>
+                        <th className="px-3 py-2 text-left text-xs font-bold text-gray-700">
+                          Categoria
+                        </th>
+                        <th className="px-3 py-2 text-left text-xs font-bold text-gray-700">
+                          Descrição
+                        </th>
+                        <th className="px-3 py-2 text-right text-xs font-bold text-gray-700">
+                          Valor (R$)
+                        </th>
+                        {isAdmin() && (
+                          <th className="px-3 py-2 text-left text-xs font-bold text-gray-700">
+                            KM Abastecimento
+                          </th>
+                        )}
+                        <th className="px-3 py-2 text-left text-xs font-bold text-gray-700">
+                          Litros Abastecidos
+                        </th>
+                        <th className="px-3 py-2 text-left text-xs font-bold text-gray-700">
+                          Roteiro
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {gastosLoja.map((gasto, idx) => (
-                        <tr key={gasto.id || idx} className="border-b border-yellow-200">
-                          <td className="px-3 py-2 text-xs text-gray-700">{gasto.data ? new Date(gasto.data).toLocaleDateString('pt-BR') : '-'}</td>
-                          <td className="px-3 py-2 text-xs text-gray-700">{gasto.categoria || '-'}</td>
-                          <td className="px-3 py-2 text-xs text-gray-700">{gasto.descricao || '-'}</td>
-                          <td className="px-3 py-2 text-xs text-right font-bold text-orange-700">{gasto.valor ? Number(gasto.valor).toFixed(2) : '-'}</td>
-                          {isAdmin() && <td className="px-3 py-2 text-xs text-gray-700">{gasto.kmAbastecimento ?? gasto.km_abastecimento ?? '-'}</td>}
-                          <td className="px-3 py-2 text-xs text-gray-700">{gasto.litrosAbastecimento ?? gasto.litros_abastecimento ?? '-'}</td>
-                          <td className="px-3 py-2 text-xs text-gray-700">{
-                            (() => {
-                              const roteiro = roteiros.find(r => r.id === gasto.roteiroId);
-                              return roteiro ? (roteiro.nome || roteiro.zona || roteiro.id) : gasto.roteiroId || '-';
-                            })()
-                          }</td>
+                        <tr
+                          key={gasto.id || idx}
+                          className="border-b border-yellow-200"
+                        >
+                          <td className="px-3 py-2 text-xs text-gray-700">
+                            {gasto.data
+                              ? new Date(gasto.data).toLocaleDateString("pt-BR")
+                              : "-"}
+                          </td>
+                          <td className="px-3 py-2 text-xs text-gray-700">
+                            {gasto.categoria || "-"}
+                          </td>
+                          <td className="px-3 py-2 text-xs text-gray-700">
+                            {gasto.descricao || "-"}
+                          </td>
+                          <td className="px-3 py-2 text-xs text-right font-bold text-orange-700">
+                            {gasto.valor ? Number(gasto.valor).toFixed(2) : "-"}
+                          </td>
+                          {isAdmin() && (
+                            <td className="px-3 py-2 text-xs text-gray-700">
+                              {gasto.kmAbastecimento ??
+                                gasto.km_abastecimento ??
+                                "-"}
+                            </td>
+                          )}
+                          <td className="px-3 py-2 text-xs text-gray-700">
+                            {gasto.litrosAbastecimento ??
+                              gasto.litros_abastecimento ??
+                              "-"}
+                          </td>
+                          <td className="px-3 py-2 text-xs text-gray-700">
+                            {(() => {
+                              const roteiro = roteiros.find(
+                                (r) => r.id === gasto.roteiroId,
+                              );
+                              return roteiro
+                                ? roteiro.nome || roteiro.zona || roteiro.id
+                                : gasto.roteiroId || "-";
+                            })()}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -1133,18 +1280,22 @@ export function Relatorios() {
             <div className="card bg-linear-to-r from-purple-50 to-purple-100 border-2 border-purple-300">
               <h3 className="text-lg sm:text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <span className="text-2xl sm:text-3xl">📊</span>
-                {roteiroSelecionado && relatorio && relatorio.roteiro && relatorio.roteiro.zona
+                {roteiroSelecionado &&
+                relatorio &&
+                relatorio.roteiro &&
+                relatorio.roteiro.zona
                   ? `Resumo Geral do Roteiro (${relatorio.roteiro.zona})`
                   : lojasSelecionadas.length > 1
-                    ? 'Resumo Geral das Lojas Selecionadas'
-                    : 'Resumo Geral da Loja'}
+                    ? "Resumo Geral das Lojas Selecionadas"
+                    : "Resumo Geral da Loja"}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-
                 <div className="card bg-linear-to-br from-red-500 to-red-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">📤</div>
                   <div className="text-xl sm:text-2xl font-bold">
-                    {typeof totais.produtosSairam === "number" ? totais.produtosSairam.toLocaleString("pt-BR") : "0"}
+                    {typeof totais.produtosSairam === "number"
+                      ? totais.produtosSairam.toLocaleString("pt-BR")
+                      : "0"}
                   </div>
                   <div className="text-xs sm:text-sm opacity-90">
                     Produtos Saíram
@@ -1154,7 +1305,9 @@ export function Relatorios() {
                 <div className="card bg-linear-to-br from-green-500 to-green-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">📥</div>
                   <div className="text-xl sm:text-2xl font-bold">
-                    {typeof totais.produtosEntraram === "number" ? totais.produtosEntraram.toLocaleString("pt-BR") : "0"}
+                    {typeof totais.produtosEntraram === "number"
+                      ? totais.produtosEntraram.toLocaleString("pt-BR")
+                      : "0"}
                   </div>
                   <div className="text-xs sm:text-sm opacity-90">
                     Produtos Entraram
@@ -1162,14 +1315,20 @@ export function Relatorios() {
                 </div>
 
                 <div
-                  onClick={() => abrirLojaMovimentacoes(lojaDestinoMovimentacoesId)}
+                  onClick={() =>
+                    abrirLojaMovimentacoes(lojaDestinoMovimentacoesId)
+                  }
                   className={`card bg-linear-to-br from-purple-500 to-purple-600 text-white text-left transition-transform ${
-                    lojaDestinoMovimentacoesId ? "hover:scale-[1.02] cursor-pointer" : "opacity-70 cursor-not-allowed"
+                    lojaDestinoMovimentacoesId
+                      ? "hover:scale-[1.02] cursor-pointer"
+                      : "opacity-70 cursor-not-allowed"
                   }`}
                 >
                   <div className="text-2xl sm:text-3xl mb-2">🔄</div>
                   <div className="text-xl sm:text-2xl font-bold">
-                    {typeof totais.movimentacoes === "number" ? totais.movimentacoes.toLocaleString("pt-BR") : "0"}
+                    {typeof totais.movimentacoes === "number"
+                      ? totais.movimentacoes.toLocaleString("pt-BR")
+                      : "0"}
                   </div>
                   <div className="text-xs sm:text-sm opacity-90">
                     Total de Movimentações
@@ -1198,7 +1357,8 @@ export function Relatorios() {
                   )}
                   {lojaDestinoMovimentacoesId && (
                     <div className="mt-3 text-[11px] sm:text-xs opacity-90">
-                      Clique para abrir a loja e acessar o histórico de movimentações.
+                      Clique para abrir a loja e acessar o histórico de
+                      movimentações.
                     </div>
                   )}
                 </div>
@@ -1213,39 +1373,64 @@ export function Relatorios() {
                 <div className="card bg-linear-to-br from-green-400 to-green-500 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">💵</div>
                   <div className="text-xl sm:text-2xl font-bold">
-                    R$ {typeof totais.valoresEntrada?.notas === "number" ? totais.valoresEntrada.notas.toFixed(2) : "0.00"}
+                    R${" "}
+                    {typeof totais.valoresEntrada?.notas === "number"
+                      ? totais.valoresEntrada.notas.toFixed(2)
+                      : "0.00"}
                   </div>
                   <div className="text-sm opacity-90">Entrada em Notas</div>
                 </div>
                 <div className="card bg-linear-to-br from-blue-400 to-blue-500 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">💳</div>
                   <div className="text-xl sm:text-2xl font-bold">
-                    R$ {typeof totais.valoresEntrada?.cartao === "number" ? totais.valoresEntrada.cartao.toFixed(2) : "0.00"}
+                    R${" "}
+                    {typeof totais.valoresEntrada?.cartao === "number"
+                      ? totais.valoresEntrada.cartao.toFixed(2)
+                      : "0.00"}
                   </div>
-                  <div className="text-sm opacity-90">Entrada Digital/Cartão</div>
+                  <div className="text-sm opacity-90">
+                    Entrada Digital/Cartão
+                  </div>
                 </div>
                 <div className="card bg-linear-to-br from-orange-500 to-red-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">💰</div>
                   <div className="text-xl sm:text-2xl font-bold">
-                    R$ {typeof totais.valoresEntrada?.total === "number" ? totais.valoresEntrada.total.toFixed(2) : "0.00"}
+                    R${" "}
+                    {typeof totais.valoresEntrada?.total === "number"
+                      ? totais.valoresEntrada.total.toFixed(2)
+                      : "0.00"}
                   </div>
                   <div className="text-sm opacity-90">Recebimento Total</div>
                 </div>
                 <div className="card bg-linear-to-br from-yellow-500 to-yellow-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">📉</div>
                   <div className="text-xl sm:text-2xl font-bold">
-                    R$ {(typeof totais.comissao === 'number' ? totais.comissao : maquinas.reduce((acc, m) => acc + (m.valoresComissao || 0), 0)).toFixed(2)}
+                    R${" "}
+                    {(typeof totais.comissao === "number"
+                      ? totais.comissao
+                      : maquinas.reduce(
+                          (acc, m) => acc + (m.valoresComissao || 0),
+                          0,
+                        )
+                    ).toFixed(2)}
                   </div>
                   <div className="text-sm opacity-90">Comissão Total Paga</div>
                 </div>
                 <div className="card bg-linear-to-br from-green-700 to-green-900 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">💸</div>
                   <div className="text-xl sm:text-2xl font-bold">
-                    R$ {(typeof totais.lucroComDescontoComissao === 'number'
+                    R${" "}
+                    {(typeof totais.lucroComDescontoComissao === "number"
                       ? totais.lucroComDescontoComissao
                       : (() => {
-                          const totalRecebido = typeof totais.valoresEntrada?.total === "number" ? totais.valoresEntrada.total : 0;
-                          const totalComissao = maquinas.reduce((acc, m) => acc + (m.valoresComissao || 0), 0);
+                          const totalRecebido =
+                            typeof totais.valoresEntrada?.total === "number"
+                              ? totais.valoresEntrada.total
+                              : 0;
+                          const totalComissao = maquinas.reduce(
+                            (acc, m) => acc + (m.valoresComissao || 0),
+                            0,
+                          );
                           return totalRecebido - totalComissao;
                         })()
                     ).toFixed(2)}
@@ -1317,7 +1502,11 @@ export function Relatorios() {
                             📤
                           </div>
                           <div className="text-xl sm:text-3xl font-bold text-center">
-                            {typeof maquina.totais?.produtosSairam === "number" ? maquina.totais.produtosSairam.toLocaleString("pt-BR") : "0"}
+                            {typeof maquina.totais?.produtosSairam === "number"
+                              ? maquina.totais.produtosSairam.toLocaleString(
+                                  "pt-BR",
+                                )
+                              : "0"}
                           </div>
                           <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
                             Produtos Saíram
@@ -1328,7 +1517,12 @@ export function Relatorios() {
                             📥
                           </div>
                           <div className="text-xl sm:text-3xl font-bold text-center">
-                            {typeof maquina.totais?.produtosEntraram === "number" ? maquina.totais.produtosEntraram.toLocaleString("pt-BR") : "0"}
+                            {typeof maquina.totais?.produtosEntraram ===
+                            "number"
+                              ? maquina.totais.produtosEntraram.toLocaleString(
+                                  "pt-BR",
+                                )
+                              : "0"}
                           </div>
                           <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
                             Produtos Entraram
@@ -1356,48 +1550,83 @@ export function Relatorios() {
                       </h4>
                       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
                         <div className="bg-linear-to-br from-green-400 to-green-500 text-white p-3 sm:p-5 rounded-xl shadow-lg">
-                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">💵</div>
-                          <div className="text-xl sm:text-3xl font-bold text-center">R$ {(maquina.valoresEntrada?.notas || 0).toFixed(2)}</div>
-                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">Entrada em Notas</div>
+                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
+                            💵
+                          </div>
+                          <div className="text-xl sm:text-3xl font-bold text-center">
+                            R$ {(maquina.valoresEntrada?.notas || 0).toFixed(2)}
+                          </div>
+                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
+                            Entrada em Notas
+                          </div>
                         </div>
                         <div className="bg-linear-to-br from-blue-400 to-blue-500 text-white p-3 sm:p-5 rounded-xl shadow-lg">
-                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">💳</div>
-                          <div className="text-xl sm:text-3xl font-bold text-center">R$ {(maquina.valoresEntrada?.cartao || 0).toFixed(2)}</div>
-                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">Entrada Digital/Cartão</div>
+                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
+                            💳
+                          </div>
+                          <div className="text-xl sm:text-3xl font-bold text-center">
+                            R${" "}
+                            {(maquina.valoresEntrada?.cartao || 0).toFixed(2)}
+                          </div>
+                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
+                            Entrada Digital/Cartão
+                          </div>
                         </div>
                         <div className="bg-linear-to-br from-orange-500 to-red-600 text-white p-3 sm:p-5 rounded-xl shadow-lg">
-                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">💰</div>
+                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
+                            💰
+                          </div>
                           <div className="text-xl sm:text-3xl font-bold text-center">
-                            R$ {(() => {
+                            R${" "}
+                            {(() => {
                               const notas = maquina.valoresEntrada?.notas || 0;
-                              const cartao = maquina.valoresEntrada?.cartao || 0;
+                              const cartao =
+                                maquina.valoresEntrada?.cartao || 0;
                               return (notas + cartao).toFixed(2);
                             })()}
                           </div>
-                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">Recebimento Total</div>
+                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
+                            Recebimento Total
+                          </div>
                         </div>
                         <div className="bg-linear-to-br from-yellow-500 to-yellow-600 text-white p-3 sm:p-5 rounded-xl shadow-lg">
-                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">📉</div>
-                          <div className="text-xl sm:text-3xl font-bold text-center">
-                            R$ {(typeof maquina.valoresComissao === 'number' ? maquina.valoresComissao : 0).toFixed(2)}
+                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
+                            📉
                           </div>
-                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">Comissão Paga</div>
+                          <div className="text-xl sm:text-3xl font-bold text-center">
+                            R${" "}
+                            {(typeof maquina.valoresComissao === "number"
+                              ? maquina.valoresComissao
+                              : 0
+                            ).toFixed(2)}
+                          </div>
+                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
+                            Comissão Paga
+                          </div>
                         </div>
                         <div className="bg-linear-to-br from-green-700 to-green-900 text-white p-3 sm:p-5 rounded-xl shadow-lg col-span-2 lg:col-span-1">
-                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">💸</div>
+                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
+                            💸
+                          </div>
                           <div className="text-xl sm:text-3xl font-bold text-center">
-                            R$ {(typeof maquina.lucroComDescontoComissao === 'number'
+                            R${" "}
+                            {(typeof maquina.lucroComDescontoComissao ===
+                            "number"
                               ? maquina.lucroComDescontoComissao
                               : (() => {
-                                  const notas = maquina.valoresEntrada?.notas || 0;
-                                  const cartao = maquina.valoresEntrada?.cartao || 0;
+                                  const notas =
+                                    maquina.valoresEntrada?.notas || 0;
+                                  const cartao =
+                                    maquina.valoresEntrada?.cartao || 0;
                                   const totalRecebido = notas + cartao;
                                   const comissao = maquina.valoresComissao || 0;
                                   return totalRecebido - comissao;
                                 })()
                             ).toFixed(2)}
                           </div>
-                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">Lucro da Máquina</div>
+                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
+                            Lucro da Máquina
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1411,7 +1640,8 @@ export function Relatorios() {
                         </span>
                       </h4>
 
-                      {Array.isArray(maquina.movimentacoesDetalhes) && maquina.movimentacoesDetalhes.length > 0 ? (
+                      {Array.isArray(maquina.movimentacoesDetalhes) &&
+                      maquina.movimentacoesDetalhes.length > 0 ? (
                         <div className="space-y-2 sm:space-y-3">
                           {maquina.movimentacoesDetalhes.map((mov) => {
                             const dataMov = obterDataMovimentacao(mov);
@@ -1436,25 +1666,46 @@ export function Relatorios() {
                                 <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 mt-3 text-xs sm:text-sm">
                                   <div>
                                     <p className="text-gray-500">Total Pré</p>
-                                    <p className="font-semibold">{toNumber(mov.totalPre)}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-gray-500">Saíram</p>
-                                    <p className="font-semibold text-red-600">{toNumber(mov.produtosVendidos ?? mov.sairam)}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-gray-500">Abastecidas</p>
-                                    <p className="font-semibold text-green-600">{toNumber(mov.abastecidas)}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-gray-500">Notas / Digital</p>
-                                    <p className="font-semibold text-blue-700">
-                                      R$ {toNumber(mov.valorEntradaNotasNormalizado).toFixed(2)} / R$ {toNumber(mov.valorEntradaCartaoNormalizado).toFixed(2)}
+                                    <p className="font-semibold">
+                                      {toNumber(mov.totalPre)}
                                     </p>
                                   </div>
                                   <div>
-                                    <p className="text-gray-500">Valor Financeiro</p>
-                                    <p className={`font-bold ${mov.financeiroPendente ? "text-amber-600" : "text-emerald-700"}`}>
+                                    <p className="text-gray-500">Saíram</p>
+                                    <p className="font-semibold text-red-600">
+                                      {toNumber(
+                                        mov.produtosVendidos ?? mov.sairam,
+                                      )}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-gray-500">Abastecidas</p>
+                                    <p className="font-semibold text-green-600">
+                                      {toNumber(mov.abastecidas)}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-gray-500">
+                                      Notas / Digital
+                                    </p>
+                                    <p className="font-semibold text-blue-700">
+                                      R${" "}
+                                      {toNumber(
+                                        mov.valorEntradaNotasNormalizado,
+                                      ).toFixed(2)}{" "}
+                                      / R${" "}
+                                      {toNumber(
+                                        mov.valorEntradaCartaoNormalizado,
+                                      ).toFixed(2)}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-gray-500">
+                                      Valor Financeiro
+                                    </p>
+                                    <p
+                                      className={`font-bold ${mov.financeiroPendente ? "text-amber-600" : "text-emerald-700"}`}
+                                    >
                                       {mov.financeiroPendente
                                         ? "Pendente"
                                         : `R$ ${toNumber(mov.valorFinanceiroTotal).toFixed(2)}`}
@@ -1491,11 +1742,16 @@ export function Relatorios() {
                         {maquina.produtosSairam &&
                         maquina.produtosSairam.length > 0 ? (
                           <div className="space-y-2 sm:space-y-3">
-                            {(Array.isArray(maquina.produtosSairam) ? maquina.produtosSairam : [])
+                            {(Array.isArray(maquina.produtosSairam)
+                              ? maquina.produtosSairam
+                              : []
+                            )
                               .sort((a, b) => b.quantidade - a.quantidade)
                               .map((produto) => (
                                 <div
-                                  key={produto.id + '-' + (produto.codigo || 'S/C')}
+                                  key={
+                                    produto.id + "-" + (produto.codigo || "S/C")
+                                  }
                                   className="p-3 bg-white border-2 border-red-200 rounded-lg"
                                 >
                                   <div className="flex items-center justify-between">
@@ -1513,7 +1769,11 @@ export function Relatorios() {
                                       </div>
                                     </div>
                                     <span className="bg-red-500 text-white px-3 py-1 rounded-full font-bold">
-                                      {typeof produto.quantidade === "number" ? produto.quantidade.toLocaleString("pt-BR") : "0"}
+                                      {typeof produto.quantidade === "number"
+                                        ? produto.quantidade.toLocaleString(
+                                            "pt-BR",
+                                          )
+                                        : "0"}
                                     </span>
                                   </div>
                                 </div>
@@ -1543,11 +1803,16 @@ export function Relatorios() {
                         {maquina.produtosEntraram &&
                         maquina.produtosEntraram.length > 0 ? (
                           <div className="space-y-2 sm:space-y-3">
-                            {(Array.isArray(maquina.produtosEntraram) ? maquina.produtosEntraram : [])
+                            {(Array.isArray(maquina.produtosEntraram)
+                              ? maquina.produtosEntraram
+                              : []
+                            )
                               .sort((a, b) => b.quantidade - a.quantidade)
                               .map((produto) => (
                                 <div
-                                  key={produto.id + '-' + (produto.codigo || 'S/C')}
+                                  key={
+                                    produto.id + "-" + (produto.codigo || "S/C")
+                                  }
                                   className="p-3 bg-white border-2 border-green-200 rounded-lg"
                                 >
                                   <div className="flex items-center justify-between">
@@ -1565,7 +1830,11 @@ export function Relatorios() {
                                       </div>
                                     </div>
                                     <span className="bg-green-500 text-white px-3 py-1 rounded-full font-bold">
-                                      {typeof produto.quantidade === "number" ? produto.quantidade.toLocaleString("pt-BR") : "0"}
+                                      {typeof produto.quantidade === "number"
+                                        ? produto.quantidade.toLocaleString(
+                                            "pt-BR",
+                                          )
+                                        : "0"}
                                     </span>
                                   </div>
                                 </div>
@@ -1602,7 +1871,8 @@ export function Relatorios() {
                 Consolidado Geral de Produtos
               </h3>
               <p className="text-sm text-gray-600 mb-6">
-                Resumo de todos os produtos (todas as máquinas das lojas selecionadas)
+                Resumo de todos os produtos (todas as máquinas das lojas
+                selecionadas)
               </p>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1618,7 +1888,7 @@ export function Relatorios() {
                         .sort((a, b) => b.quantidade - a.quantidade)
                         .map((produto) => (
                           <div
-                            key={produto.id + '-' + (produto.codigo || 'S/C')}
+                            key={produto.id + "-" + (produto.codigo || "S/C")}
                             className="p-3 bg-white border-2 border-red-200 rounded-lg"
                           >
                             <div className="flex items-center justify-between">
@@ -1636,7 +1906,9 @@ export function Relatorios() {
                                 </div>
                               </div>
                               <span className="bg-red-500 text-white px-3 py-1 rounded-full font-bold">
-                                {typeof produto.quantidade === "number" ? produto.quantidade.toLocaleString("pt-BR") : "0"}
+                                {typeof produto.quantidade === "number"
+                                  ? produto.quantidade.toLocaleString("pt-BR")
+                                  : "0"}
                               </span>
                             </div>
                           </div>
@@ -1662,7 +1934,7 @@ export function Relatorios() {
                         .sort((a, b) => b.quantidade - a.quantidade)
                         .map((produto) => (
                           <div
-                            key={produto.id + '-' + (produto.codigo || 'S/C')}
+                            key={produto.id + "-" + (produto.codigo || "S/C")}
                             className="p-3 bg-white border-2 border-green-200 rounded-lg"
                           >
                             <div className="flex items-center justify-between">
@@ -1680,7 +1952,9 @@ export function Relatorios() {
                                 </div>
                               </div>
                               <span className="bg-green-500 text-white px-3 py-1 rounded-full font-bold">
-                                {typeof produto.quantidade === "number" ? produto.quantidade.toLocaleString("pt-BR") : "0"}
+                                {typeof produto.quantidade === "number"
+                                  ? produto.quantidade.toLocaleString("pt-BR")
+                                  : "0"}
                               </span>
                             </div>
                           </div>
