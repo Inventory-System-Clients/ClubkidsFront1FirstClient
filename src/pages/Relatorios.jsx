@@ -948,20 +948,28 @@ export function Relatorios() {
       ? relatorio.produtosEntraram
       : [];
 
+  const produtosSairamDasMaquinas = agregarProdutos(
+    maquinas.flatMap((maquina) =>
+      Array.isArray(maquina?.produtosSairam) ? maquina.produtosSairam : [],
+    ),
+  );
+
   const produtosSairamConsolidado =
-    produtosSairam.length > 0
-      ? produtosSairam
-      : toNumber(totais.produtosSairam) > 0
-        ? [
-            {
-              id: "sem-detalhamento-saida",
-              nome: "Sem detalhamento por produto",
-              codigo: "-",
-              emoji: "⚠️",
-              quantidade: toNumber(totais.produtosSairam),
-            },
-          ]
-        : [];
+    produtosSairamDasMaquinas.length > 0
+      ? produtosSairamDasMaquinas
+      : produtosSairam.length > 0
+        ? produtosSairam
+        : toNumber(totais.produtosSairam) > 0
+          ? [
+              {
+                id: "sem-detalhamento-saida",
+                nome: "Sem detalhamento por produto",
+                codigo: "-",
+                emoji: "⚠️",
+                quantidade: toNumber(totais.produtosSairam),
+              },
+            ]
+          : [];
 
   const lojasComMovimentacoes = (() => {
     if (!relatorio) return [];
