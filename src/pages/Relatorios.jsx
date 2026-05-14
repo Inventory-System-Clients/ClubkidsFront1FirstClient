@@ -948,6 +948,21 @@ export function Relatorios() {
       ? relatorio.produtosEntraram
       : [];
 
+  const produtosSairamConsolidado =
+    produtosSairam.length > 0
+      ? produtosSairam
+      : toNumber(totais.produtosSairam) > 0
+        ? [
+            {
+              id: "sem-detalhamento-saida",
+              nome: "Sem detalhamento por produto",
+              codigo: "-",
+              emoji: "⚠️",
+              quantidade: toNumber(totais.produtosSairam),
+            },
+          ]
+        : [];
+
   const lojasComMovimentacoes = (() => {
     if (!relatorio) return [];
 
@@ -1882,9 +1897,9 @@ export function Relatorios() {
                     <span className="text-2xl">📤</span>
                     Produtos que Saíram (Total Geral)
                   </h4>
-                  {produtosSairam.length > 0 ? (
+                  {produtosSairamConsolidado.length > 0 ? (
                     <div className="space-y-2">
-                      {produtosSairam
+                      {produtosSairamConsolidado
                         .sort((a, b) => b.quantidade - a.quantidade)
                         .map((produto) => (
                           <div
