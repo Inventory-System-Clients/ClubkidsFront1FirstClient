@@ -796,17 +796,8 @@ export function Relatorios() {
           toNumber(maquina.valoresEntrada?.cartao || 0);
         dadosLoja.comissao += toNumber(maquina.valoresComissao || 0);
 
-        // Contar pelúcias de produtos saíram
-        const peluciasDoMaquina = (maquina.produtosSairam || []).reduce(
-          (acc, produto) => {
-            const nome = String(produto?.nome || "");
-            const ehPelucia = /pel[uú]cia/i.test(nome);
-            return ehPelucia ? acc + toNumber(produto?.quantidade) : acc;
-          },
-          0,
-        );
-
-        dadosLoja.pelucias += peluciasDoMaquina;
+        // Para a planilha, usar o total real de saídas da loja/máquina.
+        dadosLoja.pelucias += toNumber(maquina?.totais?.produtosSairam);
       });
 
       const linhas = Object.values(dadosPorLoja).map((linha) => {
