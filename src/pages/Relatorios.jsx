@@ -838,6 +838,29 @@ export function Relatorios() {
       const formatarMoeda = (valor) =>
         `R$ ${toNumber(valor).toFixed(2).replace(".", ",")}`;
 
+      const produtosSaidaDetalhados = agregarProdutos(
+        (relatorio?.maquinas || []).flatMap((maquina) =>
+          Array.isArray(maquina?.produtosSairam) ? maquina.produtosSairam : [],
+        ),
+      );
+
+      const produtosSaidaPdf =
+        produtosSaidaDetalhados.length > 0
+          ? produtosSaidaDetalhados
+          : Array.isArray(relatorio?.produtosSairam)
+            ? relatorio.produtosSairam
+            : [];
+
+      const produtosSaidaOrdenados = [...produtosSaidaPdf].sort(
+        (a, b) => toNumber(b.quantidade) - toNumber(a.quantidade),
+      );
+
+      const totalValorProdutos = produtosSaidaOrdenados.reduce(
+        (acc, produto) =>
+          acc + toNumber(produto.quantidade) * toNumber(produto.preco),
+        0,
+      );
+
       const linhasHtml = linhasOrdenadas
         .map(
           (linha) => `
@@ -854,6 +877,34 @@ export function Relatorios() {
         )
         .join("");
 
+      const linhasProdutosHtml = produtosSaidaOrdenados.length
+        ? produtosSaidaOrdenados
+            .map((produto) => {
+              const quantidade = toNumber(produto.quantidade);
+              const valorUnitario = toNumber(produto.preco);
+              const valorTotal = quantidade * valorUnitario;
+
+              return `
+                <tr>
+                  <td>${produto.emoji || "📦"} ${produto.nome}</td>
+                  <td>${produto.codigo || "-"}</td>
+                  <td class="num">${Math.round(quantidade)}</td>
+                  <td class="num">${
+                    valorUnitario > 0 ? formatarMoeda(valorUnitario) : "-"
+                  }</td>
+                  <td class="num">${
+                    valorUnitario > 0 ? formatarMoeda(valorTotal) : "-"
+                  }</td>
+                </tr>
+              `;
+            })
+            .join("")
+        : `
+            <tr>
+              <td colspan="5" style="text-align:center;">Nenhum produto com saída detalhada no período.</td>
+            </tr>
+          `;
+
       const htmlPlanilha = `
         <!DOCTYPE html>
         <html lang="pt-BR">
@@ -869,6 +920,7 @@ export function Relatorios() {
             th, td { border: 1px solid #9ca3af; padding: 6px 8px; }
             th { background: #f3f4f6; text-align: left; }
             .num { text-align: right; white-space: nowrap; }
+            .section-title { margin: 18px 0 8px; font-size: 14px; font-weight: bold; }
             tfoot td { font-weight: bold; background: #eef2ff; }
             @media print {
               body { padding: 0; }
@@ -904,6 +956,30 @@ export function Relatorios() {
                 <td class="num">${formatarMoeda(totalConferido)}</td>
                 <td class="num">${Math.round(totalPelucias)}</td>
                 <td class="num">${formatarMoeda(mediaGeralValorPorPelucia)}</td>
+              </tr>
+            </tfoot>
+          </table>
+
+          <div class="section-title">Detalhamento dos Produtos que Saíram</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Produto</th>
+                <th>Código</th>
+                <th>Qtd Saída</th>
+                <th>Valor Unitário</th>
+                <th>Valor Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${linhasProdutosHtml}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2">TOTAL PRODUTOS</td>
+                <td class="num">${Math.round(totalPelucias)}</td>
+                <td class="num">-</td>
+                <td class="num">${formatarMoeda(totalValorProdutos)}</td>
               </tr>
             </tfoot>
           </table>
