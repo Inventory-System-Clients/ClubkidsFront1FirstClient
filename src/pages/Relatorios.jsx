@@ -148,6 +148,10 @@ export function Relatorios() {
         if (!mapaMaquinas.has(maquinaId)) {
           mapaMaquinas.set(maquinaId, {
             ...maquinaAtual,
+            maquina: {
+              ...(maquinaAtual?.maquina || {}),
+              lojaId: maquinaAtual?.maquina?.lojaId ?? relatorioAtual?.loja?.id,
+            },
             totais: {
               produtosSairam: toNumber(maquinaAtual?.totais?.produtosSairam),
               produtosEntraram: toNumber(
@@ -750,19 +754,25 @@ export function Relatorios() {
       // Usar os mesmos dados do relatório principal
       // Agrupar maquinas por loja para calcular totais
       const dadosPorLoja = {};
+      const lojaPadraoRelatorio = relatorio?.loja;
 
       (relatorio?.maquinas || []).forEach((maquina) => {
-        const lojaInfo = relatorio?.lojas?.find(
-          (l) =>
-            maquina.maquina?.id === l.loja?.id ||
-            lojas.find((lo) => lo.id === maquina.maquina?.id)?.nome ===
-              l.loja?.nome,
+        const lojaIdMaquina =
+          maquina?.maquina?.lojaId || lojaPadraoRelatorio?.id || null;
+        const lojaDoEstado = lojas.find(
+          (l) => String(l.id) === String(lojaIdMaquina),
         );
+        const lojaNoRelatorio = Array.isArray(relatorio?.lojas)
+          ? relatorio.lojas.find(
+              (item) => String(item?.loja?.id) === String(lojaIdMaquina),
+            )
+          : null;
 
-        // Se não encontrou por relação, tenta pegar da máquina
-        const lojaId = maquina.maquina?.lojaId || lojaInfo?.loja?.id;
-        const loja = lojas.find((l) => String(l.id) === String(lojaId));
-        const nomeLoja = loja?.nome || `Loja ${lojaId}`;
+        const nomeLoja =
+          lojaDoEstado?.nome ||
+          lojaNoRelatorio?.loja?.nome ||
+          lojaPadraoRelatorio?.nome ||
+          (lojaIdMaquina ? `Loja ${lojaIdMaquina}` : "Loja não identificada");
 
         if (!dadosPorLoja[nomeLoja]) {
           dadosPorLoja[nomeLoja] = {
