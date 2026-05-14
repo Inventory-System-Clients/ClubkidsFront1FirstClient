@@ -89,6 +89,11 @@ export function Relatorios() {
       };
 
       atual.quantidade += toNumber(produto?.quantidade);
+
+      if (toNumber(atual?.preco) <= 0 && toNumber(produto?.preco) > 0) {
+        atual.preco = produto.preco;
+      }
+
       mapa.set(chave, atual);
     });
 
