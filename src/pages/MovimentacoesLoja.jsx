@@ -6,7 +6,18 @@ import { Footer } from "../components/Footer";
 import { PageHeader, AlertBox, Badge } from "../components/UIComponents";
 import { PageLoader } from "../components/Loading";
 
-const NUMEROS_BAG_BLOQUEADOS = new Set(["0", "00", "1", "2", "3", "4", "01", "02", "03", "04"]);
+const NUMEROS_BAG_BLOQUEADOS = new Set([
+  "0",
+  "00",
+  "1",
+  "2",
+  "3",
+  "4",
+  "01",
+  "02",
+  "03",
+  "04",
+]);
 const numeroBagBloqueado = (numeroBag = "") =>
   NUMEROS_BAG_BLOQUEADOS.has(numeroBag.trim());
 
@@ -16,7 +27,11 @@ const toNumberOrNull = (value) => {
 };
 
 const lojaTemMovimentacaoReal = (loja, lojasRoteiro = []) => {
-  if (!loja || loja.concluido === true || loja.movimentacao_em_andamento !== true) {
+  if (
+    !loja ||
+    loja.concluido === true ||
+    loja.movimentacao_em_andamento !== true
+  ) {
     return false;
   }
 
@@ -37,14 +52,19 @@ const lojaTemMovimentacaoReal = (loja, lojasRoteiro = []) => {
     return true;
   }
 
-  if (Array.isArray(loja.maquinas) && loja.maquinas.some((m) => m?.atendida === true || m?.ultimaMovimentacao)) {
+  if (
+    Array.isArray(loja.maquinas) &&
+    loja.maquinas.some((m) => m?.atendida === true || m?.ultimaMovimentacao)
+  ) {
     return true;
   }
 
   const lojaNoRoteiro = lojasRoteiro.find((l) => {
     const idLoja = toNumberOrNull(loja.id);
     const idLista = toNumberOrNull(l.id);
-    return idLoja !== null && idLista !== null ? idLoja === idLista : String(loja.id) === String(l.id);
+    return idLoja !== null && idLista !== null
+      ? idLoja === idLista
+      : String(loja.id) === String(l.id);
   });
 
   if (!lojaNoRoteiro) {
@@ -52,7 +72,9 @@ const lojaTemMovimentacaoReal = (loja, lojasRoteiro = []) => {
   }
 
   if (Array.isArray(lojaNoRoteiro.maquinas)) {
-    return lojaNoRoteiro.maquinas.some((m) => m?.atendida === true || m?.ultimaMovimentacao);
+    return lojaNoRoteiro.maquinas.some(
+      (m) => m?.atendida === true || m?.ultimaMovimentacao,
+    );
   }
 
   return false;
@@ -62,7 +84,7 @@ export function MovimentacoesLoja() {
   const { roteiroId, lojaId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   const [roteiro, setRoteiro] = useState(null);
   const [loja, setLoja] = useState(null);
   const [maquinas, setMaquinas] = useState([]);
@@ -74,7 +96,7 @@ export function MovimentacoesLoja() {
   const [finalizando, setFinalizando] = useState(false);
   const [areceberPendente, setAReceberPendente] = useState(false);
   const [lojaComMovimentacao, setLojaComMovimentacao] = useState(null); // Loja bloqueando outras movimentações
-  
+
   // Formulário de movimentação
   // Inicializa com o ID da máquina passada via navegação, se houver
   const [maquinaSelecionada, setMaquinaSelecionada] = useState(() => {
@@ -100,7 +122,7 @@ export function MovimentacoesLoja() {
   // Remove bloqueio se loja já está concluída
   useEffect(() => {
     if (loja && loja.concluido === true) {
-      localStorage.removeItem('lojaAtiva');
+      localStorage.removeItem("lojaAtiva");
     }
   }, [loja]);
 
@@ -110,52 +132,58 @@ export function MovimentacoesLoja() {
       const [roteiroRes, lojaRes, produtosRes] = await Promise.all([
         api.get(`/roteiros/${roteiroId}`),
         api.get(`/lojas/${lojaId}`),
-        api.get("/produtos")
+        api.get("/produtos"),
       ]);
-      
+
       setRoteiro(roteiroRes.data);
       setLoja(lojaRes.data);
       setProdutos(produtosRes.data);
-      
+
       // Buscar máquinas da loja
       const maquinasRes = await api.get(`/maquinas?lojaId=${lojaId}`);
       setMaquinas(maquinasRes.data);
 
-      const lojasDoRoteiro = Array.isArray(roteiroRes.data?.lojas) ? roteiroRes.data.lojas : [];
+      const lojasDoRoteiro = Array.isArray(roteiroRes.data?.lojas)
+        ? roteiroRes.data.lojas
+        : [];
 
       // Buscar todas as lojas do roteiro para verificar bloqueios
       try {
         const lojasRoteiroRes = await api.get(`/roteiros/${roteiroId}/lojas`);
         const lojasBloqueadas = lojasRoteiroRes.data.filter(
-          l => lojaTemMovimentacaoReal(l, lojasDoRoteiro) && String(l.id) !== String(lojaId)
+          (l) =>
+            lojaTemMovimentacaoReal(l, lojasDoRoteiro) &&
+            String(l.id) !== String(lojaId),
         );
-        
+
         if (lojasBloqueadas.length > 0) {
           setLojaComMovimentacao(lojasBloqueadas[0]);
           // Atualiza localStorage
-          localStorage.setItem('lojaAtiva', lojasBloqueadas[0].id);
+          localStorage.setItem("lojaAtiva", lojasBloqueadas[0].id);
         } else if (lojaTemMovimentacaoReal(lojaRes.data, lojasDoRoteiro)) {
           // A loja atual está com movimentação em andamento
-          localStorage.setItem('lojaAtiva', lojaId);
+          localStorage.setItem("lojaAtiva", lojaId);
           setLojaComMovimentacao(null);
         } else {
           // Nenhuma loja bloqueada
-          localStorage.removeItem('lojaAtiva');
+          localStorage.removeItem("lojaAtiva");
           setLojaComMovimentacao(null);
         }
       } catch (err) {
-        console.warn('Erro ao buscar lojas do roteiro:', err);
+        console.warn("Erro ao buscar lojas do roteiro:", err);
         // Fallback para localStorage em caso de erro
-        const lojaAtiva = localStorage.getItem('lojaAtiva');
+        const lojaAtiva = localStorage.getItem("lojaAtiva");
         if (lojaAtiva && lojaAtiva !== lojaId) {
-          const lojaDoRoteiro = lojasDoRoteiro.find((l) => String(l.id) === String(lojaAtiva));
+          const lojaDoRoteiro = lojasDoRoteiro.find(
+            (l) => String(l.id) === String(lojaAtiva),
+          );
           if (lojaTemMovimentacaoReal(lojaDoRoteiro, lojasDoRoteiro)) {
             setLojaComMovimentacao({
               id: lojaAtiva,
-              nome: lojaDoRoteiro?.nome || 'Loja bloqueada'
+              nome: lojaDoRoteiro?.nome || "Loja bloqueada",
             });
           } else {
-            localStorage.removeItem('lojaAtiva');
+            localStorage.removeItem("lojaAtiva");
             setLojaComMovimentacao(null);
           }
         }
@@ -164,18 +192,24 @@ export function MovimentacoesLoja() {
       // Verificar se já existe pendência "à receber" para esta loja neste roteiro
       try {
         const arRes = await api.get(`/roteiros/financeiro/areceber`);
-        const existe = (arRes.data || []).some(r => r.lojaId === lojaId && r.roteiroId === roteiroId && !r.recebido);
+        const existe = (arRes.data || []).some(
+          (r) =>
+            r.lojaId === lojaId && r.roteiroId === roteiroId && !r.recebido,
+        );
         setAReceberPendente(existe);
       } catch {}
 
       // Sincronizar localStorage com o estado do backend
       if (lojaTemMovimentacaoReal(lojaRes.data, lojasDoRoteiro)) {
-        localStorage.setItem('lojaAtiva', lojaId);
+        localStorage.setItem("lojaAtiva", lojaId);
       } else if (lojaRes.data.concluido === true) {
-        localStorage.removeItem('lojaAtiva');
+        localStorage.removeItem("lojaAtiva");
       }
     } catch (error) {
-      setError("Erro ao carregar dados: " + (error.response?.data?.error || error.message));
+      setError(
+        "Erro ao carregar dados: " +
+          (error.response?.data?.error || error.message),
+      );
     } finally {
       setLoading(false);
     }
@@ -187,6 +221,10 @@ export function MovimentacoesLoja() {
       setError("Selecione uma máquina");
       return;
     }
+    if (!formData.produto_id) {
+      setError("Selecione um produto para registrar a movimentação.");
+      return;
+    }
     const numeroBagInformado = formData.numeroBag?.trim() || "";
 
     if (!numeroBagInformado) {
@@ -194,7 +232,9 @@ export function MovimentacoesLoja() {
       return;
     }
     if (numeroBagBloqueado(numeroBagInformado)) {
-      setError("Os números 00, 01, 02, 03, 04 (e 0, 1, 2, 3, 4) são bloqueados para BAG. Informe outro número para lançar a movimentação.");
+      setError(
+        "Os números 00, 01, 02, 03, 04 (e 0, 1, 2, 3, 4) são bloqueados para BAG. Informe outro número para lançar a movimentação.",
+      );
       return;
     }
 
@@ -209,36 +249,52 @@ export function MovimentacoesLoja() {
         contadorIn: parseInt(formData.contadorIn) || 0,
         contadorOut: parseInt(formData.contadorOut) || 0,
         quantidade_notas_entrada: 0,
-        valor_entrada_maquininha_pix: parseFloat(formData.valor_entrada_maquininha_pix) || 0,
+        valor_entrada_maquininha_pix:
+          parseFloat(formData.valor_entrada_maquininha_pix) || 0,
         numeroBag: numeroBagInformado,
-        valorEntradaNotas: formData.valorEntradaNotas ? parseFloat(formData.valorEntradaNotas) : null,
-        valorEntradaCartao: formData.valorEntradaCartao ? parseFloat(formData.valorEntradaCartao) : null,
+        valorEntradaNotas: formData.valorEntradaNotas
+          ? parseFloat(formData.valorEntradaNotas)
+          : null,
+        valorEntradaCartao: formData.valorEntradaCartao
+          ? parseFloat(formData.valorEntradaCartao)
+          : null,
         observacoes: formData.observacao || "",
-        produtos: formData.produto_id ? [{
-          produtoId: formData.produto_id,
-          quantidadeSaiu: 0,
-          quantidadeAbastecida: parseInt(formData.quantidadeAdicionada) || 0,
-        }] : [],
+        produtos: formData.produto_id
+          ? [
+              {
+                produtoId: formData.produto_id,
+                quantidadeSaiu: 0,
+                quantidadeAbastecida:
+                  parseInt(formData.quantidadeAdicionada) || 0,
+              },
+            ]
+          : [],
       };
 
       await api.post("/movimentacoes", movimentacao);
-      
+
       // Após salvar com sucesso, marca loja como ativa no localStorage
-      localStorage.setItem('lojaAtiva', lojaId);
-      
+      localStorage.setItem("lojaAtiva", lojaId);
+
       // NOTA: O backend já desconta automaticamente do carrinho do usuário
       // Não é necessário fazer nada aqui - o CarrinhoWidget será atualizado automaticamente ao voltar ao dashboard
-      console.log('🛒 [MovimentacoesLoja] Carrinho atualizado automaticamente pelo backend');
-      
+      console.log(
+        "🛒 [MovimentacoesLoja] Carrinho atualizado automaticamente pelo backend",
+      );
+
       setSuccess("Movimentação registrada com sucesso! Redirecionando...");
-      console.log('✅ [MovimentacoesLoja] Movimentação salva com sucesso');
-      console.log('📊 [MovimentacoesLoja] RoteiroId:', roteiroId);
-      console.log('🔧 [MovimentacoesLoja] MaquinaId:', maquinaSelecionada);
+      console.log("✅ [MovimentacoesLoja] Movimentação salva com sucesso");
+      console.log("📊 [MovimentacoesLoja] RoteiroId:", roteiroId);
+      console.log("🔧 [MovimentacoesLoja] MaquinaId:", maquinaSelecionada);
       setTimeout(() => {
-        console.log('🔄 [MovimentacoesLoja] Redirecionando para /roteiros/' + roteiroId + '/executar');
-        navigate(`/roteiros/${roteiroId}/executar`, { 
+        console.log(
+          "🔄 [MovimentacoesLoja] Redirecionando para /roteiros/" +
+            roteiroId +
+            "/executar",
+        );
+        navigate(`/roteiros/${roteiroId}/executar`, {
           replace: true,
-          state: { reload: true, timestamp: Date.now() }
+          state: { reload: true, timestamp: Date.now() },
         });
       }, 1500);
     } catch (error) {
@@ -247,10 +303,15 @@ export function MovimentacoesLoja() {
         const lojaEmUso = error.response.data.lojaEmUso;
         setError(
           `Movimentação bloqueada! A loja "${lojaEmUso.nome}" está com movimentação em andamento. ` +
-          `Por favor, conclua aquela loja antes de iniciar movimentações em outra loja.`
+            `Por favor, conclua aquela loja antes de iniciar movimentações em outra loja.`,
         );
       } else {
-        setError("Erro ao salvar movimentação: " + (error.response?.data?.error || error.response?.data?.message || error.message));
+        setError(
+          "Erro ao salvar movimentação: " +
+            (error.response?.data?.error ||
+              error.response?.data?.message ||
+              error.message),
+        );
       }
     } finally {
       setSalvando(false);
@@ -261,32 +322,41 @@ export function MovimentacoesLoja() {
     // Confirmação mais detalhada
     const confirmacao = window.confirm(
       "⚠️ Tem certeza que deseja concluir esta loja?\n\n" +
-      "Após concluir, você não poderá mais fazer movimentações nas máquinas desta loja neste roteiro.\n\n" +
-      "Clique em OK para confirmar a conclusão da loja."
+        "Após concluir, você não poderá mais fazer movimentações nas máquinas desta loja neste roteiro.\n\n" +
+        "Clique em OK para confirmar a conclusão da loja.",
     );
-    
+
     if (!confirmacao) {
       return;
     }
 
     try {
       setFinalizando(true);
-      const resp = await api.post(`/roteiros/${roteiroId}/lojas/${lojaId}/concluir`);
+      const resp = await api.post(
+        `/roteiros/${roteiroId}/lojas/${lojaId}/concluir`,
+      );
       if (resp.data && resp.data.concluido === true) {
         // Mensagem de sucesso mais clara
-        setSuccess("✅ Loja concluída com sucesso! Agora você pode iniciar o atendimento em outra loja. Redirecionando...");
+        setSuccess(
+          "✅ Loja concluída com sucesso! Agora você pode iniciar o atendimento em outra loja. Redirecionando...",
+        );
         // Ao concluir loja, remove loja ativa e limpa estado
-        localStorage.removeItem('lojaAtiva');
+        localStorage.removeItem("lojaAtiva");
         setLojaComMovimentacao(null);
       } else {
-        setError("A loja não foi concluída pelo backend. Não é possível liberar movimentação em outra loja.");
+        setError(
+          "A loja não foi concluída pelo backend. Não é possível liberar movimentação em outra loja.",
+        );
         return;
       }
       setTimeout(() => {
         navigate(`/roteiros/${roteiroId}/executar`, { replace: true });
       }, 2000);
     } catch (error) {
-      setError("Erro ao concluir loja: " + (error.response?.data?.error || error.message));
+      setError(
+        "Erro ao concluir loja: " +
+          (error.response?.data?.error || error.message),
+      );
     } finally {
       setFinalizando(false);
     }
@@ -297,7 +367,9 @@ export function MovimentacoesLoja() {
     try {
       setFinalizando(true);
       await api.post(`/roteiros/${roteiroId}/lojas/${lojaId}/areceber`);
-      setSuccess("Loja marcada como 'à receber'. Você pode concluir a loja agora ou depois.");
+      setSuccess(
+        "Loja marcada como 'à receber'. Você pode concluir a loja agora ou depois.",
+      );
       setAReceberPendente(true);
     } catch (error) {
       const msg = error.response?.data?.error || error.message;
@@ -306,7 +378,7 @@ export function MovimentacoesLoja() {
       setFinalizando(false);
     }
   };
-  
+
   const voltarParaRoteiro = () => {
     navigate(`/roteiros/${roteiroId}/executar`, { replace: true });
   };
@@ -314,13 +386,20 @@ export function MovimentacoesLoja() {
   // Verificar quais máquinas já têm movimentação
   const maquinasComMovimentacao = new Set(
     maquinas
-      .filter(m => m.ultimaMovimentacao?.roteiro_id === parseInt(roteiroId))
-      .map(m => m.id)
+      .filter((m) => m.ultimaMovimentacao?.roteiro_id === parseInt(roteiroId))
+      .map((m) => m.id),
   );
 
-  const maquinasPendentes = maquinas.filter(m => !maquinasComMovimentacao.has(m.id));
-  const maquinasConcluidas = maquinas.filter(m => maquinasComMovimentacao.has(m.id));
-  const progresso = maquinas.length > 0 ? (maquinasConcluidas.length / maquinas.length) * 100 : 0;
+  const maquinasPendentes = maquinas.filter(
+    (m) => !maquinasComMovimentacao.has(m.id),
+  );
+  const maquinasConcluidas = maquinas.filter((m) =>
+    maquinasComMovimentacao.has(m.id),
+  );
+  const progresso =
+    maquinas.length > 0
+      ? (maquinasConcluidas.length / maquinas.length) * 100
+      : 0;
 
   // Bloqueio de movimentação em outras lojas - baseado no backend
   const bloqueadoPorOutraLoja = lojaComMovimentacao !== null;
@@ -328,8 +407,6 @@ export function MovimentacoesLoja() {
   const bagInvalida = numeroBagBloqueado(formData.numeroBag);
 
   if (loading) return <PageLoader />;
-
-
 
   return (
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
@@ -345,7 +422,7 @@ export function MovimentacoesLoja() {
 
         <PageHeader
           title={loja?.nome || "Carregando..."}
-          subtitle={`${loja?.endereco || ''} - ${loja?.cidade || ''}`}
+          subtitle={`${loja?.endereco || ""} - ${loja?.cidade || ""}`}
           icon="🏪"
         />
 
@@ -366,10 +443,17 @@ export function MovimentacoesLoja() {
             type="error"
             message={
               <div>
-                <b>🔒 Movimentação bloqueada!</b><br/>
-                A loja <b>"{lojaComMovimentacao.nome}"</b> está com movimentação em andamento.<br/>
-                Para movimentar máquinas desta loja, conclua a loja ativa primeiro.<br/>
-                <span className="text-xs">(Volte para "{lojaComMovimentacao.nome}" e clique em "Concluir Loja")</span>
+                <b>🔒 Movimentação bloqueada!</b>
+                <br />A loja <b>"{lojaComMovimentacao.nome}"</b> está com
+                movimentação em andamento.
+                <br />
+                Para movimentar máquinas desta loja, conclua a loja ativa
+                primeiro.
+                <br />
+                <span className="text-xs">
+                  (Volte para "{lojaComMovimentacao.nome}" e clique em "Concluir
+                  Loja")
+                </span>
               </div>
             }
           />
@@ -408,7 +492,7 @@ export function MovimentacoesLoja() {
               {Math.round(progresso)}%
             </div>
           </div>
-          
+
           {/* Botões de finalizar e à receber - aparecem se tiver pelo menos 1 máquina processada */}
           {maquinasConcluidas.length > 0 && (
             <div className="mt-6 space-y-3">
@@ -416,27 +500,33 @@ export function MovimentacoesLoja() {
                 onClick={finalizarLoja}
                 disabled={finalizando}
                 className={`w-full text-lg py-3 ${
-                  progresso === 100 
-                    ? 'btn-success' 
-                    : 'bg-yellow-600 hover:bg-yellow-700 text-white font-bold rounded-xl transition-colors'
+                  progresso === 100
+                    ? "btn-success"
+                    : "bg-yellow-600 hover:bg-yellow-700 text-white font-bold rounded-xl transition-colors"
                 }`}
               >
-                {finalizando ? "Finalizando..." : progresso === 100 
-                  ? "✅ Finalizar Movimentação da Loja" 
-                  : `⚠️ Finalizar Loja Parcialmente (${maquinasConcluidas.length}/${maquinas.length})`
-                }
+                {finalizando
+                  ? "Finalizando..."
+                  : progresso === 100
+                    ? "✅ Finalizar Movimentação da Loja"
+                    : `⚠️ Finalizar Loja Parcialmente (${maquinasConcluidas.length}/${maquinas.length})`}
               </button>
               <button
                 onClick={marcarLojaAReceber}
                 disabled={finalizando || areceberPendente}
-                className={`w-full btn-secondary text-lg py-3 ${areceberPendente ? 'opacity-60 cursor-not-allowed' : ''}`}
-                title={areceberPendente ? 'Já existe uma pendência à receber para esta loja' : 'Marcar que o dono fará o PIX depois'}
+                className={`w-full btn-secondary text-lg py-3 ${areceberPendente ? "opacity-60 cursor-not-allowed" : ""}`}
+                title={
+                  areceberPendente
+                    ? "Já existe uma pendência à receber para esta loja"
+                    : "Marcar que o dono fará o PIX depois"
+                }
               >
                 💸 Deixar à Receber
               </button>
               {progresso < 100 && (
                 <p className="text-sm text-yellow-700 text-center">
-                  ⚠️ Faltam {maquinasPendentes.length} máquina(s). Finalize agora ou continue depois.
+                  ⚠️ Faltam {maquinasPendentes.length} máquina(s). Finalize
+                  agora ou continue depois.
                 </p>
               )}
               <button
@@ -462,7 +552,9 @@ export function MovimentacoesLoja() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Formulário de Movimentação */}
           <div className="lg:col-span-2">
-            <div className={`card-gradient ${bloqueadoPorOutraLoja ? 'opacity-75' : ''}`}>
+            <div
+              className={`card-gradient ${bloqueadoPorOutraLoja ? "opacity-75" : ""}`}
+            >
               <h2 className="text-2xl font-bold text-gray-800 mb-6">
                 📝 Nova Movimentação
               </h2>
@@ -472,12 +564,17 @@ export function MovimentacoesLoja() {
                 <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded">
                   <p className="font-semibold">🔒 Formulário Bloqueado</p>
                   <p className="text-sm mt-1">
-                    Conclua a loja "{lojaComMovimentacao.nome}" antes de fazer movimentações aqui.
+                    Conclua a loja "{lojaComMovimentacao.nome}" antes de fazer
+                    movimentações aqui.
                   </p>
                 </div>
               )}
 
-              <form onSubmit={handleSubmitMovimentacao} className="space-y-6" disabled={bloqueadoPorOutraLoja}>
+              <form
+                onSubmit={handleSubmitMovimentacao}
+                className="space-y-6"
+                disabled={bloqueadoPorOutraLoja}
+              >
                 {/* Seleção de Máquina */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -591,7 +688,10 @@ export function MovimentacoesLoja() {
                       type="number"
                       value={formData.contadorOut}
                       onChange={(e) =>
-                        setFormData({ ...formData, contadorOut: e.target.value })
+                        setFormData({
+                          ...formData,
+                          contadorOut: e.target.value,
+                        })
                       }
                       className="input-field"
                       min="0"
@@ -617,19 +717,19 @@ export function MovimentacoesLoja() {
                     />
                     {formData.numeroBag && (
                       <p className="text-sm text-amber-600 mt-1">
-                        ⚠️ Os valores financeiros abaixo são opcionais quando há número de bag
+                        ⚠️ Os valores financeiros abaixo são opcionais quando há
+                        número de bag
                       </p>
                     )}
                     {bagInvalida && (
                       <p className="text-sm text-red-600 mt-1 font-semibold">
-                        ❌ Os números 00, 01, 02, 03, 04 (ou 0, 1, 2, 3, 4) não são permitidos para BAG.
+                        ❌ Os números 00, 01, 02, 03, 04 (ou 0, 1, 2, 3, 4) não
+                        são permitidos para BAG.
                       </p>
                     )}
                   </div>
 
-                  <div>
-
-                  </div>
+                  <div></div>
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -653,7 +753,8 @@ export function MovimentacoesLoja() {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      💳 Valor Entrada Cartão/PIX (R$){!formData.numeroBag && " *"}
+                      💳 Valor Entrada Cartão/PIX (R$)
+                      {!formData.numeroBag && " *"}
                     </label>
                     <input
                       type="number"
@@ -693,15 +794,15 @@ export function MovimentacoesLoja() {
                   disabled={salvando || bloqueadoPorOutraLoja || bagInvalida}
                   className={`w-full text-lg py-3 font-bold rounded-xl transition-colors ${
                     bloqueadoPorOutraLoja || bagInvalida
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-                      : 'btn-primary'
+                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      : "btn-primary"
                   }`}
                   title={
                     bloqueadoPorOutraLoja
                       ? `Conclua a loja "${lojaComMovimentacao?.nome}" primeiro`
                       : bagInvalida
                         ? "Número de bag inválido. Use um valor diferente de 00, 01, 02, 03, 04, 0, 1, 2, 3 ou 4."
-                        : ''
+                        : ""
                   }
                 >
                   {salvando
@@ -739,7 +840,9 @@ export function MovimentacoesLoja() {
                           <div className="font-semibold text-gray-800">
                             {maq.codigo}
                           </div>
-                          <div className="text-sm text-gray-600">{maq.nome}</div>
+                          <div className="text-sm text-gray-600">
+                            {maq.nome}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -761,7 +864,9 @@ export function MovimentacoesLoja() {
                           <div className="font-semibold text-gray-800">
                             ✓ {maq.codigo}
                           </div>
-                          <div className="text-sm text-gray-600">{maq.nome}</div>
+                          <div className="text-sm text-gray-600">
+                            {maq.nome}
+                          </div>
                         </div>
                       ))}
                     </div>
