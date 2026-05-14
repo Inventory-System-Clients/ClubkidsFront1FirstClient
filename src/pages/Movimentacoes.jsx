@@ -14,6 +14,26 @@ import { useAuth } from "../contexts/AuthContext";
 import AvisosMaquinasFaltam from "../components/AvisosMaquinasFaltam";
 import TabelaMovimentacoesEstoqueDeLoja from "../components/TabelaMovimentacoesEstoqueDeLoja";
 
+const toDatetimeLocalValue = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 16);
+};
+
+const toBackendDatetimeValue = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toISOString();
+};
+
+const getBackendErrorMessage = (error, fallback) =>
+  error.response?.data?.error ||
+  error.response?.data?.message ||
+  error.response?.data?.erro ||
+  fallback;
+
 export function Movimentacoes() {
   const { usuario } = useAuth();
 
@@ -54,6 +74,7 @@ export function Movimentacoes() {
     valor_entrada_maquininha_pix: "",
     valorEntradaNotas: "",
     valorEntradaCartao: "",
+    dataColeta: "",
   });
 
   // Formulário Nova Movimentação
@@ -295,6 +316,9 @@ export function Movimentacoes() {
         movimentacao.valor_entrada_maquininha_pix || "",
       valorEntradaNotas: movimentacao.valorEntradaNotas || "",
       valorEntradaCartao: movimentacao.valorEntradaCartao || "",
+      dataColeta: toDatetimeLocalValue(
+        movimentacao.dataColeta || movimentacao.createdAt
+      ),
     });
   };
 
@@ -306,6 +330,7 @@ export function Movimentacoes() {
       valor_entrada_maquininha_pix: "",
       valorEntradaNotas: "",
       valorEntradaCartao: "",
+      dataColeta: "",
     });
   };
 
@@ -329,13 +354,14 @@ export function Movimentacoes() {
           formEdicao.valorEntradaCartao !== ""
             ? parseFloat(formEdicao.valorEntradaCartao)
             : null,
+        dataColeta: toBackendDatetimeValue(formEdicao.dataColeta),
       });
       setSuccess("Movimentação atualizada com sucesso!");
       cancelarEdicao();
       carregarDados();
     } catch (error) {
       console.error("Erro ao atualizar:", error);
-      setError("Erro ao atualizar movimentação");
+      setError(getBackendErrorMessage(error, "Erro ao atualizar movimentação"));
     }
   };
   const confirmarExclusaoLoja = async () => {
@@ -1204,6 +1230,22 @@ export function Movimentacoes() {
                   </p>
                 </div>
 
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Data e hora da movimentação
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={formEdicao.dataColeta}
+                    onChange={(e) =>
+                      setFormEdicao({
+                        ...formEdicao,
+                        dataColeta: e.target.value,
+                      })
+                    }
+                    className="input-field"
+                  />
+                </div>
 
 
                 <div>

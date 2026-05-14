@@ -13,6 +13,28 @@ import { CarrinhoWidget } from "../components/CarrinhoWidget";
 import { DevolucaoModal } from "../components/DevolucaoModal";
 
 import Swal from "sweetalert2";
+
+const toDatetimeLocalValue = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 16);
+};
+
+const toBackendDatetimeValue = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toISOString();
+};
+
+const getBackendErrorMessage = (error, fallback) =>
+  error.response?.data?.error ||
+  error.response?.data?.message ||
+  error.response?.data?.erro ||
+  error.message ||
+  fallback;
+
 export function Dashboard() {
     // Estado para manutenções urgentes atribuídas ao funcionário
     const [manutencoesUrgentes, setManutencoesUrgentes] = useState([]);
@@ -1512,6 +1534,7 @@ export function Dashboard() {
       totalPre: mov.totalPre || 0,
       sairam: mov.produtosVendidos || mov.sairam || 0,
       abastecidas: mov.abastecidas || 0,
+      dataColeta: toDatetimeLocalValue(mov.dataColeta || mov.createdAt),
       // Removido: fichas
     });
   };
@@ -1523,6 +1546,7 @@ export function Dashboard() {
         totalPre: parseInt(movimentacaoEditando.totalPre),
         sairam: parseInt(movimentacaoEditando.sairam), // mantém para compatibilidade, mas backend já calcula corretamente
         abastecidas: parseInt(movimentacaoEditando.abastecidas),
+        dataColeta: toBackendDatetimeValue(movimentacaoEditando.dataColeta),
         // Removido: fichas
       });
       
@@ -1539,7 +1563,9 @@ export function Dashboard() {
       Swal.fire({
         icon: "error",
         title: "Erro",
-        text: "Erro ao atualizar movimentação: " + (error.response?.data?.error || error.message),
+        text:
+          "Erro ao atualizar movimentação: " +
+          getBackendErrorMessage(error, "Erro ao atualizar movimentação"),
         confirmButtonColor: "#ef4444",
       });
     } finally {
@@ -3201,6 +3227,23 @@ export function Dashboard() {
             </h2>
 
             <div className="grid grid-cols-2 gap-6 mb-6">
+              <div className="col-span-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Data e hora da movimentação
+                </label>
+                <input
+                  type="datetime-local"
+                  value={movimentacaoEditando.dataColeta}
+                  onChange={(e) =>
+                    setMovimentacaoEditando({
+                      ...movimentacaoEditando,
+                      dataColeta: e.target.value,
+                    })
+                  }
+                  className="w-full input-field text-lg"
+                />
+              </div>
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   📦 Total Pré

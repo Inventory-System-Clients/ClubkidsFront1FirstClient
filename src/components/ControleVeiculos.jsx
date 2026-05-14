@@ -4,6 +4,25 @@ import { AuthContext } from "../contexts/AuthContext";
 
 import api from "../services/api";
 const emojiVeiculo = (tipo, emoji) => emoji || (tipo === "moto" ? "🏍️" : "🚗");
+const getCombustivelLabel = (valor) => {
+  switch (valor) {
+    case "5":
+      return "5 palzinhos";
+    case "4":
+      return "4 palzinhos";
+    case "3":
+      return "3 palzinhos";
+    case "2":
+      return "2 palzinhos";
+    case "1":
+      return "1 palzinho";
+    case "0":
+      return "Vazio";
+    default:
+      return valor;
+  }
+};
+
 export default function ControleVeiculos({
   veiculos = [],
   onRefresh,
@@ -12,14 +31,30 @@ export default function ControleVeiculos({
   const getUsuarioIdDaMovimentacao = (mov) =>
     mov?.usuarioId ?? mov?.usuario?.id ?? mov?.usuario_id ?? null;
 
+  const getBackendErrorMessage = (error, fallback) =>
+    error.response?.data?.erro ||
+    error.response?.data?.error ||
+    error.response?.data?.message ||
+    error.response?.data?.detalhes ||
+    error.message ||
+    fallback;
+
   const podeFinalizarVeiculo = (veiculo) => {
     if (!veiculo?.emUso || !usuario?.id) return false;
 
     const ultimaMov = ultimasMovs[veiculo.id];
+    if (ultimaMov?.tipo !== "retirada") return false;
+    if (isAdmin()) return true;
+
     return (
-      ultimaMov?.tipo === "retirada" &&
       String(getUsuarioIdDaMovimentacao(ultimaMov)) === String(usuario.id)
     );
+  };
+
+  const podeCorrigirStatusVeiculo = (veiculo) => {
+    if (!isAdmin() || !veiculo?.emUso) return false;
+    const ultimaMov = ultimasMovs[veiculo.id];
+    return ultimaMov?.tipo === "devolucao";
   };
 
   // Estados para edição de nome/modelo (admin)
@@ -198,7 +233,7 @@ export default function ControleVeiculos({
         "A retirada foi salva, mas não foi possível atualizar o status do veículo. Atualize a página.",
         "warning"
       );
-      if (onRefresh) onRefresh();
+      if (onRefresh) await onRefresh();
       fecharModal();
       return;
     }
@@ -246,17 +281,11 @@ export default function ControleVeiculos({
       }
     }
     setFinalizando(true);
+    const usuarioIdDevolucao = getUsuarioIdDaMovimentacao(ultimaMov) || usuario?.id;
     try {
-      await api.put(`/veiculos/${veiculoSelecionado.id}`, {
-        emUso: false,
-        estado: formFinalCompleto.estado,
-        obs: formFinalCompleto.obs,
-        km: kmInformado,
-        nivelCombustivel: getCombustivelLabel(formFinalCompleto.combustivel),
-        nivelLimpeza: formFinalCompleto.limpeza,
-      });
       await api.post("/movimentacao-veiculos", {
         veiculoId: veiculoSelecionado.id,
+        usuarioId: usuarioIdDevolucao,
         tipo: "devolucao",
         gasolina: formFinalCompleto.combustivel ? getCombustivelLabel(formFinalCompleto.combustivel) : undefined,
         nivel_limpeza: formFinalCompleto.limpeza,
@@ -265,10 +294,18 @@ export default function ControleVeiculos({
         obs: formFinalCompleto.obs || undefined,
         dataMovimentacao: new Date().toISOString(),
         km: kmInformado,
-        litrosAbastecidos: Number(formFinalCompleto.litros),
-        postoAbastecimento: formFinalCompleto.posto.trim(),
+        litrosAbastecidos: formFinalCompleto.litros ? Number(formFinalCompleto.litros) : null,
+        postoAbastecimento: formFinalCompleto.posto?.trim() || null,
       });
-      if (onRefresh) onRefresh();
+      await api.put(`/veiculos/${veiculoSelecionado.id}`, {
+        emUso: false,
+        estado: formFinalCompleto.estado,
+        obs: formFinalCompleto.obs,
+        km: kmInformado,
+        nivelCombustivel: getCombustivelLabel(formFinalCompleto.combustivel),
+        nivelLimpeza: formFinalCompleto.limpeza,
+      });
+      if (onRefresh) await onRefresh();
       Swal.fire({
         icon: "success",
         title: `${usuario?.nome || "Funcionário"} guardou ${veiculoSelecionado?.nome}`,
@@ -278,13 +315,35 @@ export default function ControleVeiculos({
       setModalFinalizarAberto(false);
       setVeiculoSelecionado(null);
     } catch (error) {
-      setErroFinalCompleto("Erro ao finalizar veículo.");
+      setErroFinalCompleto(getBackendErrorMessage(error, "Erro ao finalizar veículo."));
       console.error("Erro ao finalizar:", error);
     }
     setFinalizando(false);
   };
 
   // Confirmação do modal de abastecimento
+  const corrigirStatusVeiculo = async (veiculo) => {
+    const ultimaMov = ultimasMovs[veiculo.id];
+    try {
+      await api.put(`/veiculos/${veiculo.id}`, {
+        emUso: false,
+        estado: ultimaMov?.estado || veiculo.estado,
+        obs: ultimaMov?.obs || veiculo.obs,
+        km: ultimaMov?.km ?? veiculo.km,
+        nivelCombustivel: ultimaMov?.gasolina || veiculo.nivelCombustivel,
+        nivelLimpeza: ultimaMov?.nivel_limpeza || veiculo.nivelLimpeza,
+      });
+      if (onRefresh) await onRefresh();
+      Swal.fire("Veículo liberado", "O cadastro foi atualizado como disponível.", "success");
+    } catch (error) {
+      Swal.fire(
+        "Erro",
+        getBackendErrorMessage(error, "Não foi possível liberar o veículo."),
+        "error"
+      );
+    }
+  };
+
   const confirmarAbastecimento = async () => {
     setErroAbastecimento("");
     if (!abastecimento.litros || isNaN(Number(abastecimento.litros)) || Number(abastecimento.litros) <= 0) {
@@ -296,30 +355,37 @@ export default function ControleVeiculos({
       return;
     }
     setFinalizando(true);
+    const ultimaMov = ultimasMovs[veiculoSelecionado?.id];
+    const usuarioIdDevolucao = getUsuarioIdDaMovimentacao(ultimaMov) || usuario?.id;
     try {
       await api.put(`/veiculos/${veiculoSelecionado.id}`, {
         litrosAbastecidos: Number(abastecimento.litros),
         postoAbastecimento: abastecimento.posto.trim(),
       });
       // Finalizar normalmente
-      await api.put(`/veiculos/${veiculoSelecionado.id}`, {
-        ...veiculoSelecionado,
-        emUso: false,
-        nivelCombustivel: getCombustivelLabel(formFinalizar.combustivel),
-        km: Number(formFinalizar.km),
-      });
       await api.post("/movimentacao-veiculos", {
         veiculoId: veiculoSelecionado.id,
+        usuarioId: usuarioIdDevolucao,
         tipo: "devolucao",
-        gasolina: formFinalizar.combustivel ? getCombustivelLabel(formFinalizar.combustivel) : undefined,
-        nivel_limpeza: formFinalizar.limpeza,
-        estado: formFinalizar.estado,
+        gasolina: formFinalCompleto.combustivel ? getCombustivelLabel(formFinalCompleto.combustivel) : undefined,
+        nivel_limpeza: formFinalCompleto.limpeza,
+        estado: formFinalCompleto.estado,
         modo: veiculoSelecionado.modo,
-        obs: formFinalizar.obs || undefined,
+        obs: formFinalCompleto.obs || undefined,
         dataMovimentacao: new Date().toISOString(),
-        km: Number(formFinalizar.km),
+        km: Number(formFinalCompleto.km),
+        litrosAbastecidos: Number(abastecimento.litros),
+        postoAbastecimento: abastecimento.posto.trim(),
       });
-      if (onRefresh) onRefresh();
+      await api.put(`/veiculos/${veiculoSelecionado.id}`, {
+        emUso: false,
+        estado: formFinalCompleto.estado,
+        obs: formFinalCompleto.obs,
+        km: Number(formFinalCompleto.km),
+        nivelCombustivel: getCombustivelLabel(formFinalCompleto.combustivel),
+        nivelLimpeza: formFinalCompleto.limpeza,
+      });
+      if (onRefresh) await onRefresh();
       Swal.fire({
         icon: "success",
         title: `${usuario?.nome || "Funcionário"} guardou ${veiculoSelecionado?.nome}`,
@@ -381,26 +447,6 @@ export default function ControleVeiculos({
           </div>
         </div>
       )}
-
-  // Função para exibir o texto do combustível
-  function getCombustivelLabel(valor) {
-    switch (valor) {
-      case "5":
-        return "5 palzinhos";
-      case "4":
-        return "4 palzinhos";
-      case "3":
-        return "3 palzinhos";
-      case "2":
-        return "2 palzinhos";
-      case "1":
-        return "1 palzinho";
-      case "0":
-        return "Vazio";
-      default:
-        return valor;
-    }
-  }
 
   const [ultimasMovs, setUltimasMovs] = useState({});
 
@@ -492,7 +538,7 @@ export default function ControleVeiculos({
                           await api.put(`/veiculos/${veiculo.id}`, { nome: editNome, modelo: editModelo });
                           setEditandoId(null);
                           onRefresh && onRefresh();
-                        } catch (err) {
+                        } catch {
                           Swal.fire("Erro", "Não foi possível salvar.", "error");
                         }
                       }}
@@ -526,7 +572,7 @@ export default function ControleVeiculos({
                               try {
                                 await api.delete(`/veiculos/${veiculo.id}`);
                                 onRefresh && onRefresh();
-                              } catch (err) {
+                              } catch {
                                 Swal.fire("Erro", "Não foi possível excluir.", "error");
                               }
                             }
@@ -548,6 +594,12 @@ export default function ControleVeiculos({
                       abrirModalFinalizar(veiculo);
                     }}
                   >Finalizar</button>
+                )}
+                {podeCorrigirStatusVeiculo(veiculo) && (
+                  <button
+                    className="mt-2 px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                    onClick={() => corrigirStatusVeiculo(veiculo)}
+                  >Liberar veículo</button>
                 )}
               </>
             )}
