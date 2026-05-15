@@ -78,6 +78,12 @@ export function Relatorios() {
     return valorFaturado > 0 ? valorFaturado : notas + cartao + fichas;
   };
 
+  const formatarMoedaBRL = (valor) =>
+    toNumber(valor).toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    });
+
   const agregarProdutos = (produtos = []) => {
     const mapa = new Map();
 
@@ -793,7 +799,6 @@ export function Relatorios() {
               conferidoTotal: 0,
               pelucias: 0,
               lucroLojaPeriodo: 0,
-              mediaValorPorPelucia: 0,
             },
           });
         }
@@ -804,8 +809,9 @@ export function Relatorios() {
         const conferidoTotal = dinheiro + cartao;
         const pelucias = toNumber(maquina?.totais?.produtosSairam);
         const lucroMaquinaPeriodo = conferidoTotal - comissao;
-        const mediaValorPorPelucia =
-          pelucias > 0 ? lucroMaquinaPeriodo / pelucias : 0;
+        const mediaRecebidaPorPelucia = toNumber(
+          maquina?.indicadoresFinanceiros?.mediaRecebidaPorPelucia,
+        );
 
         const dadosMaquina = {
           nomeLoja,
@@ -821,7 +827,7 @@ export function Relatorios() {
           conferidoTotal,
           pelucias,
           lucroMaquinaPeriodo,
-          mediaValorPorPelucia,
+          mediaRecebidaPorPelucia,
         };
 
         const dadosLoja = dadosPorLoja.get(chaveLoja);
@@ -840,18 +846,9 @@ export function Relatorios() {
             a.nomeMaquina.localeCompare(b.nomeMaquina, "pt-BR"),
           );
 
-          const mediaValorPorPeluciaLoja =
-            loja.totais.pelucias > 0
-              ? loja.totais.lucroLojaPeriodo / loja.totais.pelucias
-              : 0;
-
           return {
             ...loja,
             maquinas: maquinasOrdenadas,
-            totais: {
-              ...loja.totais,
-              mediaValorPorPelucia: mediaValorPorPeluciaLoja,
-            },
           };
         })
         .sort((a, b) => a.nomeLoja.localeCompare(b.nomeLoja, "pt-BR"));
@@ -884,8 +881,7 @@ export function Relatorios() {
         totalPelucias > 0 ? totalLucroLojas / totalPelucias : 0;
       const exibirTotalGeral = lojasOrdenadas.length > 1;
 
-      const formatarMoeda = (valor) =>
-        `R$ ${toNumber(valor).toFixed(2).replace(".", ",")}`;
+      const formatarMoeda = formatarMoedaBRL;
 
       const produtosSaidaDetalhados = agregarProdutos(
         (relatorio?.maquinas || []).flatMap((maquina) =>
@@ -929,7 +925,7 @@ export function Relatorios() {
                   <td class="num">${formatarMoeda(linha.comissao)}</td>
                   <td class="num">${formatarMoeda(linha.conferidoTotal)}</td>
                   <td class="num">${Math.round(linha.pelucias)}</td>
-                  <td class="num">${formatarMoeda(linha.mediaValorPorPelucia)}</td>
+                  <td class="num">${formatarMoeda(linha.mediaRecebidaPorPelucia)}</td>
                 </tr>
               `,
             )
@@ -943,7 +939,7 @@ export function Relatorios() {
               <td class="num">${formatarMoeda(loja.totais.comissao)}</td>
               <td class="num">${formatarMoeda(loja.totais.conferidoTotal)}</td>
               <td class="num">${Math.round(loja.totais.pelucias)}</td>
-              <td class="num">${formatarMoeda(loja.totais.mediaValorPorPelucia)}</td>
+              <td class="num">-</td>
             </tr>
           `;
 
@@ -1035,7 +1031,7 @@ export function Relatorios() {
                 <th>Comissão</th>
                 <th>Conferido Total</th>
                 <th>Pelúcias (Qtd Saída)</th>
-                <th>Média Valor/Pelúcia</th>
+                <th>Média recebida por pelúcia</th>
               </tr>
             </thead>
             <tbody>
@@ -1052,7 +1048,7 @@ export function Relatorios() {
                 <td class="num">${formatarMoeda(totalComissao)}</td>
                 <td class="num">${formatarMoeda(totalConferido)}</td>
                 <td class="num">${Math.round(totalPelucias)}</td>
-                <td class="num">${formatarMoeda(mediaGeralValorPorPelucia)}</td>
+                <td class="num">-</td>
               </tr>
             </tfoot>
             `
@@ -1683,6 +1679,20 @@ export function Relatorios() {
                             <div className="text-2xl sm:text-3xl font-bold">
                               {index + 1}/{relatorio.maquinas.length}
                             </div>
+                          </div>
+                        </div>
+                        <div className="bg-linear-to-br from-teal-600 to-cyan-700 text-white p-3 sm:p-5 rounded-xl shadow-lg col-span-2 lg:col-span-1">
+                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
+                            R$
+                          </div>
+                          <div className="text-xl sm:text-3xl font-bold text-center">
+                            {formatarMoedaBRL(
+                              maquina.indicadoresFinanceiros
+                                ?.mediaRecebidaPorPelucia,
+                            )}
+                          </div>
+                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
+                            Média recebida por pelúcia
                           </div>
                         </div>
                       </div>
