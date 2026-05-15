@@ -757,11 +757,11 @@ export function Relatorios() {
       setError("");
 
       // Usar os mesmos dados do relatório principal
-      // Agrupar maquinas por loja para calcular totais
-      const dadosPorLoja = {};
+      // Agrupar máquinas por loja e detalhar cada máquina na planilha
+      const dadosPorLoja = new Map();
       const lojaPadraoRelatorio = relatorio?.loja;
 
-      (relatorio?.maquinas || []).forEach((maquina) => {
+      (relatorio?.maquinas || []).forEach((maquina, index) => {
         const lojaIdMaquina =
           maquina?.maquina?.lojaId || lojaPadraoRelatorio?.id || null;
         const lojaDoEstado = lojas.find(
@@ -779,66 +779,110 @@ export function Relatorios() {
           lojaPadraoRelatorio?.nome ||
           (lojaIdMaquina ? `Loja ${lojaIdMaquina}` : "Loja não identificada");
 
-        if (!dadosPorLoja[nomeLoja]) {
-          dadosPorLoja[nomeLoja] = {
+        const chaveLoja = String(lojaIdMaquina ?? nomeLoja);
+
+        if (!dadosPorLoja.has(chaveLoja)) {
+          dadosPorLoja.set(chaveLoja, {
+            id: lojaIdMaquina,
             nomeLoja,
-            dinheiro: 0,
-            cartao: 0,
-            comissao: 0,
-            conferidoTotal: 0,
-            pelucias: 0,
-            lucroLojaPeriodo: 0,
-          };
+            maquinas: [],
+            totais: {
+              dinheiro: 0,
+              cartao: 0,
+              comissao: 0,
+              conferidoTotal: 0,
+              pelucias: 0,
+              lucroLojaPeriodo: 0,
+              mediaValorPorPelucia: 0,
+            },
+          });
         }
 
-        const dadosLoja = dadosPorLoja[nomeLoja];
+        const dinheiro = toNumber(maquina.valoresEntrada?.notas || 0);
+        const cartao = toNumber(maquina.valoresEntrada?.cartao || 0);
+        const comissao = toNumber(maquina.valoresComissao || 0);
+        const conferidoTotal = dinheiro + cartao;
+        const pelucias = toNumber(maquina?.totais?.produtosSairam);
+        const lucroMaquinaPeriodo = conferidoTotal - comissao;
+        const mediaValorPorPelucia =
+          pelucias > 0 ? lucroMaquinaPeriodo / pelucias : 0;
 
-        // Somar valores de entrada
-        dadosLoja.dinheiro += toNumber(maquina.valoresEntrada?.notas || 0);
-        dadosLoja.cartao += toNumber(maquina.valoresEntrada?.cartao || 0);
-        dadosLoja.conferidoTotal +=
-          toNumber(maquina.valoresEntrada?.notas || 0) +
-          toNumber(maquina.valoresEntrada?.cartao || 0);
-        dadosLoja.comissao += toNumber(maquina.valoresComissao || 0);
+        const dadosMaquina = {
+          nomeLoja,
+          nomeMaquina:
+            maquina?.maquina?.nome ||
+            (maquina?.maquina?.id
+              ? `Máquina ${maquina.maquina.id}`
+              : `Máquina ${index + 1}`),
+          codigoMaquina: maquina?.maquina?.codigo || "-",
+          dinheiro,
+          cartao,
+          comissao,
+          conferidoTotal,
+          pelucias,
+          lucroMaquinaPeriodo,
+          mediaValorPorPelucia,
+        };
 
-        // Para a planilha, usar o total real de saídas da loja/máquina.
-        dadosLoja.pelucias += toNumber(maquina?.totais?.produtosSairam);
+        const dadosLoja = dadosPorLoja.get(chaveLoja);
+        dadosLoja.maquinas.push(dadosMaquina);
+        dadosLoja.totais.dinheiro += dinheiro;
+        dadosLoja.totais.cartao += cartao;
+        dadosLoja.totais.comissao += comissao;
+        dadosLoja.totais.conferidoTotal += conferidoTotal;
+        dadosLoja.totais.pelucias += pelucias;
+        dadosLoja.totais.lucroLojaPeriodo += lucroMaquinaPeriodo;
       });
 
-      const linhas = Object.values(dadosPorLoja).map((linha) => {
-        linha.lucroLojaPeriodo = linha.conferidoTotal - linha.comissao;
-        linha.mediaValorPorPelucia =
-          linha.pelucias > 0 ? linha.lucroLojaPeriodo / linha.pelucias : 0;
-        return linha;
-      });
+      const lojasOrdenadas = Array.from(dadosPorLoja.values())
+        .map((loja) => {
+          const maquinasOrdenadas = [...loja.maquinas].sort((a, b) =>
+            a.nomeMaquina.localeCompare(b.nomeMaquina, "pt-BR"),
+          );
 
-      const linhasOrdenadas = linhas.sort((a, b) =>
-        a.nomeLoja.localeCompare(b.nomeLoja, "pt-BR"),
-      );
+          const mediaValorPorPeluciaLoja =
+            loja.totais.pelucias > 0
+              ? loja.totais.lucroLojaPeriodo / loja.totais.pelucias
+              : 0;
 
-      const totalDinheiro = linhasOrdenadas.reduce(
-        (acc, l) => acc + l.dinheiro,
+          return {
+            ...loja,
+            maquinas: maquinasOrdenadas,
+            totais: {
+              ...loja.totais,
+              mediaValorPorPelucia: mediaValorPorPeluciaLoja,
+            },
+          };
+        })
+        .sort((a, b) => a.nomeLoja.localeCompare(b.nomeLoja, "pt-BR"));
+
+      const totalDinheiro = lojasOrdenadas.reduce(
+        (acc, loja) => acc + loja.totais.dinheiro,
         0,
       );
-      const totalCartao = linhasOrdenadas.reduce((acc, l) => acc + l.cartao, 0);
-      const totalComissao = linhasOrdenadas.reduce(
-        (acc, l) => acc + l.comissao,
+      const totalCartao = lojasOrdenadas.reduce(
+        (acc, loja) => acc + loja.totais.cartao,
         0,
       );
-      const totalConferido = linhasOrdenadas.reduce(
-        (acc, l) => acc + l.conferidoTotal,
+      const totalComissao = lojasOrdenadas.reduce(
+        (acc, loja) => acc + loja.totais.comissao,
         0,
       );
-      const totalPelucias = linhasOrdenadas.reduce(
-        (acc, l) => acc + l.pelucias,
+      const totalConferido = lojasOrdenadas.reduce(
+        (acc, loja) => acc + loja.totais.conferidoTotal,
         0,
       );
-      const totalLucroLojas = linhasOrdenadas.reduce(
-        (acc, l) => acc + l.lucroLojaPeriodo,
+      const totalPelucias = lojasOrdenadas.reduce(
+        (acc, loja) => acc + loja.totais.pelucias,
+        0,
+      );
+      const totalLucroLojas = lojasOrdenadas.reduce(
+        (acc, loja) => acc + loja.totais.lucroLojaPeriodo,
         0,
       );
       const mediaGeralValorPorPelucia =
         totalPelucias > 0 ? totalLucroLojas / totalPelucias : 0;
+      const exibirTotalGeral = lojasOrdenadas.length > 1;
 
       const formatarMoeda = (valor) =>
         `R$ ${toNumber(valor).toFixed(2).replace(".", ",")}`;
@@ -872,20 +916,39 @@ export function Relatorios() {
         0,
       );
 
-      const linhasHtml = linhasOrdenadas
-        .map(
-          (linha) => `
-            <tr>
-              <td>${linha.nomeLoja}</td>
-              <td class="num">${formatarMoeda(linha.dinheiro)}</td>
-              <td class="num">${formatarMoeda(linha.cartao)}</td>
-              <td class="num">${formatarMoeda(linha.comissao)}</td>
-              <td class="num">${formatarMoeda(linha.conferidoTotal)}</td>
-              <td class="num">${Math.round(linha.pelucias)}</td>
-              <td class="num">${formatarMoeda(linha.mediaValorPorPelucia)}</td>
+      const linhasHtml = lojasOrdenadas
+        .map((loja) => {
+          const linhasMaquinasHtml = loja.maquinas
+            .map(
+              (linha) => `
+                <tr class="maquina-row">
+                  <td>${linha.nomeLoja}</td>
+                  <td>${linha.nomeMaquina} (${linha.codigoMaquina})</td>
+                  <td class="num">${formatarMoeda(linha.dinheiro)}</td>
+                  <td class="num">${formatarMoeda(linha.cartao)}</td>
+                  <td class="num">${formatarMoeda(linha.comissao)}</td>
+                  <td class="num">${formatarMoeda(linha.conferidoTotal)}</td>
+                  <td class="num">${Math.round(linha.pelucias)}</td>
+                  <td class="num">${formatarMoeda(linha.mediaValorPorPelucia)}</td>
+                </tr>
+              `,
+            )
+            .join("");
+
+          const subtotalLojaHtml = `
+            <tr class="subtotal-row">
+              <td colspan="2">TOTAL DA LOJA - ${loja.nomeLoja}</td>
+              <td class="num">${formatarMoeda(loja.totais.dinheiro)}</td>
+              <td class="num">${formatarMoeda(loja.totais.cartao)}</td>
+              <td class="num">${formatarMoeda(loja.totais.comissao)}</td>
+              <td class="num">${formatarMoeda(loja.totais.conferidoTotal)}</td>
+              <td class="num">${Math.round(loja.totais.pelucias)}</td>
+              <td class="num">${formatarMoeda(loja.totais.mediaValorPorPelucia)}</td>
             </tr>
-          `,
-        )
+          `;
+
+          return `${linhasMaquinasHtml}${subtotalLojaHtml}`;
+        })
         .join("");
 
       const linhasProdutosHtml = produtosSaidaOrdenados.length
@@ -931,7 +994,27 @@ export function Relatorios() {
             th { background: #f3f4f6; text-align: left; }
             .num { text-align: right; white-space: nowrap; }
             .section-title { margin: 18px 0 8px; font-size: 14px; font-weight: bold; }
-            tfoot td { font-weight: bold; background: #eef2ff; }
+            .maquina-row td { background: #ffffff; }
+            .subtotal-row td {
+              font-weight: 700;
+              font-size: 13px;
+              background: #dbeafe;
+              border-top: 2px solid #2563eb;
+              border-bottom: 2px solid #2563eb;
+            }
+            .subtotal-row td:first-child {
+              letter-spacing: 0.2px;
+            }
+            .total-geral-row td {
+              font-weight: 800;
+              font-size: 13px;
+              background: #fef3c7;
+              border-top: 2px solid #d97706;
+              border-bottom: 2px solid #d97706;
+            }
+            .total-geral-row td:first-child {
+              letter-spacing: 0.3px;
+            }
             @media print {
               body { padding: 0; }
               @page { size: A4 landscape; margin: 1cm; }
@@ -945,7 +1028,8 @@ export function Relatorios() {
           <table>
             <thead>
               <tr>
-                <th>Cliente</th>
+                <th>Cliente (Loja)</th>
+                <th>Máquina</th>
                 <th>DINHEIRO</th>
                 <th>Conf. Cartão</th>
                 <th>Comissão</th>
@@ -957,9 +1041,12 @@ export function Relatorios() {
             <tbody>
               ${linhasHtml}
             </tbody>
+            ${
+              exibirTotalGeral
+                ? `
             <tfoot>
-              <tr>
-                <td>TOTAL GERAL</td>
+              <tr class="total-geral-row">
+                <td colspan="2">TOTAL GERAL</td>
                 <td class="num">${formatarMoeda(totalDinheiro)}</td>
                 <td class="num">${formatarMoeda(totalCartao)}</td>
                 <td class="num">${formatarMoeda(totalComissao)}</td>
@@ -968,6 +1055,9 @@ export function Relatorios() {
                 <td class="num">${formatarMoeda(mediaGeralValorPorPelucia)}</td>
               </tr>
             </tfoot>
+            `
+                : ""
+            }
           </table>
 
           <div class="section-title">Detalhamento dos Produtos que Saíram</div>
