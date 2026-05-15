@@ -861,8 +861,14 @@ export function Relatorios() {
       );
 
       const totalValorProdutos = produtosSaidaOrdenados.reduce(
-        (acc, produto) =>
-          acc + toNumber(produto.quantidade) * toNumber(produto.preco),
+        (acc, produto) => {
+          const valorUnitario =
+            toNumber(produto.preco) > 0
+              ? toNumber(produto.preco)
+              : mediaGeralValorPorPelucia;
+
+          return acc + toNumber(produto.quantidade) * valorUnitario;
+        },
         0,
       );
 
@@ -886,7 +892,10 @@ export function Relatorios() {
         ? produtosSaidaOrdenados
             .map((produto) => {
               const quantidade = toNumber(produto.quantidade);
-              const valorUnitario = toNumber(produto.preco);
+              const valorUnitario =
+                toNumber(produto.preco) > 0
+                  ? toNumber(produto.preco)
+                  : mediaGeralValorPorPelucia;
               const valorTotal = quantidade * valorUnitario;
 
               return `
@@ -894,12 +903,8 @@ export function Relatorios() {
                   <td>${produto.emoji || "📦"} ${produto.nome}</td>
                   <td>${produto.codigo || "-"}</td>
                   <td class="num">${Math.round(quantidade)}</td>
-                  <td class="num">${
-                    valorUnitario > 0 ? formatarMoeda(valorUnitario) : "-"
-                  }</td>
-                  <td class="num">${
-                    valorUnitario > 0 ? formatarMoeda(valorTotal) : "-"
-                  }</td>
+                  <td class="num">${formatarMoeda(valorUnitario)}</td>
+                  <td class="num">${formatarMoeda(valorTotal)}</td>
                 </tr>
               `;
             })
