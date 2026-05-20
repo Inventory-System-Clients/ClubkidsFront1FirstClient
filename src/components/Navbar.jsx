@@ -117,6 +117,16 @@ export function Navbar() {
                       📈 Gráficos
                     </Link>
                     <Link
+                      to="/alertas-estoque"
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        isActive("/alertas-estoque")
+                          ? "bg-gradient-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
+                          : "text-gray-300 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      🚨 Alertas
+                    </Link>
+                    <Link
                       to="/relatorios"
                       className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                         isActive("/relatorios")
@@ -305,6 +315,17 @@ export function Navbar() {
                   }`}
                 >
                   📈 Gráficos
+                </Link>
+                <Link
+                  to="/alertas-estoque"
+                  onClick={closeMenu}
+                  className={`block px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                    isActive("/alertas-estoque")
+                      ? "bg-gradient-to-r from-primary to-accent-yellow text-white shadow-lg"
+                      : "text-gray-300 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  🚨 Alertas de Estoque
                 </Link>
                 <Link
                   to="/relatorios"

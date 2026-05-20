@@ -5,6 +5,12 @@ import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { PageHeader, AlertBox, Badge } from "../components/UIComponents";
 import { PageLoader } from "../components/Loading";
+import { MovimentacaoInconsistenteModal } from "../components/MovimentacaoInconsistenteModal";
+import {
+  TIPO_OCORRENCIA_INCONSISTENCIA,
+  montarObservacaoInconsistencia,
+  validarInconsistenciasMovimentacao,
+} from "../utils/movimentacaoInconsistencias";
 
 const NUMEROS_BAG_BLOQUEADOS = new Set([
   "0",
@@ -96,6 +102,9 @@ export function MovimentacoesLoja() {
   const [finalizando, setFinalizando] = useState(false);
   const [areceberPendente, setAReceberPendente] = useState(false);
   const [lojaComMovimentacao, setLojaComMovimentacao] = useState(null); // Loja bloqueando outras movimentações
+  const [modalInconsistencia, setModalInconsistencia] = useState(null);
+  const [justificativaInconsistencia, setJustificativaInconsistencia] =
+    useState("");
 
   // Formulário de movimentação
   // Inicializa com o ID da máquina passada via navegação, se houver
@@ -215,6 +224,95 @@ export function MovimentacoesLoja() {
     }
   };
 
+  const carregarEstoqueDeposito = async () => {
+    try {
+      const res = await api.get(`/estoque-lojas/${lojaId}`);
+      return Array.isArray(res.data)
+        ? res.data
+        : res.data?.estoque || res.data?.itens || [];
+    } catch (error) {
+      console.warn("Não foi possível validar estoque do depósito:", error);
+      return [];
+    }
+  };
+
+  const finalizarMovimentacaoSalva = () => {
+    localStorage.setItem("lojaAtiva", lojaId);
+
+    console.log(
+      "🛒 [MovimentacoesLoja] Carrinho atualizado automaticamente pelo backend",
+    );
+
+    setSuccess("Movimentação registrada com sucesso! Redirecionando...");
+    console.log("✅ [MovimentacoesLoja] Movimentação salva com sucesso");
+    console.log("📊 [MovimentacoesLoja] RoteiroId:", roteiroId);
+    console.log("🔧 [MovimentacoesLoja] MaquinaId:", maquinaSelecionada);
+    setTimeout(() => {
+      console.log(
+        "🔄 [MovimentacoesLoja] Redirecionando para /roteiros/" +
+          roteiroId +
+          "/executar",
+      );
+      navigate(`/roteiros/${roteiroId}/executar`, {
+        replace: true,
+        state: { reload: true, timestamp: Date.now() },
+      });
+    }, 1500);
+  };
+
+  const salvarMovimentacaoInconsistente = async () => {
+    if (!modalInconsistencia || !justificativaInconsistencia.trim()) return;
+
+    const payload = {
+      ...modalInconsistencia.payload,
+      tipoOcorrencia: TIPO_OCORRENCIA_INCONSISTENCIA,
+      observacoes: montarObservacaoInconsistencia({
+        observacoes: modalInconsistencia.payload.observacoes,
+        justificativa: justificativaInconsistencia,
+        inconsistencias: modalInconsistencia.inconsistencias,
+      }),
+    };
+
+    try {
+      setSalvando(true);
+      setError("");
+      await api.post("/movimentacoes", payload);
+      setModalInconsistencia(null);
+      setJustificativaInconsistencia("");
+      finalizarMovimentacaoSalva();
+    } catch (error) {
+      if (error.response?.data?.lojaEmUso) {
+        const lojaEmUso = error.response.data.lojaEmUso;
+        setLojaComMovimentacao(lojaEmUso);
+        localStorage.setItem("lojaAtiva", lojaEmUso.id);
+        setModalInconsistencia(null);
+        setJustificativaInconsistencia("");
+        setError(
+          `Movimentação bloqueada! A loja "${lojaEmUso.nome}" está com movimentação em andamento. ` +
+            "Conclua aquela loja antes de salvar esta movimentação inconsistente.",
+        );
+      } else {
+        const mensagem =
+          error.response?.data?.error ||
+          error.response?.data?.message ||
+          error.message;
+
+        if (/outra loja/i.test(mensagem)) {
+          setModalInconsistencia(null);
+          setJustificativaInconsistencia("");
+          setError(
+            "Movimentação bloqueada: existe outra loja em andamento. Conclua a loja ativa antes de salvar esta movimentação inconsistente.",
+          );
+          carregarDados();
+        } else {
+          setError("Erro ao salvar movimentação: " + mensagem);
+        }
+      }
+    } finally {
+      setSalvando(false);
+    }
+  };
+
   const handleSubmitMovimentacao = async (e) => {
     e.preventDefault();
     if (!maquinaSelecionada) {
@@ -246,6 +344,9 @@ export function MovimentacoesLoja() {
         totalPre: parseInt(formData.quantidadeAtualMaquina) || 0,
         sairam: 0, // Calculado no backend baseado no produto
         abastecidas: parseInt(formData.quantidadeAdicionada) || 0,
+        totalPos:
+          (parseInt(formData.quantidadeAtualMaquina) || 0) +
+          (parseInt(formData.quantidadeAdicionada) || 0),
         contadorIn: parseInt(formData.contadorIn) || 0,
         contadorOut: parseInt(formData.contadorOut) || 0,
         quantidade_notas_entrada: 0,
@@ -271,32 +372,25 @@ export function MovimentacoesLoja() {
           : [],
       };
 
-      await api.post("/movimentacoes", movimentacao);
+      const maquina = maquinas.find((m) => m.id === maquinaSelecionada);
+      const estoqueDeposito = await carregarEstoqueDeposito();
+      const inconsistencias = validarInconsistenciasMovimentacao({
+        movimentacao,
+        maquina,
+        estoqueDeposito,
+      });
 
-      // Após salvar com sucesso, marca loja como ativa no localStorage
-      localStorage.setItem("lojaAtiva", lojaId);
-
-      // NOTA: O backend já desconta automaticamente do carrinho do usuário
-      // Não é necessário fazer nada aqui - o CarrinhoWidget será atualizado automaticamente ao voltar ao dashboard
-      console.log(
-        "🛒 [MovimentacoesLoja] Carrinho atualizado automaticamente pelo backend",
-      );
-
-      setSuccess("Movimentação registrada com sucesso! Redirecionando...");
-      console.log("✅ [MovimentacoesLoja] Movimentação salva com sucesso");
-      console.log("📊 [MovimentacoesLoja] RoteiroId:", roteiroId);
-      console.log("🔧 [MovimentacoesLoja] MaquinaId:", maquinaSelecionada);
-      setTimeout(() => {
-        console.log(
-          "🔄 [MovimentacoesLoja] Redirecionando para /roteiros/" +
-            roteiroId +
-            "/executar",
-        );
-        navigate(`/roteiros/${roteiroId}/executar`, {
-          replace: true,
-          state: { reload: true, timestamp: Date.now() },
+      if (inconsistencias.length > 0) {
+        setModalInconsistencia({
+          payload: movimentacao,
+          inconsistencias,
         });
-      }, 1500);
+        setJustificativaInconsistencia("");
+        return;
+      }
+
+      await api.post("/movimentacoes", movimentacao);
+      finalizarMovimentacaoSalva();
     } catch (error) {
       // Tratar erro específico de bloqueio de loja
       if (error.response?.data?.lojaEmUso) {
@@ -883,6 +977,18 @@ export function MovimentacoesLoja() {
           </div>
         </div>
       </div>
+
+      <MovimentacaoInconsistenteModal
+        inconsistencias={modalInconsistencia?.inconsistencias || []}
+        justificativa={justificativaInconsistencia}
+        setJustificativa={setJustificativaInconsistencia}
+        onCancel={() => {
+          setModalInconsistencia(null);
+          setJustificativaInconsistencia("");
+        }}
+        onConfirm={salvarMovimentacaoInconsistente}
+        loading={salvando}
+      />
 
       <Footer />
     </div>

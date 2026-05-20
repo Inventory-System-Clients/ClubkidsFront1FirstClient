@@ -37,6 +37,7 @@ const GerenciarRoteiros = lazy(() => import("./pages/GerenciarRoteiros").then(m 
 const Financeiro = lazy(() => import("./pages/Financeiro").then(m => ({ default: m.Financeiro })));
 const Graficos = lazy(() => import("./pages/Graficos").then(m => ({ default: m.Graficos })));
 const Relatorios = lazy(() => import("./pages/Relatorios").then(m => ({ default: m.Relatorios })));
+const AlertasEstoque = lazy(() => import("./pages/AlertasEstoque").then(m => ({ default: m.AlertasEstoque })));
 const StyleGuide = lazy(() => import("./pages/StyleGuide").then(m => ({ default: m.StyleGuide })));
 
 function AppRoutes() {
@@ -241,6 +242,15 @@ function AppRoutes() {
             element={
               <PrivateRoute adminOnly>
                 <Graficos />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/alertas-estoque"
+            element={
+              <PrivateRoute adminOnly>
+                <AlertasEstoque />
               </PrivateRoute>
             }
           />

@@ -13,6 +13,12 @@ import { PageLoader, EmptyState } from "../components/Loading";
 import { useAuth } from "../contexts/AuthContext";
 import AvisosMaquinasFaltam from "../components/AvisosMaquinasFaltam";
 import TabelaMovimentacoesEstoqueDeLoja from "../components/TabelaMovimentacoesEstoqueDeLoja";
+import { MovimentacaoInconsistenteModal } from "../components/MovimentacaoInconsistenteModal";
+import {
+  TIPO_OCORRENCIA_INCONSISTENCIA,
+  montarObservacaoInconsistencia,
+  validarInconsistenciasMovimentacao,
+} from "../utils/movimentacaoInconsistencias";
 
 const toDatetimeLocalValue = (value) => {
   if (!value) return "";
@@ -61,6 +67,9 @@ export function Movimentacoes() {
   const [success, setSuccess] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [salvandoMovimentacao, setSalvandoMovimentacao] = useState(false);
+  const [modalInconsistencia, setModalInconsistencia] = useState(null);
+  const [justificativaInconsistencia, setJustificativaInconsistencia] =
+    useState("");
 
   // Filtros Movimentações
   const [filtroLojaForm, setFiltroLojaForm] = useState("");
@@ -145,6 +154,89 @@ export function Movimentacoes() {
         error
       );
       setMovimentacoesEstoqueLoja([]);
+    }
+  };
+
+  const carregarEstoqueDepositoDaMaquina = async (maquina) => {
+    const lojaId = maquina?.lojaId || maquina?.loja_id || maquina?.loja?.id;
+    if (!lojaId) return [];
+
+    try {
+      const res = await api.get(`/estoque-lojas/${lojaId}`);
+      return Array.isArray(res.data)
+        ? res.data
+        : res.data?.estoque || res.data?.itens || [];
+    } catch (error) {
+      console.warn("Não foi possível validar estoque do depósito:", error);
+      return [];
+    }
+  };
+
+  const limparFormularioMovimentacao = () => {
+    setFormData({
+      maquina_id: "",
+      produto_id: "",
+      quantidadeAtualMaquina: "",
+      quantidadeAdicionada: "",
+      contadorIn: "",
+      contadorOut: "",
+      quantidade_notas_entrada: "",
+      valor_entrada_maquininha_pix: "",
+      valorEntradaNotas: "",
+      valorEntradaCartao: "",
+      observacao: "",
+      retiradaEstoque: false,
+    });
+    setEstoqueAnterior(0);
+    setFiltroLojaForm("");
+    setShowForm(false);
+  };
+
+  const salvarCadastroMovimentacao = async (data) => {
+    const response = await api.post("/movimentacoes", data);
+
+    console.log("✅ [handleSubmit] Sucesso:", response.data);
+
+    setSuccess("Movimentação registrada com sucesso!");
+    limparFormularioMovimentacao();
+    carregarDados();
+  };
+
+  const salvarMovimentacaoInconsistente = async () => {
+    if (!modalInconsistencia || !justificativaInconsistencia.trim()) return;
+
+    const payload = {
+      ...modalInconsistencia.payload,
+      tipoOcorrencia: TIPO_OCORRENCIA_INCONSISTENCIA,
+      observacoes: montarObservacaoInconsistencia({
+        observacoes: modalInconsistencia.payload.observacoes,
+        justificativa: justificativaInconsistencia,
+        inconsistencias: modalInconsistencia.inconsistencias,
+      }),
+    };
+
+    try {
+      setSalvandoMovimentacao(true);
+      setError("");
+
+      if (modalInconsistencia.modo === "edicao") {
+        await api.put(`/movimentacoes/${editandoMovimentacao.id}`, payload);
+        setSuccess("Movimentação atualizada como inconsistente.");
+        cancelarEdicao();
+        carregarDados();
+      } else {
+        await salvarCadastroMovimentacao(payload);
+      }
+
+      setModalInconsistencia(null);
+      setJustificativaInconsistencia("");
+    } catch (error) {
+      console.error("Erro ao salvar movimentação inconsistente:", error);
+      setError(
+        getBackendErrorMessage(error, "Erro ao salvar movimentação inconsistente"),
+      );
+    } finally {
+      setSalvandoMovimentacao(false);
     }
   };
 
@@ -268,33 +360,25 @@ export function Movimentacoes() {
       console.log("   sairam:", data.sairam, "- Tipo:", typeof data.sairam);
       console.log("   abastecidas:", data.abastecidas, "- Tipo:", typeof data.abastecidas);
 
-      const response = await api.post("/movimentacoes", data);
-
-      console.log("✅ [handleSubmit] Sucesso:", response.data);
-
-      setSuccess("Movimentação registrada com sucesso!");
-
-      // Limpar formulário
-      setFormData({
-        maquina_id: "",
-        produto_id: "",
-        quantidadeAtualMaquina: "",
-        quantidadeAdicionada: "",
-        contadorIn: "",
-        contadorOut: "",
-        quantidade_notas_entrada: "",
-        valor_entrada_maquininha_pix: "",
-        valorEntradaNotas: "",
-        valorEntradaCartao: "",
-        observacao: "",
-        retiradaEstoque: false,
+      const maquina = maquinas.find((m) => m.id === formData.maquina_id);
+      const estoqueDeposito = await carregarEstoqueDepositoDaMaquina(maquina);
+      const inconsistencias = validarInconsistenciasMovimentacao({
+        movimentacao: data,
+        maquina,
+        estoqueDeposito,
       });
-      setEstoqueAnterior(0);
-      setFiltroLojaForm("");
-      setShowForm(false);
 
-      // Recarregar dados
-      carregarDados();
+      if (inconsistencias.length > 0) {
+        setModalInconsistencia({
+          modo: "cadastro",
+          payload: data,
+          inconsistencias,
+        });
+        setJustificativaInconsistencia("");
+        return;
+      }
+
+      await salvarCadastroMovimentacao(data);
     } catch (error) {
       console.error("❌ [handleSubmit] Erro:", error);
       setError(
@@ -336,7 +420,7 @@ export function Movimentacoes() {
 
   const salvarEdicao = async () => {
     try {
-      await api.put(`/movimentacoes/${editandoMovimentacao.id}`, {
+      const payload = {
         abastecidas: parseInt(formEdicao.abastecidas) || 0,
         quantidade_notas_entrada:
           formEdicao.quantidade_notas_entrada !== ""
@@ -355,7 +439,30 @@ export function Movimentacoes() {
             ? parseFloat(formEdicao.valorEntradaCartao)
             : null,
         dataColeta: toBackendDatetimeValue(formEdicao.dataColeta),
+      };
+
+      const maquina = maquinas.find((m) => m.id === editandoMovimentacao.maquinaId);
+      const estoqueDeposito = await carregarEstoqueDepositoDaMaquina(maquina);
+      const inconsistencias = validarInconsistenciasMovimentacao({
+        movimentacao: {
+          ...editandoMovimentacao,
+          ...payload,
+        },
+        maquina,
+        estoqueDeposito,
       });
+
+      if (inconsistencias.length > 0) {
+        setModalInconsistencia({
+          modo: "edicao",
+          payload,
+          inconsistencias,
+        });
+        setJustificativaInconsistencia("");
+        return;
+      }
+
+      await api.put(`/movimentacoes/${editandoMovimentacao.id}`, payload);
       setSuccess("Movimentação atualizada com sucesso!");
       cancelarEdicao();
       carregarDados();
@@ -1504,6 +1611,18 @@ export function Movimentacoes() {
           </div>
         </div>
       )}
+      <MovimentacaoInconsistenteModal
+        inconsistencias={modalInconsistencia?.inconsistencias || []}
+        justificativa={justificativaInconsistencia}
+        setJustificativa={setJustificativaInconsistencia}
+        onCancel={() => {
+          setModalInconsistencia(null);
+          setJustificativaInconsistencia("");
+        }}
+        onConfirm={salvarMovimentacaoInconsistente}
+        loading={salvandoMovimentacao}
+      />
+
       <Footer />
     </div>
   );
