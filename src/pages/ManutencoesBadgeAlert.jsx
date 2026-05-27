@@ -1,11 +1,17 @@
 import React, { useEffect, useState } from "react";
 import api from "../services/api";
 
+const normalizarStatusManutencao = status => String(status || "").trim().toLowerCase();
+const isConcluida = status => {
+  const statusNormalizado = normalizarStatusManutencao(status);
+  return statusNormalizado === "feito" || statusNormalizado === "concluida";
+};
+
 export function ManutencoesBadgeAlert({ userId }) {
   const [pendentes, setPendentes] = useState(0);
   useEffect(() => {
     api.get("/manutencoes").then(res => {
-      const count = (res.data || []).filter(m => m.funcionarioId === userId && m.status !== "feito" && m.status !== "concluida").length;
+      const count = (res.data || []).filter(m => m.funcionarioId === userId && !isConcluida(m.status)).length;
       setPendentes(count);
     });
   }, [userId]);

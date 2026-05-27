@@ -12,6 +12,13 @@ import {
   ROTEIRO_LOCATION_STORAGE_KEY,
 } from "../components/RoteiroLocationTracker.jsx";
 
+const normalizarStatusManutencao = status => String(status || "").trim().toLowerCase();
+const isManutencaoUrgente = status => normalizarStatusManutencao(status) === "urgente";
+const isManutencaoFeita = status => {
+  const statusNormalizado = normalizarStatusManutencao(status);
+  return statusNormalizado === "feito" || statusNormalizado === "concluida";
+};
+
 export function ExecutarRoteiro() {
       const [manutencaoUrgente, setManutencaoUrgente] = useState(false);
     // Estado para manutenções
@@ -757,7 +764,7 @@ export function ExecutarRoteiro() {
             const todasAtendidas = verificarTodasMaquinasAtendidas(loja);
             // Filtra manutenções desta loja (por lojaId e status diferente de 'feito')
             const manutencoesDaLoja = Array.isArray(manutencoes)
-              ? manutencoes.filter(m => m.lojaId === loja.id && m.status !== 'feito')
+              ? manutencoes.filter(m => m.lojaId === loja.id && !isManutencaoFeita(m.status))
               : [];
             return (
               <div
@@ -872,7 +879,7 @@ export function ExecutarRoteiro() {
                       ? manutencoes.filter(m => m.maquinaId === maquina.id)
                       : [];
                     // Verifica se há manutenção urgente pendente para esta máquina
-                    const manutencaoUrgentePendente = manutencoesMaquina.some(m => m.status === 'urgente');
+                    const manutencaoUrgentePendente = manutencoesMaquina.some(m => isManutencaoUrgente(m.status));
                     return (
                       <div 
                         key={maquina.id + '-' + (maquina.codigo || '')}
@@ -904,15 +911,15 @@ export function ExecutarRoteiro() {
                               Código: {maquina.codigo} | Tipo: {maquina.tipo}
                             </p>
                             {/* Manutenções desta máquina */}
-                            {manutencoesMaquina.filter(m => m.status !== 'feito').length > 0 && (
+                            {manutencoesMaquina.filter(m => !isManutencaoFeita(m.status)).length > 0 && (
                               <div className="mt-2">
                                 <div className="font-semibold text-red-700 text-xs mb-1 flex items-center gap-1">
                                   <span>🔧</span> Manutenções registradas:
                                 </div>
                                 <ul className="pl-4 list-disc text-xs">
-                                  {manutencoesMaquina.filter(m => m.status !== 'feito').map((m, idx) => (
-                                    <li key={m.id + '-' + idx} className={`flex items-center gap-2 ${m.status === 'urgente' ? 'text-red-700 font-bold animate-pulse' : 'text-red-800'}`}>
-                                      {m.status === 'urgente' && <span className="text-red-700 font-bold">URGENTE!</span>}
+                                  {manutencoesMaquina.filter(m => !isManutencaoFeita(m.status)).map((m, idx) => (
+                                    <li key={m.id + '-' + idx} className={`flex items-center gap-2 ${isManutencaoUrgente(m.status) ? 'text-red-700 font-bold animate-pulse' : 'text-red-800'}`}>
+                                      {isManutencaoUrgente(m.status) && <span className="text-red-700 font-bold">URGENTE!</span>}
                                       {m.descricao}
                                       <button
                                         onClick={() => marcarManutencaoFeita(m.id)}

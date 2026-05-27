@@ -5,6 +5,13 @@ import { PageLoader } from "../components/Loading";
 import { Navbar } from "../components/Navbar";
 import { useAuth } from "../contexts/AuthContext";
 
+const normalizarStatusManutencao = status => String(status || "").trim().toLowerCase();
+const isUrgente = status => normalizarStatusManutencao(status) === "urgente";
+const isConcluida = status => {
+  const statusNormalizado = normalizarStatusManutencao(status);
+  return statusNormalizado === "feito" || statusNormalizado === "concluida";
+};
+
 function Manutencoes() {
       const [novaManutencaoUrgente, setNovaManutencaoUrgente] = useState(false);
     // Cadastro de nova manutenção
@@ -128,9 +135,10 @@ function Manutencoes() {
 
   // Função para abrir modal de edição
   function handleEditOpen() {
+    const statusNormalizado = normalizarStatusManutencao(detalhe?.status);
     setEditData({
       funcionarioId: detalhe?.funcionarioId || "",
-      status: detalhe?.status || "",
+      status: statusNormalizado === "urgente" ? "urgente" : "pendente",
       descricao: detalhe?.descricao || "",
     });
     setEditando(true);
@@ -144,7 +152,10 @@ function Manutencoes() {
       setError("");
       setSuccess("");
       try {
-        await api.put(`/manutencoes/${detalhe.id}`, editData);
+        await api.put(`/manutencoes/${detalhe.id}`, {
+          ...editData,
+          status: normalizarStatusManutencao(editData.status) || "pendente",
+        });
         setSuccess("Manutenção atualizada com sucesso!");
         setEditando(false);
         setDetalhe(null);
@@ -187,7 +198,7 @@ function Manutencoes() {
   }, []);
 
   const lojas = Array.from(new Set(manutencoes.map(m => m.loja?.nome).filter(Boolean)));
-  const statusList = Array.from(new Set(manutencoes.map(m => m.status).filter(Boolean)));
+  const statusList = Array.from(new Set(manutencoes.map(m => normalizarStatusManutencao(m.status)).filter(Boolean)));
 
   // Abas de filtro: pendentes/urgentes
   const [abaManutencao, setAbaManutencao] = useState("pendentes");
@@ -198,19 +209,19 @@ function Manutencoes() {
     if (!isAdmin) {
       // Funcionário só vê as suas e apenas as que não estão feitas
       if (m.funcionarioId !== usuario?.id) return false;
-      if (m.status === "feito" || m.status === "concluida") return false;
+      if (isConcluida(m.status)) return false;
     }
     // Filtro de aba
-    if (abaManutencao === "urgentes" && m.status !== "urgente") return false;
-    if (abaManutencao === "pendentes" && m.status === "urgente") return false;
+    if (abaManutencao === "urgentes" && !isUrgente(m.status)) return false;
+    if (abaManutencao === "pendentes" && isUrgente(m.status)) return false;
     return (!filtroLoja || m.loja?.nome === filtroLoja) &&
-      (!filtroStatus || m.status === filtroStatus);
+      (!filtroStatus || normalizarStatusManutencao(m.status) === normalizarStatusManutencao(filtroStatus));
   });
 
   // Para admin, limitar as últimas 10 manutenções feitas
-  if (isAdmin && (!filtroStatus || filtroStatus === "feito" || filtroStatus === "concluida")) {
-    const feitas = filtradas.filter(m => m.status === "feito" || m.status === "concluida");
-    const outras = filtradas.filter(m => m.status !== "feito" && m.status !== "concluida");
+  if (isAdmin && (!filtroStatus || isConcluida(filtroStatus))) {
+    const feitas = filtradas.filter(m => isConcluida(m.status));
+    const outras = filtradas.filter(m => !isConcluida(m.status));
     // Ordenar por data decrescente
     feitas.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     filtradas = outras.concat(feitas.slice(0, 10));
@@ -255,7 +266,7 @@ function Manutencoes() {
     alertasFrequentes = Object.values(porMaquina)
       .filter(arr => {
         // Só alerta se houver pelo menos uma manutenção pendente nessa máquina
-        const temPendente = arr.some(m => m.status !== "feito" && m.status !== "concluida");
+        const temPendente = arr.some(m => !isConcluida(m.status));
         return arr.length >= 2 && temPendente;
       })
       .map(arr => {
@@ -409,8 +420,8 @@ function Manutencoes() {
                     key={m.id}
                     className={
                       `hover:bg-blue-50 cursor-pointer` +
-                      (m.status === "urgente" ? " bg-red-100 border-l-4 border-red-500 animate-pulse" : "") +
-                      (isAdmin && (m.status === "feito" || m.status === "concluida") ? " bg-green-100" : "")
+                      (isUrgente(m.status) ? " bg-red-100 border-l-4 border-red-500 animate-pulse" : "") +
+                      (isAdmin && isConcluida(m.status) ? " bg-green-100" : "")
                     }
                     onClick={() => setDetalhe(m)}
                   >
@@ -422,7 +433,7 @@ function Manutencoes() {
                     <td className="px-4 py-2">{m.maquina?.nome || '-'}</td>
                     <td className="px-4 py-2">{m.funcionario?.nome || m.funcionarioId || '-'}</td>
                     <td className="px-4 py-2 font-bold">
-                      {m.status === "feito" || m.status === "concluida" ? (
+                      {isConcluida(m.status) ? (
                         <span className="text-green-700">{m.status}</span>
                       ) : m.status}
                     </td>
@@ -453,7 +464,7 @@ function Manutencoes() {
               <div className="flex gap-2 mt-6">
                 <button className="btn-primary" onClick={handleEditOpen}>Editar</button>
                 {isAdmin && <button className="btn-danger" onClick={handleDelete}>Excluir</button>}
-                {(isAdmin || (!isAdmin && detalhe.status !== "feito")) && detalhe.status !== "feito" && (
+                {(isAdmin || (!isAdmin && !isConcluida(detalhe.status))) && !isConcluida(detalhe.status) && (
                   <button className="btn-success" onClick={async () => {
                     try {
                       setLoading(true);
@@ -497,7 +508,10 @@ function Manutencoes() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium">Status</label>
-                  <input className="input-field w-full" value={editData.status} onChange={e => setEditData(d => ({ ...d, status: e.target.value }))} />
+                  <select className="input-field w-full" value={editData.status} onChange={e => setEditData(d => ({ ...d, status: e.target.value }))}>
+                    <option value="pendente">pendente</option>
+                    <option value="urgente">urgente</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium">Descrição</label>

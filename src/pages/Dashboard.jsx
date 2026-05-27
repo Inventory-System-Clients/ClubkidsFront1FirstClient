@@ -14,6 +14,8 @@ import { DevolucaoModal } from "../components/DevolucaoModal";
 
 import Swal from "sweetalert2";
 
+const normalizarStatusManutencao = status => String(status || "").trim().toLowerCase();
+
 const toDatetimeLocalValue = (value) => {
   if (!value) return "";
   const date = new Date(value);
@@ -442,7 +444,7 @@ export function Dashboard() {
         if (usuario?.id) {
           api.get(`/manutencoes?funcionarioId=${usuario.id}`).then(res => {
             // Filtra apenas as urgentes atribuídas ao funcionário
-            const urgentes = (res.data || []).filter(m => m.status === 'urgente' && m.funcionarioId === usuario.id);
+            const urgentes = (res.data || []).filter(m => normalizarStatusManutencao(m.status) === 'urgente' && m.funcionarioId === usuario.id);
             setManutencoesUrgentes(urgentes);
           });
         }
