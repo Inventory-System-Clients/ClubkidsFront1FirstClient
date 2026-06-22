@@ -77,7 +77,7 @@ function Manutencoes() {
           funcionarioId: novaManutencao.funcionarioId,
           status: novaManutencaoUrgente ? "urgente" : "pendente"
         };
-        const res = await api.post("/manutencoes", payload);
+        await api.post("/manutencoes", payload);
         setShowNovaManutencao(false);
         setLoading(false);
       } catch (err) {
@@ -92,13 +92,30 @@ function Manutencoes() {
   // ...existing code...
   const [funcionarios, setFuncionarios] = useState([]);
   const [editando, setEditando] = useState(false);
-  const [editData, setEditData] = useState({ funcionarioId: "", status: "", descricao: "" });
+  const [editData, setEditData] = useState({
+    lojaId: "",
+    maquinaId: "",
+    funcionarioId: "",
+    status: "",
+    descricao: ""
+  });
   const [success, setSuccess] = useState("");
 
-  // Carregar funcionários para edição
+  // Carregar opções disponíveis para edição
   useEffect(() => {
     if (editando) {
-      api.get("/usuarios/funcionarios").then(res => setFuncionarios(res.data || []));
+      Promise.all([
+        api.get("/lojas"),
+        api.get("/maquinas"),
+        api.get("/usuarios/funcionarios")
+      ]).then(([lojasRes, maquinasRes, funcionariosRes]) => {
+        setLojasAll(lojasRes.data || []);
+        setMaquinasAll(maquinasRes.data || []);
+        setFuncionarios(funcionariosRes.data || []);
+      }).catch(err => {
+        console.error("Erro ao carregar opções para edição:", err);
+        setError("Erro ao carregar lojas, máquinas e funcionários.");
+      });
     }
   }, [editando]);
 
@@ -137,6 +154,8 @@ function Manutencoes() {
   function handleEditOpen() {
     const statusNormalizado = normalizarStatusManutencao(detalhe?.status);
     setEditData({
+      lojaId: detalhe?.lojaId || detalhe?.loja?.id || "",
+      maquinaId: detalhe?.maquinaId || detalhe?.maquina?.id || "",
       funcionarioId: detalhe?.funcionarioId || "",
       status: statusNormalizado === "urgente" ? "urgente" : "pendente",
       descricao: detalhe?.descricao || "",
@@ -154,6 +173,7 @@ function Manutencoes() {
       try {
         await api.put(`/manutencoes/${detalhe.id}`, {
           ...editData,
+          maquinaId: editData.maquinaId || null,
           status: normalizarStatusManutencao(editData.status) || "pendente",
         });
         setSuccess("Manutenção atualizada com sucesso!");
@@ -247,6 +267,10 @@ function Manutencoes() {
     if (!endereco || endereco === "Sem loja") return "";
     return ` - ${endereco}`;
   };
+
+  const maquinasEdicao = maquinasAll.filter(
+    maquina => String(maquina.lojaId) === String(editData.lojaId)
+  );
 
   // ALERTA DE MANUTENÇÕES FREQUENTES
   let alertasFrequentes = [];
@@ -499,6 +523,38 @@ function Manutencoes() {
               </button>
               <h3 className="text-xl font-bold mb-4">Editar Manutenção</h3>
               <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium">Loja</label>
+                  <select
+                    className="input-field w-full"
+                    value={editData.lojaId}
+                    onChange={e => setEditData(d => ({
+                      ...d,
+                      lojaId: e.target.value,
+                      maquinaId: ""
+                    }))}
+                    required
+                  >
+                    <option value="">Selecione</option>
+                    {lojasAll.map(loja => (
+                      <option key={loja.id} value={loja.id}>{loja.nome}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Máquina</label>
+                  <select
+                    className="input-field w-full"
+                    value={editData.maquinaId}
+                    onChange={e => setEditData(d => ({ ...d, maquinaId: e.target.value }))}
+                    disabled={!editData.lojaId}
+                  >
+                    <option value="">Selecione (opcional)</option>
+                    {maquinasEdicao.map(maquina => (
+                      <option key={maquina.id} value={maquina.id}>{maquina.nome}</option>
+                    ))}
+                  </select>
+                </div>
                 <div>
                   <label className="block text-sm font-medium">Funcionário</label>
                   <select className="input-field w-full" value={editData.funcionarioId} onChange={e => setEditData(d => ({ ...d, funcionarioId: e.target.value }))}>
