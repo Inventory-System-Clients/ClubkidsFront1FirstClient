@@ -26,7 +26,7 @@ export function ExecutarRoteiro() {
     // Marcar manutenção como feita
     const marcarManutencaoFeita = async (manutencaoId) => {
       try {
-        await api.patch(`/manutencoes/${manutencaoId}/resolver`);
+        await api.put(`/manutencoes/${manutencaoId}`, { status: "feito" });
         setSuccess("Manutenção marcada como feita!");
         await carregarRoteiro();
       } catch (error) {

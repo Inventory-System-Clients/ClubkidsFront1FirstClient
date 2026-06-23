@@ -494,10 +494,11 @@ function Manutencoes() {
                       setLoading(true);
                       setError("");
                       setSuccess("");
-                      const url = `/manutencoes/${detalhe.id}/resolver`;
-                      console.log("[DEBUG] PATCH para marcar manutenção como feita:", url);
-                      const response = await api.patch(url);
-                      console.log("[DEBUG] Resposta do PATCH:", response);
+                      const url = `/manutencoes/${detalhe.id}`;
+                      const payload = { status: "feito" };
+                      console.log("[DEBUG] PUT para marcar manutenção como feita:", url, payload);
+                      const response = await api.put(url, payload);
+                      console.log("[DEBUG] Resposta do PUT:", response);
                       setSuccess("Manutenção marcada como feita!");
                       setDetalhe(null);
                       const res = await api.get("/manutencoes");
