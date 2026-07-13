@@ -213,9 +213,7 @@ export function Financeiro() {
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loja</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Máquina</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nº Bag</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Funcionário</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Máquina / Bag</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valores (R$)</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
                     </tr>
@@ -232,27 +230,26 @@ export function Financeiro() {
                       <tr key={mov.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(mov.dataColeta).toLocaleDateString("pt-BR")}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{mov.maquina?.loja?.nome || "N/A"}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{mov.maquina?.codigo} - {mov.maquina?.nome}</td>
-                        <td className="px-6 py-4 whitespace-nowrap"><span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">{mov.numeroBag}</span></td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{mov.usuario?.nome || "N/A"}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <div className="flex items-center gap-2">
+                            <span>{mov.maquina?.codigo} - {mov.maquina?.nome}</span>
+                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">{mov.numeroBag}</span>
+                          </div>
+                        </td>
                         <td className="px-6 py-4 text-sm text-gray-900">
                           {editando === mov.id ? (
                             <div className="space-y-2">
                               <input type="number" step="0.01" placeholder="Notas" value={valores.valorEntradaNotas} onChange={(e) => setValores({ ...valores, valorEntradaNotas: e.target.value })} className="w-full px-2 py-1 border rounded text-sm" />
-                              <div className="flex gap-2 items-center">
-                                <input type="number" step="0.01" placeholder="Digital" value={valores.valorEntradaCartao} onChange={(e) => setValores({ ...valores, valorEntradaCartao: e.target.value })} className="flex-1 px-2 py-1 border rounded text-sm" />
-                                {mov.maquina?.machinePayPosId && (
-                                  <button
-                                    type="button"
-                                    onClick={() => buscarNovamenteValorDigital(mov.id)}
-                                    disabled={buscandoMachinePay === mov.id}
-                                    title="Buscar novamente na Machine Pay"
-                                    className="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 disabled:opacity-50 text-blue-800 rounded whitespace-nowrap"
-                                  >
-                                    {buscandoMachinePay === mov.id ? "⏳" : "🔄"}
-                                  </button>
-                                )}
-                              </div>
+                              <input type="number" step="0.01" placeholder="Digital" value={valores.valorEntradaCartao} onChange={(e) => setValores({ ...valores, valorEntradaCartao: e.target.value })} className="w-full px-2 py-1 border rounded text-sm" />
+                              <button
+                                type="button"
+                                onClick={() => buscarNovamenteValorDigital(mov.id)}
+                                disabled={buscandoMachinePay === mov.id}
+                                title="Buscar na Machine Pay o valor entre a última movimentação da máquina e esta coleta"
+                                className="w-full text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 disabled:opacity-50 text-blue-800 rounded"
+                              >
+                                {buscandoMachinePay === mov.id ? "⏳ Buscando..." : "🔄 Buscar novamente"}
+                              </button>
                             </div>
                           ) : (
                             <span className="text-yellow-600 font-semibold">Pendente</span>
