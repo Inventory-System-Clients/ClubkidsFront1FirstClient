@@ -104,6 +104,9 @@ export function Movimentacoes() {
 
   // Estados auxiliares
   const [estoqueAnterior, setEstoqueAnterior] = useState(0);
+  const [estoqueInfo, setEstoqueInfo] = useState(null);
+  const [machinePayDataInicio, setMachinePayDataInicio] = useState("");
+  const [avisoMachinePay, setAvisoMachinePay] = useState(null);
 
   // --- EFEITOS ---
   useEffect(() => {
@@ -111,15 +114,32 @@ export function Movimentacoes() {
     carregarMovimentacoesEstoqueLoja();
   }, []);
 
-  // Atualizar estoque anterior quando seleciona máquina
+  // Atualizar estoque anterior e dados de Machine Pay quando seleciona máquina
   useEffect(() => {
-    if (formData.maquina_id) {
-      const maquina = maquinas.find((m) => m.id === formData.maquina_id);
-      if (maquina) {
-        setEstoqueAnterior(maquina.estoqueAtual || 0);
-      }
+    setMachinePayDataInicio("");
+
+    if (!formData.maquina_id) {
+      setEstoqueInfo(null);
+      return;
     }
-  }, [formData.maquina_id, maquinas]);
+
+    let cancelado = false;
+    (async () => {
+      try {
+        const res = await api.get(`/maquinas/${formData.maquina_id}/estoque`);
+        if (cancelado) return;
+        setEstoqueInfo(res.data);
+        setEstoqueAnterior(res.data.estoqueAtual || 0);
+      } catch (err) {
+        console.error("Erro ao buscar estoque da máquina:", err);
+        if (!cancelado) setEstoqueInfo(null);
+      }
+    })();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [formData.maquina_id]);
 
   // --- FUNÇÕES DE CARREGAMENTO ---
   const carregarDados = async () => {
@@ -188,6 +208,8 @@ export function Movimentacoes() {
       retiradaEstoque: false,
     });
     setEstoqueAnterior(0);
+    setEstoqueInfo(null);
+    setMachinePayDataInicio("");
     setFiltroLojaForm("");
     setShowForm(false);
   };
@@ -198,6 +220,32 @@ export function Movimentacoes() {
     console.log("✅ [handleSubmit] Sucesso:", response.data);
 
     setSuccess("Movimentação registrada com sucesso!");
+
+    const { machinePay } = response.data;
+    if (machinePay?.sucesso === true) {
+      setAvisoMachinePay({
+        type: "success",
+        message: `💳 Valor digital buscado automaticamente na Machine Pay: R$ ${Number(
+          machinePay.cartaoPix || 0
+        ).toFixed(2)}`,
+      });
+    } else if (machinePay?.sucesso === false && machinePay.precisaDataInicio) {
+      setAvisoMachinePay({
+        type: "warning",
+        message:
+          "Não foi possível buscar o valor digital: faltou informar a data inicial. Você pode preencher manualmente na conferência financeira.",
+      });
+    } else if (machinePay?.sucesso === false) {
+      setAvisoMachinePay({
+        type: "warning",
+        message: `Não foi possível buscar o valor digital automaticamente (${
+          machinePay.erro || "erro desconhecido"
+        }). Você pode preencher manualmente na conferência financeira.`,
+      });
+    } else {
+      setAvisoMachinePay(null);
+    }
+
     limparFormularioMovimentacao();
     carregarDados();
   };
@@ -265,6 +313,13 @@ export function Movimentacoes() {
       }
       if (!formData.produto_id) {
         setError("❌ Selecione um produto");
+        setSalvandoMovimentacao(false);
+        return;
+      }
+      if (estoqueInfo?.machinePayPrecisaDataInicio && !machinePayDataInicio) {
+        setError(
+          "❌ Informe desde quando devemos considerar os valores digitais (PIX/cartão) desta máquina"
+        );
         setSalvandoMovimentacao(false);
         return;
       }
@@ -341,6 +396,9 @@ export function Movimentacoes() {
         retiradaEstoque: formData.retiradaEstoque,
         contadorMaquina: null,
         observacoes: observacaoFinal || null,
+        ...(estoqueInfo?.machinePayPrecisaDataInicio
+          ? { machinePayDataInicio }
+          : {}),
         produtos: [
           {
             produtoId: formData.produto_id,
@@ -770,6 +828,13 @@ export function Movimentacoes() {
             onClose={() => setSuccess("")}
           />
         )}
+        {avisoMachinePay && (
+          <AlertBox
+            type={avisoMachinePay.type}
+            message={avisoMachinePay.message}
+            onClose={() => setAvisoMachinePay(null)}
+          />
+        )}
 
         {usuario?.role === "ADMIN" && <StatsGrid stats={stats} />}
 
@@ -841,6 +906,27 @@ export function Movimentacoes() {
                       <p className="text-xs text-blue-600">unidades</p>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {estoqueInfo?.machinePayPrecisaDataInicio && (
+                <div className="p-4 bg-linear-to-r from-purple-50 to-pink-50 border-2 border-purple-300 rounded-lg">
+                  <label className="block text-sm font-bold text-purple-900 mb-2">
+                    📅 Desde quando devemos considerar os valores digitais
+                    (PIX/cartão) desta máquina? *
+                  </label>
+                  <input
+                    type="date"
+                    value={machinePayDataInicio}
+                    onChange={(e) => setMachinePayDataInicio(e.target.value)}
+                    className="input-field"
+                    required
+                  />
+                  <p className="text-xs text-purple-700 mt-1">
+                    Esta é a primeira coleta desta máquina com leitor Machine
+                    Pay configurado — precisamos saber a partir de qual data
+                    contar o faturamento digital.
+                  </p>
                 </div>
               )}
 
@@ -937,13 +1023,18 @@ export function Movimentacoes() {
                     name="valorEntradaCartao"
                     value={formData.valorEntradaCartao}
                     onChange={handleChange}
-                    className="input-field"
+                    className={`input-field ${
+                      estoqueInfo?.machinePayPosId ? "bg-gray-100" : ""
+                    }`}
                     placeholder="0.00"
                     min="0"
                     step="0.01"
+                    disabled={!!estoqueInfo?.machinePayPosId}
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Valor total recebido via pagamento digital
+                    {estoqueInfo?.machinePayPosId
+                      ? "Preenchido automaticamente pela Machine Pay após salvar."
+                      : "Valor total recebido via pagamento digital"}
                   </p>
                 </div>
               </div>

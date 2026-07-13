@@ -4,20 +4,114 @@ import Swal from "sweetalert2";
 import api from "../services/api";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
-import { PageHeader, AlertBox, Badge } from "../components/UIComponents";
+import { PageHeader, AlertBox, Badge, Modal } from "../components/UIComponents";
 import { PageLoader } from "../components/Loading";
+import { useAuth } from "../contexts/AuthContext";
 
 export function MaquinaDetalhes() {
   const { id } = useParams();
   const navigate = useNavigate();
-  
+  const { usuario } = useAuth();
+
   const [maquina, setMaquina] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Machine Pay
+  const [mpStatus, setMpStatus] = useState(null);
+  const [mpStatusLoading, setMpStatusLoading] = useState(false);
+  const [showExtratoModal, setShowExtratoModal] = useState(false);
+  const [mpExtratoPeriodo, setMpExtratoPeriodo] = useState({ dataInicio: "", dataFim: "" });
+  const [mpExtrato, setMpExtrato] = useState(null);
+  const [mpExtratoLoading, setMpExtratoLoading] = useState(false);
+  const [mpExtratoErro, setMpExtratoErro] = useState("");
+  const [showCreditoModal, setShowCreditoModal] = useState(false);
+  const [creditoValor, setCreditoValor] = useState("");
+  const [creditoLoading, setCreditoLoading] = useState(false);
+  const [creditoErro, setCreditoErro] = useState("");
+  const [creditoSucesso, setCreditoSucesso] = useState("");
+  const [showDevolucaoModal, setShowDevolucaoModal] = useState(false);
+  const [devolucaoId, setDevolucaoId] = useState("");
+  const [devolucaoLoading, setDevolucaoLoading] = useState(false);
+  const [devolucaoErro, setDevolucaoErro] = useState("");
+  const [devolucaoSucesso, setDevolucaoSucesso] = useState("");
+
   useEffect(() => {
     carregarMaquina();
   }, [id]);
+
+  useEffect(() => {
+    if (maquina?.machinePayPosId) {
+      carregarStatusMachinePay();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maquina?.machinePayPosId]);
+
+  const carregarStatusMachinePay = async () => {
+    try {
+      setMpStatusLoading(true);
+      const res = await api.get(`/machine-pay/maquinas/${id}/status`);
+      setMpStatus(res.data);
+    } catch {
+      setMpStatus({ erro: true });
+    } finally {
+      setMpStatusLoading(false);
+    }
+  };
+
+  const buscarExtrato = async () => {
+    try {
+      setMpExtratoErro("");
+      setMpExtratoLoading(true);
+      const params = {};
+      if (mpExtratoPeriodo.dataInicio) params.dataInicio = mpExtratoPeriodo.dataInicio;
+      if (mpExtratoPeriodo.dataFim) params.dataFim = mpExtratoPeriodo.dataFim;
+      const res = await api.get(`/machine-pay/maquinas/${id}/extrato`, { params });
+      setMpExtrato(res.data);
+    } catch (err) {
+      setMpExtratoErro(err.response?.data?.error || "Erro ao buscar extrato");
+      setMpExtrato(null);
+    } finally {
+      setMpExtratoLoading(false);
+    }
+  };
+
+  const creditarSaldo = async () => {
+    const creditos = parseFloat(creditoValor);
+    if (!creditos || creditos <= 0) {
+      setCreditoErro("Informe um valor de créditos válido (maior que zero)");
+      return;
+    }
+    try {
+      setCreditoErro("");
+      setCreditoLoading(true);
+      await api.post(`/machine-pay/maquinas/${id}/credito`, { creditos });
+      setCreditoSucesso("Crédito enviado com sucesso!");
+      setCreditoValor("");
+    } catch (err) {
+      setCreditoErro(err.response?.data?.error || "Erro ao creditar saldo");
+    } finally {
+      setCreditoLoading(false);
+    }
+  };
+
+  const solicitarDevolucao = async () => {
+    if (!devolucaoId.trim()) {
+      setDevolucaoErro("Informe o ID do webhook da transação");
+      return;
+    }
+    try {
+      setDevolucaoErro("");
+      setDevolucaoLoading(true);
+      await api.post(`/machine-pay/maquinas/${id}/devolucao`, { idwebhook: devolucaoId.trim() });
+      setDevolucaoSucesso("Devolução solicitada com sucesso!");
+      setDevolucaoId("");
+    } catch (err) {
+      setDevolucaoErro(err.response?.data?.error || "Erro ao solicitar devolução");
+    } finally {
+      setDevolucaoLoading(false);
+    }
+  };
 
   const carregarMaquina = async () => {
     try {
@@ -444,7 +538,186 @@ export function MaquinaDetalhes() {
             </button>
           </div>
         </div>
+
+        {/* Machine Pay */}
+        {maquina.machinePayPosId && (usuario?.role === "ADMIN" || usuario?.role === "FINANCEIRO") && (
+          <div className="card mt-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">💳 Machine Pay</h2>
+
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-sm font-semibold text-gray-600">Status:</span>
+              {mpStatusLoading ? (
+                <span className="text-sm text-gray-500">Verificando...</span>
+              ) : mpStatus?.erro ? (
+                <span className="text-sm text-gray-500">—</span>
+              ) : mpStatus?.online ? (
+                <span className="text-sm text-green-700 font-semibold">🟢 Online</span>
+              ) : (
+                <span className="text-sm text-red-700 font-semibold">🔴 Offline</span>
+              )}
+              <button
+                onClick={carregarStatusMachinePay}
+                className="text-xs text-blue-600 hover:underline"
+                disabled={mpStatusLoading}
+              >
+                Atualizar
+              </button>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => {
+                  setShowExtratoModal(true);
+                  setMpExtrato(null);
+                  setMpExtratoErro("");
+                }}
+                className="btn-secondary"
+              >
+                📄 Ver Extrato
+              </button>
+              {usuario?.role === "ADMIN" && (
+                <>
+                  <button
+                    onClick={() => {
+                      setShowCreditoModal(true);
+                      setCreditoErro("");
+                      setCreditoSucesso("");
+                    }}
+                    className="btn-secondary"
+                  >
+                    💰 Creditar Saldo Manual
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowDevolucaoModal(true);
+                      setDevolucaoErro("");
+                      setDevolucaoSucesso("");
+                    }}
+                    className="btn-secondary"
+                  >
+                    ↩️ Solicitar Devolução
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </div>
+
+      <Modal
+        isOpen={showExtratoModal}
+        onClose={() => setShowExtratoModal(false)}
+        title="Extrato Machine Pay"
+        size="md"
+      >
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Data Início</label>
+            <input
+              type="date"
+              value={mpExtratoPeriodo.dataInicio}
+              onChange={(e) => setMpExtratoPeriodo({ ...mpExtratoPeriodo, dataInicio: e.target.value })}
+              className="input-field"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Data Fim</label>
+            <input
+              type="date"
+              value={mpExtratoPeriodo.dataFim}
+              onChange={(e) => setMpExtratoPeriodo({ ...mpExtratoPeriodo, dataFim: e.target.value })}
+              className="input-field"
+            />
+          </div>
+        </div>
+        <button onClick={buscarExtrato} className="btn-primary mb-4" disabled={mpExtratoLoading}>
+          {mpExtratoLoading ? "Buscando..." : "Buscar"}
+        </button>
+        {mpExtratoErro && (
+          <AlertBox type="error" message={mpExtratoErro} onClose={() => setMpExtratoErro("")} />
+        )}
+        {mpExtrato && (
+          <table className="w-full text-sm border-t border-gray-200 pt-2">
+            <tbody>
+              <tr>
+                <td className="py-1 text-gray-600">PIX</td>
+                <td className="py-1 text-right font-semibold">R$ {Number(mpExtrato.pix || 0).toFixed(2)}</td>
+              </tr>
+              <tr>
+                <td className="py-1 text-gray-600">Débito</td>
+                <td className="py-1 text-right font-semibold">R$ {Number(mpExtrato.debito || 0).toFixed(2)}</td>
+              </tr>
+              <tr>
+                <td className="py-1 text-gray-600">Crédito</td>
+                <td className="py-1 text-right font-semibold">R$ {Number(mpExtrato.credito || 0).toFixed(2)}</td>
+              </tr>
+              <tr>
+                <td className="py-1 text-gray-600">Taxas</td>
+                <td className="py-1 text-right font-semibold">R$ {Number(mpExtrato.taxas || 0).toFixed(2)}</td>
+              </tr>
+              <tr className="border-t border-gray-200">
+                <td className="py-1 font-bold text-gray-900">Líquido</td>
+                <td className="py-1 text-right font-bold text-gray-900">R$ {Number(mpExtrato.liquido || 0).toFixed(2)}</td>
+              </tr>
+            </tbody>
+          </table>
+        )}
+      </Modal>
+
+      <Modal
+        isOpen={showCreditoModal}
+        onClose={() => setShowCreditoModal(false)}
+        title="Creditar Saldo Manual"
+        size="sm"
+      >
+        {creditoErro && <AlertBox type="error" message={creditoErro} onClose={() => setCreditoErro("")} />}
+        {creditoSucesso && <AlertBox type="success" message={creditoSucesso} onClose={() => setCreditoSucesso("")} />}
+        <label className="block text-sm font-semibold text-gray-700 mb-2">Créditos</label>
+        <input
+          type="number"
+          min="0.01"
+          step="0.01"
+          value={creditoValor}
+          onChange={(e) => setCreditoValor(e.target.value)}
+          className="input-field mb-4"
+          placeholder="Ex: 10"
+        />
+        <div className="flex gap-3 justify-end">
+          <button onClick={() => setShowCreditoModal(false)} className="btn-secondary">
+            Fechar
+          </button>
+          <button onClick={creditarSaldo} disabled={creditoLoading} className="btn-primary">
+            {creditoLoading ? "Enviando..." : "Creditar"}
+          </button>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={showDevolucaoModal}
+        onClose={() => setShowDevolucaoModal(false)}
+        title="Solicitar Devolução"
+        size="sm"
+      >
+        {devolucaoErro && <AlertBox type="error" message={devolucaoErro} onClose={() => setDevolucaoErro("")} />}
+        {devolucaoSucesso && <AlertBox type="success" message={devolucaoSucesso} onClose={() => setDevolucaoSucesso("")} />}
+        <label className="block text-sm font-semibold text-gray-700 mb-2">ID do Webhook da Transação</label>
+        <input
+          type="text"
+          value={devolucaoId}
+          onChange={(e) => setDevolucaoId(e.target.value)}
+          className="input-field mb-4"
+          placeholder="Ex: abc123"
+        />
+        <div className="flex gap-3 justify-end">
+          <button onClick={() => setShowDevolucaoModal(false)} className="btn-secondary">
+            Fechar
+          </button>
+          <button onClick={solicitarDevolucao} disabled={devolucaoLoading} className="btn-primary">
+            {devolucaoLoading ? "Enviando..." : "Solicitar"}
+          </button>
+        </div>
+      </Modal>
+
       <Footer />
     </div>
   );

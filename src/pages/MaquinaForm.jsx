@@ -25,6 +25,8 @@ export function MaquinaForm() {
     percentualComissao: "",
     localizacao: "",
     ativo: true,
+    machinePayPosId: "",
+    machinePayUsrId: "",
   });
 
   const [lojas, setLojas] = useState([]);
@@ -32,6 +34,7 @@ export function MaquinaForm() {
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [errosCampo, setErrosCampo] = useState({});
 
   useEffect(() => {
     carregarLojas();
@@ -75,6 +78,8 @@ export function MaquinaForm() {
         localizacao: response.data.localizacao || "",
 
         ativo: response.data.ativo !== undefined ? response.data.ativo : true,
+        machinePayPosId: response.data.machinePayPosId || "",
+        machinePayUsrId: response.data.machinePayUsrId || "",
       });
     } catch (error) {
       setError(
@@ -92,12 +97,16 @@ export function MaquinaForm() {
       ...formData,
       [name]: type === "checkbox" ? checked : value,
     });
+    if (errosCampo[name]) {
+      setErrosCampo({ ...errosCampo, [name]: "" });
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
+    setErrosCampo({});
     setLoading(true);
 
     try {
@@ -138,6 +147,8 @@ export function MaquinaForm() {
         percentualComissao: parseFloat(formData.percentualComissao) || 0,
         localizacao: formData.localizacao?.trim() || null,
         ativo: formData.ativo,
+        machinePayPosId: formData.machinePayPosId?.trim() || null,
+        machinePayUsrId: formData.machinePayUsrId?.trim() || null,
       };
 
       console.log("Dados enviados:", JSON.stringify(data, null, 2)); // Debug detalhado
@@ -152,7 +163,12 @@ export function MaquinaForm() {
 
       setTimeout(() => navigate("/maquinas"), 1500);
     } catch (error) {
-      setError(error.response?.data?.error || "Erro ao salvar máquina");
+      const mensagemErro = error.response?.data?.error;
+      if (error.response?.status === 400 && mensagemErro?.includes("posId")) {
+        setErrosCampo({ machinePayPosId: mensagemErro });
+      } else {
+        setError(mensagemErro || "Erro ao salvar máquina");
+      }
     } finally {
       setLoading(false);
     }
@@ -470,6 +486,66 @@ export function MaquinaForm() {
                   </p>
                 </div>
               </div>
+            </div>
+
+            {/* Integração Machine Pay */}
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <span className="text-xl">💳</span>
+                Integração Machine Pay (opcional)
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Pos ID (leitor PIX/cartão)
+                  </label>
+                  <input
+                    type="text"
+                    name="machinePayPosId"
+                    value={formData.machinePayPosId}
+                    onChange={handleChange}
+                    className={`input-field ${
+                      errosCampo.machinePayPosId ? "border-red-500" : ""
+                    }`}
+                    placeholder="Ex: 123456"
+                  />
+                  {errosCampo.machinePayPosId ? (
+                    <p className="text-xs text-red-600 mt-1">
+                      {errosCampo.machinePayPosId}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-gray-500 mt-1">
+                      ID do leitor cadastrado no painel Machine Pay. Deixe em
+                      branco se esta máquina não tiver leitor digital.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <details className="mt-4">
+                <summary className="text-sm font-semibold text-gray-700 cursor-pointer">
+                  Avançado
+                </summary>
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Usr ID (Machine Pay)
+                    </label>
+                    <input
+                      type="text"
+                      name="machinePayUsrId"
+                      value={formData.machinePayUsrId}
+                      onChange={handleChange}
+                      className="input-field"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Normalmente descoberto automaticamente. Só preencha se
+                      souber o que está fazendo.
+                    </p>
+                  </div>
+                </div>
+              </details>
             </div>
 
             {/* Botões */}

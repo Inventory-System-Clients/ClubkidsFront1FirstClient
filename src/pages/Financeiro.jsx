@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import api from "../services/api";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
-import { PageHeader, AlertBox } from "../components/UIComponents";
+import { PageHeader, AlertBox, Modal } from "../components/UIComponents";
 import { PageLoader, EmptyState } from "../components/Loading";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -20,6 +20,9 @@ export function Financeiro() {
   });
   const [bagBusca, setBagBusca] = useState("");
   const [lojaBusca, setLojaBusca] = useState("");
+  const [buscandoMachinePay, setBuscandoMachinePay] = useState(null);
+  const [avisoMachinePayFechamento, setAvisoMachinePayFechamento] = useState(null);
+  const [modalDataInicio, setModalDataInicio] = useState(null);
 
   useEffect(() => {
     carregarPendenciasFinanceiras();
@@ -60,8 +63,20 @@ export function Financeiro() {
   const salvarValores = async (movimentacaoId) => {
     try {
       setError("");
-      await api.put(`/movimentacoes/${movimentacaoId}/financeiro`, valores);
+      setAvisoMachinePayFechamento(null);
+      const resposta = await api.put(`/movimentacoes/${movimentacaoId}/financeiro`, valores);
       setSuccess("Valores financeiros salvos com sucesso!");
+
+      const { machinePayFechamento } = resposta.data;
+      if (machinePayFechamento?.sucesso === true) {
+        setAvisoMachinePayFechamento({ type: "success", message: "Caixa fechado na Machine Pay." });
+      } else if (machinePayFechamento?.sucesso === false) {
+        setAvisoMachinePayFechamento({
+          type: "warning",
+          message: `Confirmação salva, mas não foi possível fechar o caixa na Machine Pay (${machinePayFechamento.erro || machinePayFechamento.motivo || "motivo desconhecido"}).`,
+        });
+      }
+
       setEditando(null);
       setValores({
         // Removido valorEntradaMoedas
@@ -71,6 +86,30 @@ export function Financeiro() {
       await carregarPendenciasFinanceiras();
     } catch (error) {
       setError("Erro ao salvar valores: " + (error.response?.data?.error || error.message));
+    }
+  };
+
+  const buscarNovamenteValorDigital = async (movimentacaoId, dataInicio) => {
+    try {
+      setError("");
+      setBuscandoMachinePay(movimentacaoId);
+      const resposta = await api.post(
+        `/movimentacoes/${movimentacaoId}/machine-pay/buscar`,
+        dataInicio ? { dataInicio } : {}
+      );
+      const { fechamento } = resposta.data;
+      setValores((prev) => ({ ...prev, valorEntradaCartao: fechamento.cartaoPix }));
+      setSuccess(`Valor digital atualizado: R$ ${Number(fechamento.cartaoPix).toFixed(2)}`);
+      setModalDataInicio(null);
+    } catch (err) {
+      const data = err.response?.data;
+      if (err.response?.status === 400 && data?.machinePayPrecisaDataInicio) {
+        setModalDataInicio({ movimentacaoId, dataInicio: "" });
+        return;
+      }
+      setError(data?.error || "Erro ao buscar valor digital na Machine Pay");
+    } finally {
+      setBuscandoMachinePay(null);
     }
   };
 
@@ -88,6 +127,13 @@ export function Financeiro() {
 
         {error && <AlertBox type="error" message={error} onClose={() => setError("")} />}
         {success && <AlertBox type="success" message={success} onClose={() => setSuccess("")} />}
+        {avisoMachinePayFechamento && (
+          <AlertBox
+            type={avisoMachinePayFechamento.type}
+            message={avisoMachinePayFechamento.message}
+            onClose={() => setAvisoMachinePayFechamento(null)}
+          />
+        )}
 
         {lojasAReceber.length === 0 && movimentacoes.length === 0 ? (
           <EmptyState message="Não há movimentações pendentes de preenchimento financeiro" icon="✅" />
@@ -193,7 +239,20 @@ export function Financeiro() {
                           {editando === mov.id ? (
                             <div className="space-y-2">
                               <input type="number" step="0.01" placeholder="Notas" value={valores.valorEntradaNotas} onChange={(e) => setValores({ ...valores, valorEntradaNotas: e.target.value })} className="w-full px-2 py-1 border rounded text-sm" />
-                              <input type="number" step="0.01" placeholder="Digital" value={valores.valorEntradaCartao} onChange={(e) => setValores({ ...valores, valorEntradaCartao: e.target.value })} className="w-full px-2 py-1 border rounded text-sm" />
+                              <div className="flex gap-2 items-center">
+                                <input type="number" step="0.01" placeholder="Digital" value={valores.valorEntradaCartao} onChange={(e) => setValores({ ...valores, valorEntradaCartao: e.target.value })} className="flex-1 px-2 py-1 border rounded text-sm" />
+                                {mov.maquina?.machinePayPosId && (
+                                  <button
+                                    type="button"
+                                    onClick={() => buscarNovamenteValorDigital(mov.id)}
+                                    disabled={buscandoMachinePay === mov.id}
+                                    title="Buscar novamente na Machine Pay"
+                                    className="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 disabled:opacity-50 text-blue-800 rounded whitespace-nowrap"
+                                  >
+                                    {buscandoMachinePay === mov.id ? "⏳" : "🔄"}
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           ) : (
                             <span className="text-yellow-600 font-semibold">Pendente</span>
@@ -218,6 +277,41 @@ export function Financeiro() {
           </div>
         )}
       </div>
+
+      <Modal
+        isOpen={!!modalDataInicio}
+        onClose={() => setModalDataInicio(null)}
+        title="Informe a data inicial"
+        size="sm"
+      >
+        <p className="text-sm text-gray-700 mb-4">
+          Não foi possível determinar automaticamente o período. Informe desde quando
+          contar os valores digitais desta máquina.
+        </p>
+        <input
+          type="date"
+          value={modalDataInicio?.dataInicio || ""}
+          onChange={(e) =>
+            setModalDataInicio({ ...modalDataInicio, dataInicio: e.target.value })
+          }
+          className="input-field mb-4"
+        />
+        <div className="flex gap-3 justify-end">
+          <button onClick={() => setModalDataInicio(null)} className="btn-secondary">
+            Cancelar
+          </button>
+          <button
+            onClick={() =>
+              buscarNovamenteValorDigital(modalDataInicio.movimentacaoId, modalDataInicio.dataInicio)
+            }
+            disabled={!modalDataInicio?.dataInicio || buscandoMachinePay === modalDataInicio?.movimentacaoId}
+            className="btn-primary"
+          >
+            {buscandoMachinePay === modalDataInicio?.movimentacaoId ? "Buscando..." : "Buscar"}
+          </button>
+        </div>
+      </Modal>
+
       <Footer />
     </div>
   );
