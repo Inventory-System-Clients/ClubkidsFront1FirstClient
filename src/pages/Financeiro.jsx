@@ -23,6 +23,7 @@ export function Financeiro() {
   const [buscandoMachinePay, setBuscandoMachinePay] = useState(null);
   const [avisoMachinePayFechamento, setAvisoMachinePayFechamento] = useState(null);
   const [modalDataInicio, setModalDataInicio] = useState(null);
+  const [dataInicioBusca, setDataInicioBusca] = useState("");
 
   useEffect(() => {
     carregarPendenciasFinanceiras();
@@ -50,6 +51,7 @@ export function Financeiro() {
       valorEntradaNotas: movimentacao.valorEntradaNotas || "",
       valorEntradaCartao: movimentacao.valorEntradaCartao || "",
     });
+    setDataInicioBusca("");
   };
 
   const cancelarEdicao = () => {
@@ -58,6 +60,7 @@ export function Financeiro() {
       valorEntradaNotas: "",
       valorEntradaCartao: "",
     });
+    setDataInicioBusca("");
   };
 
   const salvarValores = async (movimentacaoId) => {
@@ -83,6 +86,7 @@ export function Financeiro() {
         valorEntradaNotas: "",
         valorEntradaCartao: "",
       });
+      setDataInicioBusca("");
       await carregarPendenciasFinanceiras();
     } catch (error) {
       setError("Erro ao salvar valores: " + (error.response?.data?.error || error.message));
@@ -101,6 +105,7 @@ export function Financeiro() {
       setValores((prev) => ({ ...prev, valorEntradaCartao: fechamento.cartaoPix }));
       setSuccess(`Valor digital atualizado: R$ ${Number(fechamento.cartaoPix).toFixed(2)}`);
       setModalDataInicio(null);
+      setDataInicioBusca("");
     } catch (err) {
       const data = err.response?.data;
       if (err.response?.status === 400 && data?.machinePayPrecisaDataInicio) {
@@ -241,15 +246,49 @@ export function Financeiro() {
                             <div className="space-y-2">
                               <input type="number" step="0.01" placeholder="Notas" value={valores.valorEntradaNotas} onChange={(e) => setValores({ ...valores, valorEntradaNotas: e.target.value })} className="w-full px-2 py-1 border rounded text-sm" />
                               <input type="number" step="0.01" placeholder="Digital" value={valores.valorEntradaCartao} onChange={(e) => setValores({ ...valores, valorEntradaCartao: e.target.value })} className="w-full px-2 py-1 border rounded text-sm" />
-                              <button
-                                type="button"
-                                onClick={() => buscarNovamenteValorDigital(mov.id)}
-                                disabled={buscandoMachinePay === mov.id}
-                                title="Buscar na Machine Pay o valor entre a última movimentação da máquina e esta coleta"
-                                className="w-full text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 disabled:opacity-50 text-blue-800 rounded"
-                              >
-                                {buscandoMachinePay === mov.id ? "⏳ Buscando..." : "🔄 Buscar novamente"}
-                              </button>
+                              {Boolean(mov.machinePayPosId) && (() => {
+                                const precisaDataInicio = mov.machinePayPrecisaDataInicio === true;
+                                return (
+                                  <div className="space-y-1">
+                                    {precisaDataInicio && (
+                                      <>
+                                        <label className="block text-xs font-semibold text-purple-900">
+                                          Desde quando considerar os valores digitais?
+                                        </label>
+                                        <input
+                                          type="date"
+                                          value={dataInicioBusca}
+                                          onChange={(e) => setDataInicioBusca(e.target.value)}
+                                          className="w-full px-2 py-1 border rounded text-sm"
+                                          required
+                                        />
+                                        <p className="text-xs text-gray-500">
+                                          Esta é a primeira coleta desta máquina com leitor Machine
+                                          Pay configurado — informe a partir de qual data devemos
+                                          considerar o faturamento digital (PIX/cartão).
+                                        </p>
+                                      </>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        buscarNovamenteValorDigital(
+                                          mov.id,
+                                          dataInicioBusca || undefined
+                                        )
+                                      }
+                                      disabled={
+                                        buscandoMachinePay === mov.id ||
+                                        (precisaDataInicio && !dataInicioBusca)
+                                      }
+                                      title="Buscar na Machine Pay o valor entre a última movimentação da máquina e esta coleta"
+                                      className="w-full text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 disabled:opacity-50 text-blue-800 rounded"
+                                    >
+                                      {buscandoMachinePay === mov.id ? "⏳ Buscando..." : "🔄 Buscar novamente"}
+                                    </button>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           ) : (
                             <span className="text-yellow-600 font-semibold">Pendente</span>
