@@ -16,6 +16,7 @@ export function MaquinaDetalhes() {
   const [maquina, setMaquina] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [ultimoRelogio, setUltimoRelogio] = useState(null);
 
   // Machine Pay
   const [mpStatus, setMpStatus] = useState(null);
@@ -38,6 +39,7 @@ export function MaquinaDetalhes() {
 
   useEffect(() => {
     carregarMaquina();
+    carregarUltimoRelogio();
   }, [id]);
 
   useEffect(() => {
@@ -122,6 +124,23 @@ export function MaquinaDetalhes() {
       setError("Erro ao carregar máquina: " + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const carregarUltimoRelogio = async () => {
+    try {
+      const response = await api.get(`/movimentacoes?maquinaId=${id}`);
+      const movimentacoes = response.data || [];
+      const movimentacoesComRelogio = movimentacoes
+        .filter((mov) => mov.contadorIn || mov.contadorOut)
+        .sort(
+          (a, b) =>
+            new Date(b.dataColeta || b.createdAt) -
+            new Date(a.dataColeta || a.createdAt)
+        );
+      setUltimoRelogio(movimentacoesComRelogio[0] || null);
+    } catch {
+      setUltimoRelogio(null);
     }
   };
 
@@ -486,6 +505,36 @@ export function MaquinaDetalhes() {
               <p className="text-lg text-gray-900">{maquina.estoqueAtual || 0} unidades</p>
             </div>
           </div>
+
+          {ultimoRelogio && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <label className="block text-sm font-semibold text-gray-600 mb-2">
+                🔢 Último Relógio Cadastrado (Atual)
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {ultimoRelogio.contadorIn ? (
+                  <div>
+                    <p className="text-xs text-gray-600">📥 Contador IN</p>
+                    <p className="text-lg font-bold text-green-700">{ultimoRelogio.contadorIn}</p>
+                  </div>
+                ) : null}
+                {ultimoRelogio.contadorOut ? (
+                  <div>
+                    <p className="text-xs text-gray-600">📤 Contador OUT</p>
+                    <p className="text-lg font-bold text-orange-700">{ultimoRelogio.contadorOut}</p>
+                  </div>
+                ) : null}
+                <div>
+                  <p className="text-xs text-gray-600">📅 Registrado em</p>
+                  <p className="text-sm text-gray-800">
+                    {new Date(
+                      ultimoRelogio.dataColeta || ultimoRelogio.createdAt
+                    ).toLocaleDateString("pt-BR")}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Dados de Vendas */}
