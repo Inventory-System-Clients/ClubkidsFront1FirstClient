@@ -27,16 +27,13 @@ export function LojaDetalhes() {
   const carregarDados = async () => {
     try {
       setLoading(true);
-      const [lojaRes, maquinasRes, movimentacoesRes, produtosRes] =
-        await Promise.all([
-          api.get(`/lojas/${id}`),
-          api.get(`/maquinas`),
-          api.get(`/movimentacoes`),
-          api.get(`/produtos`),
-        ]);
+      const [lojaRes, maquinasRes, produtosRes] = await Promise.all([
+        api.get(`/lojas/${id}`),
+        api.get(`/maquinas`),
+        api.get(`/produtos`),
+      ]);
 
       const maquinasDaLoja = maquinasRes.data.filter((m) => m.lojaId === id);
-      const todasMovimentacoes = movimentacoesRes.data;
       const produtos = produtosRes.data;
 
       // Enriquecer cada máquina com estoque atual e último produto
@@ -47,14 +44,16 @@ export function LojaDetalhes() {
             const estoqueRes = await api.get(`/maquinas/${maquina.id}/estoque`);
             const estoqueAtual = estoqueRes.data.estoqueAtual || 0;
 
-            // Buscar última movimentação desta máquina
-            const movsDaMaquina = todasMovimentacoes
-              .filter((mov) => mov.maquinaId === maquina.id)
-              .sort(
-                (a, b) =>
-                  new Date(b.dataColeta || b.createdAt) -
-                  new Date(a.dataColeta || a.createdAt)
-              );
+            // Buscar histórico completo desta máquina (o endpoint sem filtro
+            // pode vir paginado/limitado e não refletir a movimentação mais recente)
+            const movRes = await api.get(
+              `/movimentacoes?maquinaId=${maquina.id}`
+            );
+            const movsDaMaquina = (movRes.data || []).sort(
+              (a, b) =>
+                new Date(b.dataColeta || b.createdAt) -
+                new Date(a.dataColeta || a.createdAt)
+            );
 
             let ultimoProduto = null;
             if (movsDaMaquina.length > 0) {
@@ -83,6 +82,8 @@ export function LojaDetalhes() {
               ...maquina,
               estoqueAtual: 0,
               ultimoProduto: null,
+              ultimoContadorIn: null,
+              ultimoContadorOut: null,
             };
           }
         })
