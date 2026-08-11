@@ -63,10 +63,16 @@ export function LojaDetalhes() {
               ultimoProduto = produtos.find((p) => p.id === produtoId);
             }
 
+            const movComContador = movsDaMaquina.find(
+              (mov) => mov.contadorIn || mov.contadorOut
+            );
+
             return {
               ...maquina,
               estoqueAtual,
               ultimoProduto,
+              ultimoContadorIn: movComContador?.contadorIn ?? null,
+              ultimoContadorOut: movComContador?.contadorOut ?? null,
             };
           } catch (error) {
             console.error(
@@ -360,6 +366,18 @@ export function LojaDetalhes() {
                             {estoqueAtual}
                           </span>
                         </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">📥 Contador IN atual:</span>
+                          <span className="font-semibold text-green-700">
+                            {maquina.ultimoContadorIn ?? "-"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">📤 Contador OUT atual:</span>
+                          <span className="font-semibold text-orange-700">
+                            {maquina.ultimoContadorOut ?? "-"}
+                          </span>
+                        </div>
 
                         <div>
                           <div className="flex justify-between text-sm mb-1">
@@ -519,28 +537,22 @@ export function LojaDetalhes() {
                                 </div>
 
                               </div>
-                              {(mov.contadorIn || mov.contadorOut) && (
-                                <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-gray-200">
-                                  {mov.contadorIn ? (
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-lg">📥</span>
-                                      <div>
-                                        <p className="text-xs text-gray-600">Contador IN</p>
-                                        <p className="font-bold text-green-700">{mov.contadorIn}</p>
-                                      </div>
-                                    </div>
-                                  ) : null}
-                                  {mov.contadorOut ? (
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-lg">📤</span>
-                                      <div>
-                                        <p className="text-xs text-gray-600">Contador OUT</p>
-                                        <p className="font-bold text-orange-700">{mov.contadorOut}</p>
-                                      </div>
-                                    </div>
-                                  ) : null}
+                              <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-gray-200">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-lg">📥</span>
+                                  <div>
+                                    <p className="text-xs text-gray-600">Contador IN</p>
+                                    <p className="font-bold text-green-700">{mov.contadorIn ?? "-"}</p>
+                                  </div>
                                 </div>
-                              )}
+                                <div className="flex items-center gap-2">
+                                  <span className="text-lg">📤</span>
+                                  <div>
+                                    <p className="text-xs text-gray-600">Contador OUT</p>
+                                    <p className="font-bold text-orange-700">{mov.contadorOut ?? "-"}</p>
+                                  </div>
+                                </div>
+                              </div>
                               {mov.observacoes && (
                                 <p className="text-sm text-gray-600 mt-3 italic">💬 {mov.observacoes}</p>
                               )}

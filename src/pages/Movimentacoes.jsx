@@ -732,23 +732,16 @@ export function Movimentacoes() {
     {
       key: "relogio",
       label: "Relógio",
-      render: (mov) =>
-        mov.contadorIn || mov.contadorOut ? (
-          <div className="text-xs space-y-0.5">
-            {mov.contadorIn ? (
-              <div className="text-green-700">
-                <span className="font-semibold">IN:</span> {mov.contadorIn}
-              </div>
-            ) : null}
-            {mov.contadorOut ? (
-              <div className="text-orange-700">
-                <span className="font-semibold">OUT:</span> {mov.contadorOut}
-              </div>
-            ) : null}
+      render: (mov) => (
+        <div className="text-xs space-y-0.5">
+          <div className="text-green-700">
+            <span className="font-semibold">IN:</span> {mov.contadorIn ?? "-"}
           </div>
-        ) : (
-          "-"
-        ),
+          <div className="text-orange-700">
+            <span className="font-semibold">OUT:</span> {mov.contadorOut ?? "-"}
+          </div>
+        </div>
+      ),
     },
     {
       key: "observacao",

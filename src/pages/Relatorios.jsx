@@ -1922,6 +1922,25 @@ export function Relatorios() {
                                     </p>
                                   </div>
                                 </div>
+
+                                <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-blue-100 text-xs sm:text-sm">
+                                  <div>
+                                    <p className="text-gray-500">
+                                      📥 Contador IN
+                                    </p>
+                                    <p className="font-semibold text-green-700">
+                                      {mov.contadorIn ?? "-"}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-gray-500">
+                                      📤 Contador OUT
+                                    </p>
+                                    <p className="font-semibold text-orange-700">
+                                      {mov.contadorOut ?? "-"}
+                                    </p>
+                                  </div>
+                                </div>
                               </div>
                             );
                           })}
