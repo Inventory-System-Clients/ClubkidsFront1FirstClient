@@ -199,6 +199,8 @@ function Manutencoes() {
   const [filtroLoja, setFiltroLoja] = useState("");
   // Removido filtro de roteiro
   const [filtroStatus, setFiltroStatus] = useState("");
+  const [filtroDataInicio, setFiltroDataInicio] = useState("");
+  const [filtroDataFim, setFiltroDataFim] = useState("");
   const [detalhe, setDetalhe] = useState(null);
 
   useEffect(() => {
@@ -234,6 +236,17 @@ function Manutencoes() {
     // Filtro de aba
     if (abaManutencao === "urgentes" && !isUrgente(m.status)) return false;
     if (abaManutencao === "pendentes" && isUrgente(m.status)) return false;
+    if (filtroDataInicio || filtroDataFim) {
+      const dataManutencao = new Date(m.createdAt);
+      if (filtroDataInicio) {
+        const inicio = new Date(`${filtroDataInicio}T00:00:00`);
+        if (dataManutencao < inicio) return false;
+      }
+      if (filtroDataFim) {
+        const fim = new Date(`${filtroDataFim}T23:59:59.999`);
+        if (dataManutencao > fim) return false;
+      }
+    }
     return (!filtroLoja || m.loja?.nome === filtroLoja) &&
       (!filtroStatus || normalizarStatusManutencao(m.status) === normalizarStatusManutencao(filtroStatus));
   });
@@ -342,6 +355,33 @@ function Manutencoes() {
             <option value="">Todos os status</option>
             {statusList.map(status => <option key={status} value={status}>{status}</option>)}
           </select>
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-500">De</label>
+            <input
+              type="date"
+              className="input-field"
+              value={filtroDataInicio}
+              onChange={e => setFiltroDataInicio(e.target.value)}
+              max={filtroDataFim || undefined}
+            />
+            <label className="text-sm text-gray-500">Até</label>
+            <input
+              type="date"
+              className="input-field"
+              value={filtroDataFim}
+              onChange={e => setFiltroDataFim(e.target.value)}
+              min={filtroDataInicio || undefined}
+            />
+            {(filtroDataInicio || filtroDataFim) && (
+              <button
+                type="button"
+                className="text-sm text-blue-600 hover:underline"
+                onClick={() => { setFiltroDataInicio(""); setFiltroDataFim(""); }}
+              >
+                Limpar datas
+              </button>
+            )}
+          </div>
         </div>
         {showNovaManutencao && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
