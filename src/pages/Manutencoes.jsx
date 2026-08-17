@@ -202,6 +202,8 @@ function Manutencoes() {
   const [filtroDataInicio, setFiltroDataInicio] = useState("");
   const [filtroDataFim, setFiltroDataFim] = useState("");
   const [detalhe, setDetalhe] = useState(null);
+  const LIMITE_FEITAS_INICIAL = 10;
+  const [limiteFeitas, setLimiteFeitas] = useState(LIMITE_FEITAS_INICIAL);
 
   useEffect(() => {
     async function fetchManutencoes() {
@@ -224,6 +226,11 @@ function Manutencoes() {
 
   // Abas de filtro: pendentes/urgentes
   const [abaManutencao, setAbaManutencao] = useState("pendentes");
+
+  // Reinicia a paginação de "feitas" sempre que os filtros mudam
+  useEffect(() => {
+    setLimiteFeitas(LIMITE_FEITAS_INICIAL);
+  }, [filtroLoja, filtroStatus, filtroDataInicio, filtroDataFim, abaManutencao]);
 
   // Se não for admin, mostrar apenas manutenções atribuídas ao usuário logado
   const isAdmin = usuario?.role === "ADMIN";
@@ -251,13 +258,17 @@ function Manutencoes() {
       (!filtroStatus || normalizarStatusManutencao(m.status) === normalizarStatusManutencao(filtroStatus));
   });
 
-  // Para admin, limitar as últimas 10 manutenções feitas
+  // Para admin, limitar as manutenções feitas exibidas (com botão "mostrar mais")
+  let totalFeitas = 0;
+  let temMaisFeitas = false;
   if (isAdmin && (!filtroStatus || isConcluida(filtroStatus))) {
     const feitas = filtradas.filter(m => isConcluida(m.status));
     const outras = filtradas.filter(m => !isConcluida(m.status));
     // Ordenar por data decrescente
     feitas.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    filtradas = outras.concat(feitas.slice(0, 10));
+    totalFeitas = feitas.length;
+    temMaisFeitas = feitas.length > limiteFeitas;
+    filtradas = outras.concat(feitas.slice(0, limiteFeitas));
   }
 
   const formatarEnderecoLoja = loja => {
@@ -508,6 +519,20 @@ function Manutencoes() {
                 )}
               </tbody>
             </table>
+            {temMaisFeitas && (
+              <div className="flex flex-col items-center gap-1 py-4">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setLimiteFeitas(prev => prev + 10)}
+                >
+                  Mostrar mais 10
+                </button>
+                <span className="text-xs text-gray-400">
+                  Mostrando {Math.min(limiteFeitas, totalFeitas)} de {totalFeitas} manutenções feitas
+                </span>
+              </div>
+            )}
           </div>
         )}
         {detalhe && !editando && (
