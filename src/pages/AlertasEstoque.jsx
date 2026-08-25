@@ -304,6 +304,9 @@ function getPossiveisErrosFinanceiro(alerta) {
       "Erro de digitação no contador IN da coleta anterior usada como referência.",
       "O contador da máquina foi resetado ou a placa/leitor foi trocado sem registrar o motivo.",
       "O contador de outra máquina foi lançado por engano nesta movimentação.",
+      alerta.usaFichas
+        ? "A máquina está cadastrada com fichas necessárias por jogada, mas na prática cobra em dinheiro direto — verifique o cadastro da máquina."
+        : "A máquina cadastrada sem sistema de fichas na verdade usa fichas — verifique se 'fichas necessárias por jogada' deveria estar preenchido no cadastro.",
     ];
   }
 
@@ -407,10 +410,16 @@ function FinanceiroAlertCard({ alerta, onClick, onResolver, resolvendo }) {
             {toNumber(alerta?.diferencaContador)}
           </p>
           <p className="mt-1 text-xs text-gray-500">
-            {toNumber(alerta?.jogadas).toLocaleString("pt-BR", {
-              maximumFractionDigits: 2,
-            })}{" "}
-            jogadas ({toNumber(alerta?.fichasNecessarias)} ficha(s)/jogada)
+            {alerta?.usaFichas ? (
+              <>
+                {toNumber(alerta?.jogadas).toLocaleString("pt-BR", {
+                  maximumFractionDigits: 2,
+                })}{" "}
+                jogadas ({toNumber(alerta?.fichasNecessarias)} ficha(s)/jogada)
+              </>
+            ) : (
+              "1 real = 1 no contador"
+            )}
           </p>
         </div>
       </div>
@@ -541,11 +550,20 @@ function ConferirAlertaFinanceiroModal({ alerta, onClose }) {
             </span>
           </div>
           <p className="mt-2 text-sm text-gray-600">
-            {toNumber(alerta?.jogadas).toLocaleString("pt-BR", {
-              maximumFractionDigits: 2,
-            })}{" "}
-            jogadas × {toNumber(alerta?.fichasNecessarias)} ficha(s)/jogada ×{" "}
-            {formatarMoeda(alerta?.valorFicha)}/ficha ={" "}
+            {alerta?.usaFichas ? (
+              <>
+                {toNumber(alerta?.jogadas).toLocaleString("pt-BR", {
+                  maximumFractionDigits: 2,
+                })}{" "}
+                jogadas × {toNumber(alerta?.fichasNecessarias)} ficha(s)/jogada
+                × {formatarMoeda(alerta?.valorFicha)}/ficha ={" "}
+              </>
+            ) : (
+              <>
+                Máquina sem sistema de fichas: o contador soma 1 para cada R$1
+                inserido, então a diferença acima já é o valor em reais ={" "}
+              </>
+            )}
             <span className="font-bold">
               {formatarMoeda(alerta?.valorEsperado)}
             </span>{" "}
