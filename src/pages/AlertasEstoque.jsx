@@ -54,6 +54,12 @@ function formatarPercentual(value) {
   })}%`;
 }
 
+function formatarMoeda(value) {
+  return `R$ ${toNumber(value).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+  })}`;
+}
+
 function formatarData(value) {
   if (!value) return "Data não informada";
 
@@ -233,6 +239,92 @@ function StoreAlertCard({ alerta }) {
             {toNumber(alerta?.estoqueMinimo ?? produto?.estoqueMinimo)}
           </p>
         </div>
+      </div>
+    </article>
+  );
+}
+
+function FinanceiroAlertCard({ alerta }) {
+  const faltando = alerta?.tipo === "dinheiro_faltando";
+
+  return (
+    <article
+      className={`rounded-xl border bg-white p-4 shadow-sm transition hover:shadow-md sm:p-5 ${
+        faltando ? "border-red-200" : "border-amber-200"
+      }`}
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 className="text-lg font-bold text-gray-900">
+            {alerta?.maquina?.codigo || "Sem código"} -{" "}
+            {alerta?.maquina?.nome || "Máquina sem nome"}
+          </h3>
+          <p className="mt-1 text-sm font-medium text-gray-600">
+            🏪 Loja: {alerta?.maquina?.loja || "Não informada"}
+          </p>
+          <p className="mt-1 text-sm text-gray-500">
+            Bag: <span className="font-semibold">{alerta?.numeroBag}</span> ·{" "}
+            {formatarData(alerta?.dataColeta)}
+          </p>
+        </div>
+        <span
+          className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-bold ${
+            faltando
+              ? "bg-red-100 text-red-700 border-red-200"
+              : "bg-amber-100 text-amber-800 border-amber-200"
+          }`}
+        >
+          {faltando ? "Dinheiro faltando" : "Dinheiro extra preenchido"}
+        </span>
+      </div>
+
+      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="rounded-lg bg-gray-50 p-3">
+          <p className="text-xs font-bold uppercase text-gray-500">Esperado</p>
+          <p className="mt-1 text-lg font-bold text-gray-900">
+            {formatarMoeda(alerta?.valorEsperado)}
+          </p>
+        </div>
+        <div className="rounded-lg bg-gray-50 p-3">
+          <p className="text-xs font-bold uppercase text-gray-500">Preenchido</p>
+          <p className="mt-1 text-lg font-bold text-gray-900">
+            {formatarMoeda(alerta?.valorPreenchido)}
+          </p>
+        </div>
+        <div
+          className={`rounded-lg p-3 ${faltando ? "bg-red-50" : "bg-amber-50"}`}
+        >
+          <p
+            className={`text-xs font-bold uppercase ${
+              faltando ? "text-red-700" : "text-amber-700"
+            }`}
+          >
+            Diferença
+          </p>
+          <p
+            className={`mt-1 text-lg font-bold ${
+              faltando ? "text-red-800" : "text-amber-800"
+            }`}
+          >
+            {faltando ? "-" : "+"}
+            {formatarMoeda(Math.abs(toNumber(alerta?.diferenca)))}
+          </p>
+        </div>
+        <div className="rounded-lg bg-gray-50 p-3">
+          <p className="text-xs font-bold uppercase text-gray-500">
+            Contador IN (diferença)
+          </p>
+          <p className="mt-1 text-lg font-bold text-gray-900">
+            {toNumber(alerta?.diferencaContador)}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 border-t border-gray-100 pt-3 text-sm text-gray-600">
+        Responsável:{" "}
+        <span className="font-semibold text-gray-800">
+          {alerta?.usuario || "Não informado"}
+        </span>
       </div>
     </article>
   );
@@ -496,6 +588,9 @@ export function AlertasEstoque() {
   const [movimentacaoConferencia, setMovimentacaoConferencia] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [alertasFinanceiros, setAlertasFinanceiros] = useState([]);
+  const [loadingFinanceiro, setLoadingFinanceiro] = useState(true);
+  const [erroFinanceiro, setErroFinanceiro] = useState("");
 
   const carregarLojas = useCallback(async () => {
     const res = await api.get("/lojas");
@@ -571,9 +666,29 @@ export function AlertasEstoque() {
     ],
   );
 
+  const carregarAlertasFinanceiros = useCallback(async () => {
+    try {
+      setLoadingFinanceiro(true);
+      setErroFinanceiro("");
+      const res = await api.get("/alertas-financeiros");
+      setAlertasFinanceiros(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      setErroFinanceiro(
+        err.response?.data?.error ||
+          "Não foi possível carregar os alertas financeiros. Tente novamente.",
+      );
+    } finally {
+      setLoadingFinanceiro(false);
+    }
+  }, []);
+
   useEffect(() => {
     carregarDados("");
   }, [carregarDados]);
+
+  useEffect(() => {
+    carregarAlertasFinanceiros();
+  }, [carregarAlertasFinanceiros]);
 
   const handleTrocarLoja = (event) => {
     const lojaId = event.target.value;
@@ -753,6 +868,27 @@ export function AlertasEstoque() {
           >
             Movimentações Inconsistentes
           </button>
+          <button
+            onClick={() => setAbaAtiva("financeiro")}
+            className={`flex-1 rounded-lg px-4 py-3 text-sm font-bold transition ${
+              abaAtiva === "financeiro"
+                ? "bg-amber-600 text-white shadow"
+                : "text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            💰 Alertas Financeiros
+            {alertasFinanceiros.length > 0 && (
+              <span
+                className={`ml-2 inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-bold ${
+                  abaAtiva === "financeiro"
+                    ? "bg-white/20 text-white"
+                    : "bg-amber-100 text-amber-800"
+                }`}
+              >
+                {alertasFinanceiros.length}
+              </span>
+            )}
+          </button>
         </div>
 
         {abaAtiva === "estoque" ? (
@@ -873,7 +1009,7 @@ export function AlertasEstoque() {
           </div>
         )}
           </>
-        ) : (
+        ) : abaAtiva === "inconsistencias" ? (
           <div className="space-y-6">
             <div className="card-gradient">
               <SectionHeader
@@ -988,6 +1124,48 @@ export function AlertasEstoque() {
                 </div>
               ) : (
                 <SectionEmpty message="Nenhuma movimentação inconsistente encontrada." />
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="card-gradient">
+              <SectionHeader
+                icon="💰"
+                title="Alertas Financeiros"
+                total={alertasFinanceiros.length}
+                subtitle="Divergências entre o valor esperado (contador IN x valor da ficha) e o valor preenchido na bag/Machine Pay ao concluir o financeiro."
+              />
+
+              <div className="mb-6 rounded-xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-800">
+                <span className="font-bold">Ação esperada:</span> conferir a
+                contagem da bag e o fechamento na Machine Pay desta máquina.
+                Estes alertas são gerados automaticamente ao preencher o
+                financeiro de movimentações com retirada de dinheiro.
+              </div>
+
+              {erroFinanceiro && (
+                <div className="mb-6 space-y-4">
+                  <AlertBox type="error" message={erroFinanceiro} />
+                  <button onClick={carregarAlertasFinanceiros} className="btn-secondary">
+                    Tentar novamente
+                  </button>
+                </div>
+              )}
+
+              {loadingFinanceiro ? (
+                <AlertasSkeleton />
+              ) : alertasFinanceiros.length > 0 ? (
+                <div className="space-y-4">
+                  {alertasFinanceiros.map((alerta) => (
+                    <FinanceiroAlertCard
+                      key={alerta.movimentacaoId}
+                      alerta={alerta}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <SectionEmpty message="Nenhuma divergência financeira encontrada nas movimentações com bag." />
               )}
             </div>
           </div>
