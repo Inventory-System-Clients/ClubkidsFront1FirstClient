@@ -9,7 +9,7 @@ import {
   validarInconsistenciasMovimentacao,
 } from "../utils/movimentacaoInconsistencias";
 
-const LIMITE_INICIAL_ALERTAS = 10;
+const TAMANHO_PAGINA_ALERTAS = 20;
 
 const nivelConfig = {
   CRITICO: {
@@ -80,17 +80,17 @@ function getLojaNome(loja) {
 }
 
 function ordenarAlertasMaquinas(alertas) {
+  // Mais recente primeiro
   return [...alertas].sort(
-    (a, b) => toNumber(a?.percentualAtual) - toNumber(b?.percentualAtual),
+    (a, b) => new Date(b?.ultimaAtualizacao || 0) - new Date(a?.ultimaAtualizacao || 0),
   );
 }
 
 function ordenarAlertasDeposito(alertas) {
-  return [...alertas].sort((a, b) => {
-    const deficitA = toNumber(a?.estoqueMinimo) - toNumber(a?.quantidade);
-    const deficitB = toNumber(b?.estoqueMinimo) - toNumber(b?.quantidade);
-    return deficitB - deficitA;
-  });
+  // Mais recente primeiro
+  return [...alertas].sort(
+    (a, b) => new Date(b?.atualizadoEm || 0) - new Date(a?.atualizadoEm || 0),
+  );
 }
 
 function SectionEmpty({ message }) {
@@ -119,7 +119,24 @@ function SectionHeader({ icon, title, total, subtitle }) {
   );
 }
 
-function MachineAlertCard({ alerta }) {
+function ResolverAlertaButton({ onResolver, resolvendo, className = "" }) {
+  if (!onResolver) return null;
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onResolver();
+      }}
+      disabled={resolvendo}
+      className={`inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+    >
+      {resolvendo ? "Marcando..." : "✓ Marcar como resolvido"}
+    </button>
+  );
+}
+
+function MachineAlertCard({ alerta, onResolver, resolvendo }) {
   const nivel = normalizarNivel(alerta?.nivelAlerta);
   const config = nivelConfig[nivel] || nivelConfig["MÉDIO"];
   const percentual = Math.max(0, Math.min(100, toNumber(alerta?.percentualAtual)));
@@ -190,17 +207,20 @@ function MachineAlertCard({ alerta }) {
         </div>
       </div>
 
-      <div className="mt-4 border-t border-gray-100 pt-3 text-sm text-gray-600">
-        Última atualização:{" "}
-        <span className="font-semibold text-gray-800">
-          {formatarData(alerta?.ultimaAtualizacao)}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-3 text-sm text-gray-600">
+        <span>
+          Última atualização:{" "}
+          <span className="font-semibold text-gray-800">
+            {formatarData(alerta?.ultimaAtualizacao)}
+          </span>
         </span>
+        <ResolverAlertaButton onResolver={onResolver} resolvendo={resolvendo} />
       </div>
     </article>
   );
 }
 
-function StoreAlertCard({ alerta }) {
+function StoreAlertCard({ alerta, onResolver, resolvendo }) {
   const produto = alerta?.produto || {};
   const loja = alerta?.loja || {};
 
@@ -239,6 +259,10 @@ function StoreAlertCard({ alerta }) {
             {toNumber(alerta?.estoqueMinimo ?? produto?.estoqueMinimo)}
           </p>
         </div>
+      </div>
+
+      <div className="mt-4 flex justify-end border-t border-gray-100 pt-3">
+        <ResolverAlertaButton onResolver={onResolver} resolvendo={resolvendo} />
       </div>
     </article>
   );
@@ -300,7 +324,7 @@ function getPossiveisErrosFinanceiro(alerta) {
   ];
 }
 
-function FinanceiroAlertCard({ alerta, onClick }) {
+function FinanceiroAlertCard({ alerta, onClick, onResolver, resolvendo }) {
   const suspeito = alerta?.tipo === "contador_suspeito";
   const faltando = alerta?.tipo === "dinheiro_faltando";
   const config =
@@ -391,16 +415,19 @@ function FinanceiroAlertCard({ alerta, onClick }) {
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3 text-sm text-gray-600">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-3 text-sm text-gray-600">
         <span>
           Responsável:{" "}
           <span className="font-semibold text-gray-800">
             {alerta?.usuario || "Não informado"}
           </span>
         </span>
-        <span className="text-xs font-semibold text-blue-600">
-          Ver detalhes →
-        </span>
+        <div className="flex items-center gap-2">
+          <ResolverAlertaButton onResolver={onResolver} resolvendo={resolvendo} />
+          <span className="text-xs font-semibold text-blue-600">
+            Ver detalhes →
+          </span>
+        </div>
       </div>
     </article>
   );
@@ -616,7 +643,7 @@ function VerMaisAlertasButton({ total, visiveis, onClick }) {
   return (
     <div className="pt-2 text-center">
       <button onClick={onClick} className="btn-secondary w-full sm:w-auto">
-        Ver mais {restantes} {restantes === 1 ? "alerta" : "alertas"}
+        Ver mais+ ({restantes} restante{restantes === 1 ? "" : "s"})
       </button>
     </div>
   );
@@ -663,7 +690,14 @@ function limparBlocoInconsistencia(observacoes = "") {
     .trim();
 }
 
-function InconsistentMovementCard({ movimentacao, maquina, loja, onConferir }) {
+function InconsistentMovementCard({
+  movimentacao,
+  maquina,
+  loja,
+  onConferir,
+  onResolver,
+  resolvendo,
+}) {
   const motivos = extrairMotivosInconsistencia(movimentacao, maquina);
   const critica = motivos.some((motivo) =>
     /capacidade|negativo|maior que o estoque|total final/i.test(motivo),
@@ -736,14 +770,17 @@ function InconsistentMovementCard({ movimentacao, maquina, loja, onConferir }) {
         )}
       </div>
 
-      <div className="mt-3 text-sm text-gray-600">
-        Responsável:{" "}
-        <span className="font-semibold text-gray-800">
-          {movimentacao?.usuario?.nome ||
-            movimentacao?.responsavel?.nome ||
-            movimentacao?.usuarioNome ||
-            "Não informado"}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-gray-600">
+        <span>
+          Responsável:{" "}
+          <span className="font-semibold text-gray-800">
+            {movimentacao?.usuario?.nome ||
+              movimentacao?.responsavel?.nome ||
+              movimentacao?.usuarioNome ||
+              "Não informado"}
+          </span>
         </span>
+        <ResolverAlertaButton onResolver={onResolver} resolvendo={resolvendo} />
       </div>
     </article>
   );
@@ -840,10 +877,18 @@ export function AlertasEstoque() {
   const [filtroInconsistenciaMaquina, setFiltroInconsistenciaMaquina] = useState("");
   const [dataInicioInconsistencia, setDataInicioInconsistencia] = useState("");
   const [dataFimInconsistencia, setDataFimInconsistencia] = useState("");
-  const [mostrarTodosAlertasMaquinas, setMostrarTodosAlertasMaquinas] =
-    useState(false);
-  const [mostrarTodosAlertasDeposito, setMostrarTodosAlertasDeposito] =
-    useState(false);
+  const [visivelAlertasMaquinas, setVisivelAlertasMaquinas] = useState(
+    TAMANHO_PAGINA_ALERTAS,
+  );
+  const [visivelAlertasDeposito, setVisivelAlertasDeposito] = useState(
+    TAMANHO_PAGINA_ALERTAS,
+  );
+  const [visivelInconsistencias, setVisivelInconsistencias] = useState(
+    TAMANHO_PAGINA_ALERTAS,
+  );
+  const [visivelFinanceiro, setVisivelFinanceiro] = useState(
+    TAMANHO_PAGINA_ALERTAS,
+  );
   const [movimentacaoConferencia, setMovimentacaoConferencia] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -852,6 +897,9 @@ export function AlertasEstoque() {
   const [erroFinanceiro, setErroFinanceiro] = useState("");
   const [alertaFinanceiroSelecionado, setAlertaFinanceiroSelecionado] =
     useState(null);
+  const [idsInconsistenciaResolvidos, setIdsInconsistenciaResolvidos] =
+    useState(new Set());
+  const [resolvendoIds, setResolvendoIds] = useState(new Set());
 
   const carregarLojas = useCallback(async () => {
     const res = await api.get("/lojas");
@@ -892,8 +940,8 @@ export function AlertasEstoque() {
       try {
         setLoading(true);
         setError("");
-        setMostrarTodosAlertasMaquinas(false);
-        setMostrarTodosAlertasDeposito(false);
+        setVisivelAlertasMaquinas(TAMANHO_PAGINA_ALERTAS);
+        setVisivelAlertasDeposito(TAMANHO_PAGINA_ALERTAS);
 
         const lojasCarregadas = await carregarLojas();
         setLojas(lojasCarregadas);
@@ -931,6 +979,7 @@ export function AlertasEstoque() {
     try {
       setLoadingFinanceiro(true);
       setErroFinanceiro("");
+      setVisivelFinanceiro(TAMANHO_PAGINA_ALERTAS);
       const res = await api.get("/alertas-financeiros");
       setAlertasFinanceiros(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
@@ -943,6 +992,18 @@ export function AlertasEstoque() {
     }
   }, []);
 
+  const carregarIdsInconsistenciaResolvidos = useCallback(async () => {
+    try {
+      const res = await api.get("/alertas-resolvidos", {
+        params: { categoria: "inconsistencia" },
+      });
+      const ids = Array.isArray(res.data?.alertaIds) ? res.data.alertaIds : [];
+      setIdsInconsistenciaResolvidos(new Set(ids));
+    } catch (err) {
+      console.error("Erro ao carregar inconsistências resolvidas:", err);
+    }
+  }, []);
+
   useEffect(() => {
     carregarDados("");
   }, [carregarDados]);
@@ -950,6 +1011,47 @@ export function AlertasEstoque() {
   useEffect(() => {
     carregarAlertasFinanceiros();
   }, [carregarAlertasFinanceiros]);
+
+  useEffect(() => {
+    carregarIdsInconsistenciaResolvidos();
+  }, [carregarIdsInconsistenciaResolvidos]);
+
+  useEffect(() => {
+    setVisivelInconsistencias(TAMANHO_PAGINA_ALERTAS);
+  }, [
+    filtroInconsistenciaLoja,
+    filtroInconsistenciaMaquina,
+    dataInicioInconsistencia,
+    dataFimInconsistencia,
+  ]);
+
+  const resolverAlerta = useCallback(
+    async (alerta, aoRemover) => {
+      if (!alerta?.alertaId || !alerta?.categoria) return;
+      if (resolvendoIds.has(alerta.alertaId)) return;
+
+      setResolvendoIds((prev) => new Set(prev).add(alerta.alertaId));
+      try {
+        await api.post("/alertas-resolvidos", {
+          alertaId: alerta.alertaId,
+          categoria: alerta.categoria,
+        });
+        aoRemover(alerta.alertaId);
+      } catch (err) {
+        setError(
+          err.response?.data?.error ||
+            "Erro ao marcar alerta como resolvido. Tente novamente.",
+        );
+      } finally {
+        setResolvendoIds((prev) => {
+          const next = new Set(prev);
+          next.delete(alerta.alertaId);
+          return next;
+        });
+      }
+    },
+    [resolvendoIds],
+  );
 
   const handleTrocarLoja = (event) => {
     const lojaId = event.target.value;
@@ -1008,13 +1110,15 @@ export function AlertasEstoque() {
   const semAlertas =
     !loading && !error && alertasMaquinas.length === 0 && alertasDeposito.length === 0;
 
-  const alertasMaquinasVisiveis = mostrarTodosAlertasMaquinas
-    ? alertasMaquinas
-    : alertasMaquinas.slice(0, LIMITE_INICIAL_ALERTAS);
+  const alertasMaquinasVisiveis = alertasMaquinas.slice(
+    0,
+    visivelAlertasMaquinas,
+  );
 
-  const alertasDepositoVisiveis = mostrarTodosAlertasDeposito
-    ? alertasDeposito
-    : alertasDeposito.slice(0, LIMITE_INICIAL_ALERTAS);
+  const alertasDepositoVisiveis = alertasDeposito.slice(
+    0,
+    visivelAlertasDeposito,
+  );
 
   const maquinasPorId = useMemo(() => {
     const map = new Map();
@@ -1040,6 +1144,10 @@ export function AlertasEstoque() {
   const movimentacoesInconsistentes = useMemo(() => {
     return movimentacoes
       .filter(isMovimentacaoInconsistente)
+      .filter(
+        (movimentacao) =>
+          !idsInconsistenciaResolvidos.has(`inconsistencia:${movimentacao.id}`),
+      )
       .filter((movimentacao) => {
         const maquina = maquinasPorId.get(String(getMaquinaId(movimentacao)));
         const lojaId = maquina?.lojaId || maquina?.loja_id || movimentacao?.lojaId;
@@ -1083,6 +1191,7 @@ export function AlertasEstoque() {
     dataInicioInconsistencia,
     filtroInconsistenciaLoja,
     filtroInconsistenciaMaquina,
+    idsInconsistenciaResolvidos,
     maquinasPorId,
     movimentacoes,
   ]);
@@ -1219,20 +1328,30 @@ export function AlertasEstoque() {
                 icon="🎮"
                 title="Máquinas com estoque baixo"
                 total={alertasMaquinas.length}
-                subtitle="Ordenado pelo menor percentual de estoque atual."
+                subtitle="Mais recente primeiro."
               />
               {alertasMaquinas.length > 0 ? (
                 <div className="space-y-4">
                   {alertasMaquinasVisiveis.map((alerta, index) => (
                     <MachineAlertCard
-                      key={`${alerta?.maquina?.id || "maquina"}-${index}`}
+                      key={alerta?.alertaId || `${alerta?.maquina?.id || "maquina"}-${index}`}
                       alerta={alerta}
+                      resolvendo={resolvendoIds.has(alerta?.alertaId)}
+                      onResolver={() =>
+                        resolverAlerta(alerta, (id) =>
+                          setAlertasMaquinas((prev) =>
+                            prev.filter((a) => a.alertaId !== id),
+                          ),
+                        )
+                      }
                     />
                   ))}
                   <VerMaisAlertasButton
                     total={alertasMaquinas.length}
                     visiveis={alertasMaquinasVisiveis.length}
-                    onClick={() => setMostrarTodosAlertasMaquinas(true)}
+                    onClick={() =>
+                      setVisivelAlertasMaquinas((v) => v + TAMANHO_PAGINA_ALERTAS)
+                    }
                   />
                 </div>
               ) : (
@@ -1245,22 +1364,32 @@ export function AlertasEstoque() {
                 icon="📦"
                 title="Estoque baixo no depósito/loja"
                 total={alertasDeposito.length}
-                subtitle="Itens do estoque da loja abaixo do mínimo configurado."
+                subtitle="Mais recente primeiro."
               />
               {alertasDeposito.length > 0 ? (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     {alertasDepositoVisiveis.map((alerta, index) => (
                       <StoreAlertCard
-                        key={`${alerta?.loja?.id || "loja"}-${alerta?.produto?.id || "produto"}-${index}`}
+                        key={alerta?.alertaId || `${alerta?.loja?.id || "loja"}-${alerta?.produto?.id || "produto"}-${index}`}
                         alerta={alerta}
+                        resolvendo={resolvendoIds.has(alerta?.alertaId)}
+                        onResolver={() =>
+                          resolverAlerta(alerta, (id) =>
+                            setAlertasDeposito((prev) =>
+                              prev.filter((a) => a.alertaId !== id),
+                            ),
+                          )
+                        }
                       />
                     ))}
                   </div>
                   <VerMaisAlertasButton
                     total={alertasDeposito.length}
                     visiveis={alertasDepositoVisiveis.length}
-                    onClick={() => setMostrarTodosAlertasDeposito(true)}
+                    onClick={() =>
+                      setVisivelAlertasDeposito((v) => v + TAMANHO_PAGINA_ALERTAS)
+                    }
                   />
                 </div>
               ) : (
@@ -1358,13 +1487,19 @@ export function AlertasEstoque() {
                 <AlertasSkeleton />
               ) : movimentacoesInconsistentes.length > 0 ? (
                 <div className="space-y-4">
-                  {movimentacoesInconsistentes.map((movimentacao) => {
+                  {movimentacoesInconsistentes
+                    .slice(0, visivelInconsistencias)
+                    .map((movimentacao) => {
                     const maquina = maquinasPorId.get(
                       String(getMaquinaId(movimentacao)),
                     );
                     const lojaId =
                       maquina?.lojaId || maquina?.loja_id || movimentacao?.lojaId;
                     const loja = lojasPorId.get(String(lojaId));
+                    const alertaInconsistencia = {
+                      alertaId: `inconsistencia:${movimentacao.id}`,
+                      categoria: "inconsistencia",
+                    };
 
                     return (
                       <InconsistentMovementCard
@@ -1379,9 +1514,29 @@ export function AlertasEstoque() {
                             loja,
                           })
                         }
+                        resolvendo={resolvendoIds.has(alertaInconsistencia.alertaId)}
+                        onResolver={() =>
+                          resolverAlerta(alertaInconsistencia, (id) =>
+                            setIdsInconsistenciaResolvidos((prev) =>
+                              new Set(prev).add(id),
+                            ),
+                          )
+                        }
                       />
                     );
                   })}
+                  <VerMaisAlertasButton
+                    total={movimentacoesInconsistentes.length}
+                    visiveis={Math.min(
+                      visivelInconsistencias,
+                      movimentacoesInconsistentes.length,
+                    )}
+                    onClick={() =>
+                      setVisivelInconsistencias(
+                        (v) => v + TAMANHO_PAGINA_ALERTAS,
+                      )
+                    }
+                  />
                 </div>
               ) : (
                 <SectionEmpty message="Nenhuma movimentação inconsistente encontrada." />
@@ -1418,13 +1573,28 @@ export function AlertasEstoque() {
                 <AlertasSkeleton />
               ) : alertasFinanceiros.length > 0 ? (
                 <div className="space-y-4">
-                  {alertasFinanceiros.map((alerta) => (
+                  {alertasFinanceiros.slice(0, visivelFinanceiro).map((alerta) => (
                     <FinanceiroAlertCard
-                      key={alerta.movimentacaoId}
+                      key={alerta.alertaId || alerta.movimentacaoId}
                       alerta={alerta}
                       onClick={() => setAlertaFinanceiroSelecionado(alerta)}
+                      resolvendo={resolvendoIds.has(alerta?.alertaId)}
+                      onResolver={() =>
+                        resolverAlerta(alerta, (id) =>
+                          setAlertasFinanceiros((prev) =>
+                            prev.filter((a) => a.alertaId !== id),
+                          ),
+                        )
+                      }
                     />
                   ))}
+                  <VerMaisAlertasButton
+                    total={alertasFinanceiros.length}
+                    visiveis={Math.min(visivelFinanceiro, alertasFinanceiros.length)}
+                    onClick={() =>
+                      setVisivelFinanceiro((v) => v + TAMANHO_PAGINA_ALERTAS)
+                    }
+                  />
                 </div>
               ) : (
                 <SectionEmpty message="Nenhuma divergência financeira encontrada nas movimentações com bag." />
