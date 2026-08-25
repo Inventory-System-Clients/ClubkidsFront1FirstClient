@@ -317,6 +317,12 @@ function FinanceiroAlertCard({ alerta }) {
           <p className="mt-1 text-lg font-bold text-gray-900">
             {toNumber(alerta?.diferencaContador)}
           </p>
+          <p className="mt-1 text-xs text-gray-500">
+            {toNumber(alerta?.jogadas).toLocaleString("pt-BR", {
+              maximumFractionDigits: 2,
+            })}{" "}
+            jogadas ({toNumber(alerta?.fichasNecessarias)} ficha(s)/jogada)
+          </p>
         </div>
       </div>
 
