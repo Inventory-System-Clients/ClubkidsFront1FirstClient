@@ -244,14 +244,78 @@ function StoreAlertCard({ alerta }) {
   );
 }
 
-function FinanceiroAlertCard({ alerta }) {
+const FINANCEIRO_ALERTA_CONFIG = {
+  dinheiro_faltando: {
+    label: "Dinheiro faltando",
+    border: "border-red-200",
+    badge: "bg-red-100 text-red-700 border-red-200",
+    box: "bg-red-50",
+    text: "text-red-700",
+    textStrong: "text-red-800",
+  },
+  dinheiro_extra: {
+    label: "Dinheiro extra preenchido",
+    border: "border-amber-200",
+    badge: "bg-amber-100 text-amber-800 border-amber-200",
+    box: "bg-amber-50",
+    text: "text-amber-700",
+    textStrong: "text-amber-800",
+  },
+  contador_suspeito: {
+    label: "Contador suspeito — conferir",
+    border: "border-blue-200",
+    badge: "bg-blue-100 text-blue-800 border-blue-200",
+    box: "bg-blue-50",
+    text: "text-blue-700",
+    textStrong: "text-blue-800",
+  },
+};
+
+function getPossiveisErrosFinanceiro(alerta) {
+  if (!alerta) return [];
+
+  if (alerta.tipo === "contador_suspeito") {
+    return [
+      "Erro de digitação no contador IN desta coleta (dígito a mais/a menos).",
+      "Erro de digitação no contador IN da coleta anterior usada como referência.",
+      "O contador da máquina foi resetado ou a placa/leitor foi trocado sem registrar o motivo.",
+      "O contador de outra máquina foi lançado por engano nesta movimentação.",
+    ];
+  }
+
+  if (alerta.tipo === "dinheiro_faltando") {
+    return [
+      "Diferença na contagem física da bag (notas contadas a menos).",
+      "Fechamento digital da Machine Pay não considerou todo o período ou não foi somado.",
+      "Contador IN lido incorretamente em uma das duas coletas.",
+      "Possível perda ou retirada de dinheiro não registrada.",
+    ];
+  }
+
+  return [
+    "Diferença na contagem física da bag (notas contadas a mais, ou de outra bag).",
+    "Fechamento digital da Machine Pay duplicado ou contando período de outra máquina.",
+    "Contador IN lido incorretamente em uma das duas coletas.",
+    "Valor de outra máquina/bag lançado nesta movimentação por engano.",
+  ];
+}
+
+function FinanceiroAlertCard({ alerta, onClick }) {
+  const suspeito = alerta?.tipo === "contador_suspeito";
   const faltando = alerta?.tipo === "dinheiro_faltando";
+  const config =
+    FINANCEIRO_ALERTA_CONFIG[alerta?.tipo] ||
+    FINANCEIRO_ALERTA_CONFIG.dinheiro_extra;
 
   return (
     <article
-      className={`rounded-xl border bg-white p-4 shadow-sm transition hover:shadow-md sm:p-5 ${
-        faltando ? "border-red-200" : "border-amber-200"
-      }`}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") onClick?.();
+      }}
+      className={`cursor-pointer rounded-xl border bg-white p-4 shadow-sm transition hover:shadow-md hover:-translate-y-0.5 sm:p-5 ${config.border}`}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -268,15 +332,20 @@ function FinanceiroAlertCard({ alerta }) {
           </p>
         </div>
         <span
-          className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-bold ${
-            faltando
-              ? "bg-red-100 text-red-700 border-red-200"
-              : "bg-amber-100 text-amber-800 border-amber-200"
-          }`}
+          className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-bold ${config.badge}`}
         >
-          {faltando ? "Dinheiro faltando" : "Dinheiro extra preenchido"}
+          {config.label}
         </span>
       </div>
+
+      {suspeito && (
+        <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-800">
+          O valor esperado calculado a partir do contador IN ficou fora do
+          plausível para uma única bag. Provavelmente há um erro de
+          leitura/digitação no contador desta coleta ou da anterior — confira
+          os dois valores antes de tratar como divergência de dinheiro.
+        </div>
+      )}
 
       <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
         <div className="rounded-lg bg-gray-50 p-3">
@@ -291,23 +360,19 @@ function FinanceiroAlertCard({ alerta }) {
             {formatarMoeda(alerta?.valorPreenchido)}
           </p>
         </div>
-        <div
-          className={`rounded-lg p-3 ${faltando ? "bg-red-50" : "bg-amber-50"}`}
-        >
-          <p
-            className={`text-xs font-bold uppercase ${
-              faltando ? "text-red-700" : "text-amber-700"
-            }`}
-          >
+        <div className={`rounded-lg p-3 ${config.box}`}>
+          <p className={`text-xs font-bold uppercase ${config.text}`}>
             Diferença
           </p>
-          <p
-            className={`mt-1 text-lg font-bold ${
-              faltando ? "text-red-800" : "text-amber-800"
-            }`}
-          >
-            {faltando ? "-" : "+"}
-            {formatarMoeda(Math.abs(toNumber(alerta?.diferenca)))}
+          <p className={`mt-1 text-lg font-bold ${config.textStrong}`}>
+            {suspeito ? (
+              "—"
+            ) : (
+              <>
+                {faltando ? "-" : "+"}
+                {formatarMoeda(Math.abs(toNumber(alerta?.diferenca)))}
+              </>
+            )}
           </p>
         </div>
         <div className="rounded-lg bg-gray-50 p-3">
@@ -326,13 +391,201 @@ function FinanceiroAlertCard({ alerta }) {
         </div>
       </div>
 
-      <div className="mt-4 border-t border-gray-100 pt-3 text-sm text-gray-600">
-        Responsável:{" "}
-        <span className="font-semibold text-gray-800">
-          {alerta?.usuario || "Não informado"}
+      <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3 text-sm text-gray-600">
+        <span>
+          Responsável:{" "}
+          <span className="font-semibold text-gray-800">
+            {alerta?.usuario || "Não informado"}
+          </span>
+        </span>
+        <span className="text-xs font-semibold text-blue-600">
+          Ver detalhes →
         </span>
       </div>
     </article>
+  );
+}
+
+function DetalheMovimentacaoFinanceira({ titulo, movimentacao }) {
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+      <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
+        {titulo}
+      </p>
+      <p className="mt-1 text-sm text-gray-700">
+        Bag <span className="font-semibold">{movimentacao?.numeroBag ?? "-"}</span>{" "}
+        · {formatarData(movimentacao?.dataColeta)}
+      </p>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <div>
+          <p className="text-xs text-gray-500">Contador IN</p>
+          <p className="text-lg font-bold text-gray-900">
+            {movimentacao?.contadorIn ?? "-"}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500">Contador OUT</p>
+          <p className="text-lg font-bold text-gray-900">
+            {movimentacao?.contadorOut ?? "-"}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500">Notas (bag)</p>
+          <p className="text-sm font-semibold text-gray-800">
+            {formatarMoeda(movimentacao?.valorEntradaNotas)}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500">Digital (Machine Pay)</p>
+          <p className="text-sm font-semibold text-gray-800">
+            {formatarMoeda(movimentacao?.valorEntradaCartao)}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConferirAlertaFinanceiroModal({ alerta, onClose }) {
+  if (!alerta) return null;
+
+  const suspeito = alerta?.tipo === "contador_suspeito";
+  const faltando = alerta?.tipo === "dinheiro_faltando";
+  const config =
+    FINANCEIRO_ALERTA_CONFIG[alerta?.tipo] ||
+    FINANCEIRO_ALERTA_CONFIG.dinheiro_extra;
+  const possiveisErros = getPossiveisErrosFinanceiro(alerta);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl bg-white p-6 shadow-2xl">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-xl font-bold text-gray-900">
+              Conferir divergência financeira
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {alerta?.maquina?.codigo || "Máquina"} -{" "}
+              {alerta?.maquina?.nome || "Não informada"} ·{" "}
+              {alerta?.maquina?.loja || "Loja não informada"}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg px-3 py-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+            aria-label="Fechar"
+          >
+            ✕
+          </button>
+        </div>
+
+        <span
+          className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-bold ${config.badge}`}
+        >
+          {config.label}
+        </span>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <DetalheMovimentacaoFinanceira
+            titulo="Última retirada de dinheiro (referência)"
+            movimentacao={alerta?.movimentacaoAnterior}
+          />
+          <DetalheMovimentacaoFinanceira
+            titulo="Movimentação deste preenchimento (atual)"
+            movimentacao={alerta?.movimentacaoAtual}
+          />
+        </div>
+
+        <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
+            Diferença do contador IN
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-gray-700">
+            <span className="font-semibold">
+              {alerta?.movimentacaoAtual?.contadorIn ?? "-"}
+            </span>
+            <span className="text-gray-400">(atual) −</span>
+            <span className="font-semibold">
+              {alerta?.movimentacaoAnterior?.contadorIn ?? "-"}
+            </span>
+            <span className="text-gray-400">(anterior) =</span>
+            <span className="rounded bg-gray-100 px-2 py-0.5 text-lg font-bold text-gray-900">
+              {toNumber(alerta?.diferencaContador)}
+            </span>
+          </div>
+          <p className="mt-2 text-sm text-gray-600">
+            {toNumber(alerta?.jogadas).toLocaleString("pt-BR", {
+              maximumFractionDigits: 2,
+            })}{" "}
+            jogadas × {toNumber(alerta?.fichasNecessarias)} ficha(s)/jogada ×{" "}
+            {formatarMoeda(alerta?.valorFicha)}/ficha ={" "}
+            <span className="font-bold">
+              {formatarMoeda(alerta?.valorEsperado)}
+            </span>{" "}
+            esperado
+          </p>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="rounded-lg bg-gray-50 p-3">
+            <p className="text-xs font-bold uppercase text-gray-500">Esperado</p>
+            <p className="mt-1 text-lg font-bold text-gray-900">
+              {formatarMoeda(alerta?.valorEsperado)}
+            </p>
+          </div>
+          <div className="rounded-lg bg-gray-50 p-3">
+            <p className="text-xs font-bold uppercase text-gray-500">
+              Preenchido
+            </p>
+            <p className="mt-1 text-lg font-bold text-gray-900">
+              {formatarMoeda(alerta?.valorPreenchido)}
+            </p>
+          </div>
+          <div className={`rounded-lg p-3 ${config.box}`}>
+            <p className={`text-xs font-bold uppercase ${config.text}`}>
+              Diferença
+            </p>
+            <p className={`mt-1 text-lg font-bold ${config.textStrong}`}>
+              {suspeito ? (
+                "—"
+              ) : (
+                <>
+                  {faltando ? "-" : "+"}
+                  {formatarMoeda(Math.abs(toNumber(alerta?.diferenca)))}
+                </>
+              )}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
+            Possíveis causas
+          </p>
+          <ul className="mt-2 space-y-1 text-sm text-gray-800">
+            {possiveisErros.map((erro, index) => (
+              <li key={index} className="flex gap-2">
+                <span className="text-gray-400">•</span>
+                <span>{erro}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="mt-3 text-sm text-gray-600">
+          Responsável pela coleta atual:{" "}
+          <span className="font-semibold text-gray-800">
+            {alerta?.usuario || "Não informado"}
+          </span>
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <button onClick={onClose} className="btn-primary">
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -597,6 +850,8 @@ export function AlertasEstoque() {
   const [alertasFinanceiros, setAlertasFinanceiros] = useState([]);
   const [loadingFinanceiro, setLoadingFinanceiro] = useState(true);
   const [erroFinanceiro, setErroFinanceiro] = useState("");
+  const [alertaFinanceiroSelecionado, setAlertaFinanceiroSelecionado] =
+    useState(null);
 
   const carregarLojas = useCallback(async () => {
     const res = await api.get("/lojas");
@@ -1167,6 +1422,7 @@ export function AlertasEstoque() {
                     <FinanceiroAlertCard
                       key={alerta.movimentacaoId}
                       alerta={alerta}
+                      onClick={() => setAlertaFinanceiroSelecionado(alerta)}
                     />
                   ))}
                 </div>
@@ -1181,6 +1437,11 @@ export function AlertasEstoque() {
       <ConferirInconsistenciaModal
         item={movimentacaoConferencia}
         onClose={() => setMovimentacaoConferencia(null)}
+      />
+
+      <ConferirAlertaFinanceiroModal
+        alerta={alertaFinanceiroSelecionado}
+        onClose={() => setAlertaFinanceiroSelecionado(null)}
       />
 
       <Footer />
