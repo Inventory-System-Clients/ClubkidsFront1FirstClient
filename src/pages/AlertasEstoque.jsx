@@ -79,6 +79,51 @@ function getLojaNome(loja) {
   return loja?.nome || loja?.razaoSocial || loja?.fantasia || "Loja não informada";
 }
 
+function textoInclui(texto, busca) {
+  return String(texto || "")
+    .toLowerCase()
+    .includes(busca);
+}
+
+function alertaMaquinaCombinaBusca(alerta, busca) {
+  if (!busca) return true;
+  return (
+    textoInclui(alerta?.maquina?.codigo, busca) ||
+    textoInclui(alerta?.maquina?.nome, busca) ||
+    textoInclui(alerta?.maquina?.loja, busca)
+  );
+}
+
+function alertaDepositoCombinaBusca(alerta, busca) {
+  if (!busca) return true;
+  return (
+    textoInclui(getLojaNome(alerta?.loja), busca) ||
+    textoInclui(alerta?.produto?.nome, busca) ||
+    textoInclui(alerta?.produto?.codigo, busca)
+  );
+}
+
+function alertaFinanceiroCombinaBusca(alerta, busca) {
+  if (!busca) return true;
+  return (
+    textoInclui(alerta?.maquina?.codigo, busca) ||
+    textoInclui(alerta?.maquina?.nome, busca) ||
+    textoInclui(alerta?.maquina?.loja, busca)
+  );
+}
+
+function movimentacaoCombinaBusca(movimentacao, maquina, loja, busca) {
+  if (!busca) return true;
+  return (
+    textoInclui(maquina?.codigo, busca) ||
+    textoInclui(maquina?.nome, busca) ||
+    textoInclui(getLojaNome(loja), busca) ||
+    textoInclui(movimentacao?.maquina?.codigo, busca) ||
+    textoInclui(movimentacao?.maquina?.nome, busca) ||
+    textoInclui(movimentacao?.loja?.nome, busca)
+  );
+}
+
 function ordenarAlertasMaquinas(alertas) {
   // Mais recente primeiro
   return [...alertas].sort(
@@ -891,6 +936,7 @@ export function AlertasEstoque() {
   const [maquinas, setMaquinas] = useState([]);
   const [movimentacoes, setMovimentacoes] = useState([]);
   const [abaAtiva, setAbaAtiva] = useState("estoque");
+  const [buscaTexto, setBuscaTexto] = useState("");
   const [filtroInconsistenciaLoja, setFiltroInconsistenciaLoja] = useState("");
   const [filtroInconsistenciaMaquina, setFiltroInconsistenciaMaquina] = useState("");
   const [dataInicioInconsistencia, setDataInicioInconsistencia] = useState("");
@@ -1041,7 +1087,16 @@ export function AlertasEstoque() {
     filtroInconsistenciaMaquina,
     dataInicioInconsistencia,
     dataFimInconsistencia,
+    buscaTexto,
   ]);
+
+  useEffect(() => {
+    setVisivelAlertasMaquinas(TAMANHO_PAGINA_ALERTAS);
+    setVisivelAlertasDeposito(TAMANHO_PAGINA_ALERTAS);
+    setVisivelFinanceiro(TAMANHO_PAGINA_ALERTAS);
+  }, [buscaTexto]);
+
+  const buscaNormalizada = buscaTexto.trim().toLowerCase();
 
   const resolverAlerta = useCallback(
     async (alerta, aoRemover) => {
@@ -1077,8 +1132,32 @@ export function AlertasEstoque() {
     carregarDados(lojaId);
   };
 
+  const alertasMaquinasFiltrados = useMemo(
+    () =>
+      alertasMaquinas.filter((alerta) =>
+        alertaMaquinaCombinaBusca(alerta, buscaNormalizada),
+      ),
+    [alertasMaquinas, buscaNormalizada],
+  );
+
+  const alertasDepositoFiltrados = useMemo(
+    () =>
+      alertasDeposito.filter((alerta) =>
+        alertaDepositoCombinaBusca(alerta, buscaNormalizada),
+      ),
+    [alertasDeposito, buscaNormalizada],
+  );
+
+  const alertasFinanceirosFiltrados = useMemo(
+    () =>
+      alertasFinanceiros.filter((alerta) =>
+        alertaFinanceiroCombinaBusca(alerta, buscaNormalizada),
+      ),
+    [alertasFinanceiros, buscaNormalizada],
+  );
+
   const resumo = useMemo(() => {
-    const contagemPorNivel = alertasMaquinas.reduce(
+    const contagemPorNivel = alertasMaquinasFiltrados.reduce(
       (acc, alerta) => {
         const nivel = normalizarNivel(alerta?.nivelAlerta);
         if (nivel.includes("CR")) acc.criticos += 1;
@@ -1090,12 +1169,12 @@ export function AlertasEstoque() {
     );
 
     return {
-      total: alertasMaquinas.length + alertasDeposito.length,
+      total: alertasMaquinasFiltrados.length + alertasDepositoFiltrados.length,
       criticos: contagemPorNivel.criticos,
       altos: contagemPorNivel.altos,
-      medios: contagemPorNivel.medios + alertasDeposito.length,
+      medios: contagemPorNivel.medios + alertasDepositoFiltrados.length,
     };
-  }, [alertasDeposito.length, alertasMaquinas]);
+  }, [alertasDepositoFiltrados, alertasMaquinasFiltrados]);
 
   const stats = [
     {
@@ -1126,14 +1205,17 @@ export function AlertasEstoque() {
   ];
 
   const semAlertas =
-    !loading && !error && alertasMaquinas.length === 0 && alertasDeposito.length === 0;
+    !loading &&
+    !error &&
+    alertasMaquinasFiltrados.length === 0 &&
+    alertasDepositoFiltrados.length === 0;
 
-  const alertasMaquinasVisiveis = alertasMaquinas.slice(
+  const alertasMaquinasVisiveis = alertasMaquinasFiltrados.slice(
     0,
     visivelAlertasMaquinas,
   );
 
-  const alertasDepositoVisiveis = alertasDeposito.slice(
+  const alertasDepositoVisiveis = alertasDepositoFiltrados.slice(
     0,
     visivelAlertasDeposito,
   );
@@ -1197,6 +1279,15 @@ export function AlertasEstoque() {
           if (dataMovimentacao > fim) return false;
         }
 
+        if (buscaNormalizada) {
+          const loja = lojasPorId.get(String(lojaId));
+          if (
+            !movimentacaoCombinaBusca(movimentacao, maquina, loja, buscaNormalizada)
+          ) {
+            return false;
+          }
+        }
+
         return true;
       })
       .sort(
@@ -1205,11 +1296,13 @@ export function AlertasEstoque() {
           new Date(a?.dataColeta || a?.createdAt || 0),
       );
   }, [
+    buscaNormalizada,
     dataFimInconsistencia,
     dataInicioInconsistencia,
     filtroInconsistenciaLoja,
     filtroInconsistenciaMaquina,
     idsInconsistenciaResolvidos,
+    lojasPorId,
     maquinasPorId,
     movimentacoes,
   ]);
@@ -1279,6 +1372,32 @@ export function AlertasEstoque() {
           </button>
         </div>
 
+        <div className="mb-6">
+          <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700">
+            <span>🔎</span>
+            Buscar por loja ou máquina
+          </label>
+          <div className="relative">
+            <input
+              type="text"
+              value={buscaTexto}
+              onChange={(event) => setBuscaTexto(event.target.value)}
+              placeholder="Digite o nome da loja, o nome ou o código da máquina..."
+              className="input-field pr-10"
+            />
+            {buscaTexto && (
+              <button
+                type="button"
+                onClick={() => setBuscaTexto("")}
+                aria-label="Limpar busca"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+
         {abaAtiva === "estoque" ? (
           <>
         <div className="card-gradient mb-8">
@@ -1322,7 +1441,7 @@ export function AlertasEstoque() {
 
         <StatsGrid stats={stats} />
 
-        {loading && alertasMaquinas.length === 0 && alertasDeposito.length === 0 ? (
+        {loading && alertasMaquinasFiltrados.length === 0 && alertasDepositoFiltrados.length === 0 ? (
           <div className="card">
             <LoadingSpinner message="Carregando alertas de estoque..." />
             <AlertasSkeleton />
@@ -1345,10 +1464,10 @@ export function AlertasEstoque() {
               <SectionHeader
                 icon="🎮"
                 title="Máquinas com estoque baixo"
-                total={alertasMaquinas.length}
+                total={alertasMaquinasFiltrados.length}
                 subtitle="Mais recente primeiro."
               />
-              {alertasMaquinas.length > 0 ? (
+              {alertasMaquinasFiltrados.length > 0 ? (
                 <div className="space-y-4">
                   {alertasMaquinasVisiveis.map((alerta, index) => (
                     <MachineAlertCard
@@ -1365,7 +1484,7 @@ export function AlertasEstoque() {
                     />
                   ))}
                   <VerMaisAlertasButton
-                    total={alertasMaquinas.length}
+                    total={alertasMaquinasFiltrados.length}
                     visiveis={alertasMaquinasVisiveis.length}
                     onClick={() =>
                       setVisivelAlertasMaquinas((v) => v + TAMANHO_PAGINA_ALERTAS)
@@ -1381,10 +1500,10 @@ export function AlertasEstoque() {
               <SectionHeader
                 icon="📦"
                 title="Estoque baixo no depósito/loja"
-                total={alertasDeposito.length}
+                total={alertasDepositoFiltrados.length}
                 subtitle="Mais recente primeiro."
               />
-              {alertasDeposito.length > 0 ? (
+              {alertasDepositoFiltrados.length > 0 ? (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     {alertasDepositoVisiveis.map((alerta, index) => (
@@ -1403,7 +1522,7 @@ export function AlertasEstoque() {
                     ))}
                   </div>
                   <VerMaisAlertasButton
-                    total={alertasDeposito.length}
+                    total={alertasDepositoFiltrados.length}
                     visiveis={alertasDepositoVisiveis.length}
                     onClick={() =>
                       setVisivelAlertasDeposito((v) => v + TAMANHO_PAGINA_ALERTAS)
@@ -1567,7 +1686,7 @@ export function AlertasEstoque() {
               <SectionHeader
                 icon="💰"
                 title="Alertas Financeiros"
-                total={alertasFinanceiros.length}
+                total={alertasFinanceirosFiltrados.length}
                 subtitle="Divergências entre o valor esperado (contador IN x valor da ficha) e o valor preenchido na bag/Machine Pay ao concluir o financeiro."
               />
 
@@ -1589,9 +1708,9 @@ export function AlertasEstoque() {
 
               {loadingFinanceiro ? (
                 <AlertasSkeleton />
-              ) : alertasFinanceiros.length > 0 ? (
+              ) : alertasFinanceirosFiltrados.length > 0 ? (
                 <div className="space-y-4">
-                  {alertasFinanceiros.slice(0, visivelFinanceiro).map((alerta) => (
+                  {alertasFinanceirosFiltrados.slice(0, visivelFinanceiro).map((alerta) => (
                     <FinanceiroAlertCard
                       key={alerta.alertaId || alerta.movimentacaoId}
                       alerta={alerta}
@@ -1607,8 +1726,8 @@ export function AlertasEstoque() {
                     />
                   ))}
                   <VerMaisAlertasButton
-                    total={alertasFinanceiros.length}
-                    visiveis={Math.min(visivelFinanceiro, alertasFinanceiros.length)}
+                    total={alertasFinanceirosFiltrados.length}
+                    visiveis={Math.min(visivelFinanceiro, alertasFinanceirosFiltrados.length)}
                     onClick={() =>
                       setVisivelFinanceiro((v) => v + TAMANHO_PAGINA_ALERTAS)
                     }
