@@ -24,7 +24,9 @@ export function Relatorios() {
   const [relatorio, setRelatorio] = useState(null);
   const [error, setError] = useState("");
   const [gastosLoja, setGastosLoja] = useState([]);
+  const [mostrarTodosGastos, setMostrarTodosGastos] = useState(false);
   const [ordenacaoLojas, setOrdenacaoLojas] = useState("");
+  const GASTOS_VISIVEIS_PADRAO = 10;
 
   const toNumber = (value) => {
     if (typeof value === "number") {
@@ -465,6 +467,7 @@ export function Relatorios() {
       setError("");
       setRelatorio(null);
       setGastosLoja([]);
+      setMostrarTodosGastos(false);
 
       let roteiroId = roteiroSelecionado;
       let relatorioData = null;
@@ -583,19 +586,19 @@ export function Relatorios() {
           }
         }
 
-        // Buscar comissões do período
+        // Buscar comissões do período (mantendo a associação com a loja de origem)
         const comissoesPorLoja = await Promise.all(
           idsLojasUnicos.map((lojaId) =>
             api
               .get(`/relatorios/comissoes`, {
                 params: { lojaId, dataInicio, dataFim },
               })
-              .then((res) => res.data?.comissoes || [])
-              .catch(() => []),
+              .then((res) => ({ lojaId, comissoes: res.data?.comissoes || [] }))
+              .catch(() => ({ lojaId, comissoes: [] })),
           ),
         );
 
-        comissoes = comissoesPorLoja.flat();
+        comissoes = comissoesPorLoja.flatMap((item) => item.comissoes);
         totalComissao = comissoes.reduce(
           (acc, c) => acc + toNumber(c.totalComissao),
           0,
@@ -604,6 +607,30 @@ export function Relatorios() {
           (acc, c) => acc + toNumber(c.totalLucro),
           0,
         );
+
+        // Lucro líquido por loja — usado para ordenar as lojas (crescente/decrescente),
+        // calculado aqui pois nem todo fluxo (ex: roteiro) retorna "maquinas" detalhadas.
+        relatorioData.resumoLojasFinanceiro = comissoesPorLoja.map((item) => {
+          const lucroLojaBruto = item.comissoes.reduce(
+            (acc, c) => acc + toNumber(c.totalLucro),
+            0,
+          );
+          const comissaoLoja = item.comissoes.reduce(
+            (acc, c) => acc + toNumber(c.totalComissao),
+            0,
+          );
+          const lojaCadastrada = lojas.find(
+            (l) => String(l.id) === String(item.lojaId),
+          );
+
+          return {
+            id: item.lojaId,
+            nomeLoja: lojaCadastrada?.nome || `Loja ${item.lojaId}`,
+            totais: {
+              lucroLojaPeriodo: lucroLojaBruto - comissaoLoja,
+            },
+          };
+        });
 
         // Buscar gastos por loja
         const gastosPorLoja = await Promise.all(
@@ -1220,7 +1247,10 @@ export function Relatorios() {
 
   const resumoLojasRelatorio = relatorio
     ? ordenarResumoLojasPorLucro(
-        agruparMaquinasPorLoja(maquinas, relatorio?.loja),
+        Array.isArray(relatorio.resumoLojasFinanceiro) &&
+        relatorio.resumoLojasFinanceiro.length > 0
+          ? relatorio.resumoLojasFinanceiro
+          : agruparMaquinasPorLoja(maquinas, relatorio?.loja),
         ordenacaoLojas,
       )
     : [];
@@ -1425,6 +1455,11 @@ export function Relatorios() {
                 <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                   <span className="text-xl sm:text-2xl">💸</span>
                   Gastos registrados nas lojas selecionadas
+                  {gastosLoja.length > GASTOS_VISIVEIS_PADRAO && (
+                    <span className="text-sm font-normal text-gray-600">
+                      ({gastosLoja.length} no total)
+                    </span>
+                  )}
                 </h3>
                 <div className="overflow-x-auto">
                   <table className="min-w-full table-auto">
@@ -1456,7 +1491,10 @@ export function Relatorios() {
                       </tr>
                     </thead>
                     <tbody>
-                      {gastosLoja.map((gasto, idx) => (
+                      {(mostrarTodosGastos
+                        ? gastosLoja
+                        : gastosLoja.slice(0, GASTOS_VISIVEIS_PADRAO)
+                      ).map((gasto, idx) => (
                         <tr
                           key={gasto.id || idx}
                           className="border-b border-yellow-200"
@@ -1502,6 +1540,19 @@ export function Relatorios() {
                     </tbody>
                   </table>
                 </div>
+                {gastosLoja.length > GASTOS_VISIVEIS_PADRAO && (
+                  <div className="mt-3 text-center no-print">
+                    <button
+                      type="button"
+                      onClick={() => setMostrarTodosGastos((prev) => !prev)}
+                      className="px-4 py-1.5 rounded-lg border border-yellow-400 text-xs font-semibold text-yellow-800 hover:bg-yellow-200 transition-colors"
+                    >
+                      {mostrarTodosGastos
+                        ? "▲ Ver menos"
+                        : `▼ Ver mais (${gastosLoja.length - GASTOS_VISIVEIS_PADRAO} restantes)`}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
             <div className="card bg-linear-to-r from-purple-50 to-purple-100 border-2 border-purple-300">
