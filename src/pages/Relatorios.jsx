@@ -25,8 +25,11 @@ export function Relatorios() {
   const [error, setError] = useState("");
   const [gastosLoja, setGastosLoja] = useState([]);
   const [mostrarTodosGastos, setMostrarTodosGastos] = useState(false);
+  const [mostrarTodasLojasMovimentacoes, setMostrarTodasLojasMovimentacoes] =
+    useState(false);
+  const [mostrarTodasLojasLucro, setMostrarTodasLojasLucro] = useState(false);
   const [ordenacaoLojas, setOrdenacaoLojas] = useState("");
-  const GASTOS_VISIVEIS_PADRAO = 10;
+  const ITENS_VISIVEIS_PADRAO = 10;
 
   const toNumber = (value) => {
     if (typeof value === "number") {
@@ -468,6 +471,8 @@ export function Relatorios() {
       setRelatorio(null);
       setGastosLoja([]);
       setMostrarTodosGastos(false);
+      setMostrarTodasLojasMovimentacoes(false);
+      setMostrarTodasLojasLucro(false);
 
       let roteiroId = roteiroSelecionado;
       let relatorioData = null;
@@ -1247,10 +1252,14 @@ export function Relatorios() {
 
   const resumoLojasRelatorio = relatorio
     ? ordenarResumoLojasPorLucro(
-        Array.isArray(relatorio.resumoLojasFinanceiro) &&
-        relatorio.resumoLojasFinanceiro.length > 0
-          ? relatorio.resumoLojasFinanceiro
-          : agruparMaquinasPorLoja(maquinas, relatorio?.loja),
+        // Preferimos agrupar a partir das máquinas: o lucro de cada máquina já usa o
+        // percentual de comissão cadastrado como fallback, então bate com o valor exibido
+        // no card "Lucro da Máquina". O resumoLojasFinanceiro (baseado nos registros de
+        // ComissaoLoja) só é usado quando não há detalhamento por máquina (ex: roteiro),
+        // pois esses registros podem não existir para o período e ficar zerados.
+        maquinas.length > 0
+          ? agruparMaquinasPorLoja(maquinas, relatorio?.loja)
+          : relatorio.resumoLojasFinanceiro || [],
         ordenacaoLojas,
       )
     : [];
@@ -1455,7 +1464,7 @@ export function Relatorios() {
                 <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                   <span className="text-xl sm:text-2xl">💸</span>
                   Gastos registrados nas lojas selecionadas
-                  {gastosLoja.length > GASTOS_VISIVEIS_PADRAO && (
+                  {gastosLoja.length > ITENS_VISIVEIS_PADRAO && (
                     <span className="text-sm font-normal text-gray-600">
                       ({gastosLoja.length} no total)
                     </span>
@@ -1493,7 +1502,7 @@ export function Relatorios() {
                     <tbody>
                       {(mostrarTodosGastos
                         ? gastosLoja
-                        : gastosLoja.slice(0, GASTOS_VISIVEIS_PADRAO)
+                        : gastosLoja.slice(0, ITENS_VISIVEIS_PADRAO)
                       ).map((gasto, idx) => (
                         <tr
                           key={gasto.id || idx}
@@ -1540,7 +1549,7 @@ export function Relatorios() {
                     </tbody>
                   </table>
                 </div>
-                {gastosLoja.length > GASTOS_VISIVEIS_PADRAO && (
+                {gastosLoja.length > ITENS_VISIVEIS_PADRAO && (
                   <div className="mt-3 text-center no-print">
                     <button
                       type="button"
@@ -1549,7 +1558,7 @@ export function Relatorios() {
                     >
                       {mostrarTodosGastos
                         ? "▲ Ver menos"
-                        : `▼ Ver mais (${gastosLoja.length - GASTOS_VISIVEIS_PADRAO} restantes)`}
+                        : `▼ Ver mais (${gastosLoja.length - ITENS_VISIVEIS_PADRAO} restantes)`}
                     </button>
                   </div>
                 )}
@@ -1617,7 +1626,13 @@ export function Relatorios() {
                         Lojas com movimentações:
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {lojasComMovimentacoes.map((lojaMov) => (
+                        {(mostrarTodasLojasMovimentacoes
+                          ? lojasComMovimentacoes
+                          : lojasComMovimentacoes.slice(
+                              0,
+                              ITENS_VISIVEIS_PADRAO,
+                            )
+                        ).map((lojaMov) => (
                           <button
                             key={lojaMov.id}
                             type="button"
@@ -1631,6 +1646,23 @@ export function Relatorios() {
                           </button>
                         ))}
                       </div>
+                      {lojasComMovimentacoes.length > ITENS_VISIVEIS_PADRAO && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMostrarTodasLojasMovimentacoes((prev) => !prev);
+                          }}
+                          className="mt-2 px-2 py-1 rounded-full text-[11px] sm:text-xs bg-white/10 border border-white/40 hover:bg-white/30"
+                        >
+                          {mostrarTodasLojasMovimentacoes
+                            ? "▲ Ver menos"
+                            : `▼ Ver mais (${
+                                lojasComMovimentacoes.length -
+                                ITENS_VISIVEIS_PADRAO
+                              } restantes)`}
+                        </button>
+                      )}
                     </div>
                   )}
                   {lojaDestinoMovimentacoesId && (
@@ -1724,7 +1756,12 @@ export function Relatorios() {
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                   <h3 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
                     <span className="text-xl sm:text-2xl">💰</span>
-                    Lucro por Loja
+                    Lucro por Loja / Ponto
+                    {resumoLojasRelatorio.length > ITENS_VISIVEIS_PADRAO && (
+                      <span className="text-sm font-normal text-gray-500">
+                        ({resumoLojasRelatorio.length} no total)
+                      </span>
+                    )}
                   </h3>
                   <div className="flex gap-2 no-print">
                     <button
@@ -1767,7 +1804,10 @@ export function Relatorios() {
                       </tr>
                     </thead>
                     <tbody>
-                      {resumoLojasRelatorio.map((loja, idx) => (
+                      {(mostrarTodasLojasLucro
+                        ? resumoLojasRelatorio
+                        : resumoLojasRelatorio.slice(0, ITENS_VISIVEIS_PADRAO)
+                      ).map((loja, idx) => (
                         <tr
                           key={loja.id ?? loja.nomeLoja}
                           className="border-b border-gray-200"
@@ -1786,6 +1826,21 @@ export function Relatorios() {
                     </tbody>
                   </table>
                 </div>
+                {resumoLojasRelatorio.length > ITENS_VISIVEIS_PADRAO && (
+                  <div className="mt-3 text-center no-print">
+                    <button
+                      type="button"
+                      onClick={() => setMostrarTodasLojasLucro((prev) => !prev)}
+                      className="px-4 py-1.5 rounded-lg border border-gray-300 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      {mostrarTodasLojasLucro
+                        ? "▲ Ver menos"
+                        : `▼ Ver mais (${
+                            resumoLojasRelatorio.length - ITENS_VISIVEIS_PADRAO
+                          } restantes)`}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
