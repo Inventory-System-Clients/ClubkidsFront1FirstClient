@@ -32,6 +32,7 @@ export function Graficos() {
   const [dadosProcessados, setDadosProcessados] = useState(null);
   const [custosVariaveisInput, setCustosVariaveisInput] = useState("");
   const [custosVariaveis, setCustosVariaveis] = useState(0);
+  const [ordenacaoLojasGrafico, setOrdenacaoLojasGrafico] = useState("");
 
   useEffect(() => {
     carregarLojas();
@@ -222,6 +223,16 @@ export function Graficos() {
       - custosVariaveis
     : 0;
 
+  const porLojaOrdenado = dadosProcessados?.porLoja
+    ? [...dadosProcessados.porLoja]
+        .map(l => ({ ...l, lucro: l.faturamento - l.custoProd - l.custoComissao }))
+        .sort((a, b) => {
+          if (ordenacaoLojasGrafico === "crescente") return a.lucro - b.lucro;
+          if (ordenacaoLojasGrafico === "decrescente") return b.lucro - a.lucro;
+          return 0;
+        })
+    : [];
+
   if (loading && lojas.length === 0) return <PageLoader />;
 
   return (
@@ -386,27 +397,55 @@ export function Graficos() {
             </div>
 
             {/* ===== RENDIMENTO POR LOJA ===== */}
-            {dadosProcessados.porLoja.length > 0 && (
+            {porLojaOrdenado.length > 0 && (
               <div className="card">
-                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  🏪 Rendimento por Loja
-                  {dadosProcessados.porLoja.length > 1 && (
-                    <span className="text-sm font-normal text-gray-500">
-                      ({dadosProcessados.porLoja.length} lojas)
-                    </span>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                  <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    🏪 Rendimento por Loja
+                    {porLojaOrdenado.length > 1 && (
+                      <span className="text-sm font-normal text-gray-500">
+                        ({porLojaOrdenado.length} lojas)
+                      </span>
+                    )}
+                  </h3>
+                  {porLojaOrdenado.length > 1 && (
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setOrdenacaoLojasGrafico("crescente")}
+                        className={`px-3 py-1 rounded-lg border text-xs font-semibold ${
+                          ordenacaoLojasGrafico === "crescente"
+                            ? "bg-primary text-white border-primary"
+                            : "border-gray-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        ⬆️ Crescente
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOrdenacaoLojasGrafico("decrescente")}
+                        className={`px-3 py-1 rounded-lg border text-xs font-semibold ${
+                          ordenacaoLojasGrafico === "decrescente"
+                            ? "bg-primary text-white border-primary"
+                            : "border-gray-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        ⬇️ Decrescente
+                      </button>
+                    </div>
                   )}
-                </h3>
+                </div>
                 <ResponsiveContainer width="100%" height={320}>
                   <BarChart
-                    data={dadosProcessados.porLoja}
-                    margin={{ top: 10, right: 20, left: 10, bottom: dadosProcessados.porLoja.length > 4 ? 60 : 30 }}
+                    data={porLojaOrdenado}
+                    margin={{ top: 10, right: 20, left: 10, bottom: porLojaOrdenado.length > 4 ? 60 : 30 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis
                       dataKey="lojaNome"
-                      angle={dadosProcessados.porLoja.length > 4 ? -30 : 0}
-                      textAnchor={dadosProcessados.porLoja.length > 4 ? "end" : "middle"}
-                      height={dadosProcessados.porLoja.length > 4 ? 70 : 40}
+                      angle={porLojaOrdenado.length > 4 ? -30 : 0}
+                      textAnchor={porLojaOrdenado.length > 4 ? "end" : "middle"}
+                      height={porLojaOrdenado.length > 4 ? 70 : 40}
                     />
                     <YAxis tickFormatter={v => `R$${Number(v).toFixed(0)}`} />
                     <Tooltip formatter={v => `R$ ${Number(v).toFixed(2)}`} />

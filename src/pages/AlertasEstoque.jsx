@@ -9,7 +9,7 @@ import {
   validarInconsistenciasMovimentacao,
 } from "../utils/movimentacaoInconsistencias";
 
-const LIMITE_INICIAL_ALERTAS = 10;
+const TAMANHO_PAGINA_ALERTAS = 20;
 
 const nivelConfig = {
   CRITICO: {
@@ -54,6 +54,12 @@ function formatarPercentual(value) {
   })}%`;
 }
 
+function formatarMoeda(value) {
+  return `R$ ${toNumber(value).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+  })}`;
+}
+
 function formatarData(value) {
   if (!value) return "Data não informada";
 
@@ -73,18 +79,63 @@ function getLojaNome(loja) {
   return loja?.nome || loja?.razaoSocial || loja?.fantasia || "Loja não informada";
 }
 
+function textoInclui(texto, busca) {
+  return String(texto || "")
+    .toLowerCase()
+    .includes(busca);
+}
+
+function alertaMaquinaCombinaBusca(alerta, busca) {
+  if (!busca) return true;
+  return (
+    textoInclui(alerta?.maquina?.codigo, busca) ||
+    textoInclui(alerta?.maquina?.nome, busca) ||
+    textoInclui(alerta?.maquina?.loja, busca)
+  );
+}
+
+function alertaDepositoCombinaBusca(alerta, busca) {
+  if (!busca) return true;
+  return (
+    textoInclui(getLojaNome(alerta?.loja), busca) ||
+    textoInclui(alerta?.produto?.nome, busca) ||
+    textoInclui(alerta?.produto?.codigo, busca)
+  );
+}
+
+function alertaFinanceiroCombinaBusca(alerta, busca) {
+  if (!busca) return true;
+  return (
+    textoInclui(alerta?.maquina?.codigo, busca) ||
+    textoInclui(alerta?.maquina?.nome, busca) ||
+    textoInclui(alerta?.maquina?.loja, busca)
+  );
+}
+
+function movimentacaoCombinaBusca(movimentacao, maquina, loja, busca) {
+  if (!busca) return true;
+  return (
+    textoInclui(maquina?.codigo, busca) ||
+    textoInclui(maquina?.nome, busca) ||
+    textoInclui(getLojaNome(loja), busca) ||
+    textoInclui(movimentacao?.maquina?.codigo, busca) ||
+    textoInclui(movimentacao?.maquina?.nome, busca) ||
+    textoInclui(movimentacao?.loja?.nome, busca)
+  );
+}
+
 function ordenarAlertasMaquinas(alertas) {
+  // Mais recente primeiro
   return [...alertas].sort(
-    (a, b) => toNumber(a?.percentualAtual) - toNumber(b?.percentualAtual),
+    (a, b) => new Date(b?.ultimaAtualizacao || 0) - new Date(a?.ultimaAtualizacao || 0),
   );
 }
 
 function ordenarAlertasDeposito(alertas) {
-  return [...alertas].sort((a, b) => {
-    const deficitA = toNumber(a?.estoqueMinimo) - toNumber(a?.quantidade);
-    const deficitB = toNumber(b?.estoqueMinimo) - toNumber(b?.quantidade);
-    return deficitB - deficitA;
-  });
+  // Mais recente primeiro
+  return [...alertas].sort(
+    (a, b) => new Date(b?.atualizadoEm || 0) - new Date(a?.atualizadoEm || 0),
+  );
 }
 
 function SectionEmpty({ message }) {
@@ -113,7 +164,24 @@ function SectionHeader({ icon, title, total, subtitle }) {
   );
 }
 
-function MachineAlertCard({ alerta }) {
+function ResolverAlertaButton({ onResolver, resolvendo, className = "" }) {
+  if (!onResolver) return null;
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onResolver();
+      }}
+      disabled={resolvendo}
+      className={`inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+    >
+      {resolvendo ? "Marcando..." : "✓ Marcar como resolvido"}
+    </button>
+  );
+}
+
+function MachineAlertCard({ alerta, onResolver, resolvendo }) {
   const nivel = normalizarNivel(alerta?.nivelAlerta);
   const config = nivelConfig[nivel] || nivelConfig["MÉDIO"];
   const percentual = Math.max(0, Math.min(100, toNumber(alerta?.percentualAtual)));
@@ -184,17 +252,20 @@ function MachineAlertCard({ alerta }) {
         </div>
       </div>
 
-      <div className="mt-4 border-t border-gray-100 pt-3 text-sm text-gray-600">
-        Última atualização:{" "}
-        <span className="font-semibold text-gray-800">
-          {formatarData(alerta?.ultimaAtualizacao)}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-3 text-sm text-gray-600">
+        <span>
+          Última atualização:{" "}
+          <span className="font-semibold text-gray-800">
+            {formatarData(alerta?.ultimaAtualizacao)}
+          </span>
         </span>
+        <ResolverAlertaButton onResolver={onResolver} resolvendo={resolvendo} />
       </div>
     </article>
   );
 }
 
-function StoreAlertCard({ alerta }) {
+function StoreAlertCard({ alerta, onResolver, resolvendo }) {
   const produto = alerta?.produto || {};
   const loja = alerta?.loja || {};
 
@@ -234,7 +305,377 @@ function StoreAlertCard({ alerta }) {
           </p>
         </div>
       </div>
+
+      <div className="mt-4 flex justify-end border-t border-gray-100 pt-3">
+        <ResolverAlertaButton onResolver={onResolver} resolvendo={resolvendo} />
+      </div>
     </article>
+  );
+}
+
+const FINANCEIRO_ALERTA_CONFIG = {
+  dinheiro_faltando: {
+    label: "Dinheiro faltando",
+    border: "border-red-200",
+    badge: "bg-red-100 text-red-700 border-red-200",
+    box: "bg-red-50",
+    text: "text-red-700",
+    textStrong: "text-red-800",
+  },
+  dinheiro_extra: {
+    label: "Dinheiro extra preenchido",
+    border: "border-amber-200",
+    badge: "bg-amber-100 text-amber-800 border-amber-200",
+    box: "bg-amber-50",
+    text: "text-amber-700",
+    textStrong: "text-amber-800",
+  },
+  contador_suspeito: {
+    label: "Contador suspeito — conferir",
+    border: "border-blue-200",
+    badge: "bg-blue-100 text-blue-800 border-blue-200",
+    box: "bg-blue-50",
+    text: "text-blue-700",
+    textStrong: "text-blue-800",
+  },
+};
+
+function getPossiveisErrosFinanceiro(alerta) {
+  if (!alerta) return [];
+
+  if (alerta.tipo === "contador_suspeito") {
+    return [
+      "Erro de digitação no contador IN desta coleta (dígito a mais/a menos).",
+      "Erro de digitação no contador IN da coleta anterior usada como referência.",
+      "O contador da máquina foi resetado ou a placa/leitor foi trocado sem registrar o motivo.",
+      "O contador de outra máquina foi lançado por engano nesta movimentação.",
+      alerta.usaFichas
+        ? "A máquina está cadastrada com fichas necessárias por jogada, mas na prática cobra em dinheiro direto — verifique o cadastro da máquina."
+        : "A máquina cadastrada sem sistema de fichas na verdade usa fichas — verifique se 'fichas necessárias por jogada' deveria estar preenchido no cadastro.",
+    ];
+  }
+
+  if (alerta.tipo === "dinheiro_faltando") {
+    return [
+      "Diferença na contagem física da bag (notas contadas a menos).",
+      "Fechamento digital da Machine Pay não considerou todo o período ou não foi somado.",
+      "Contador IN lido incorretamente em uma das duas coletas.",
+      "Possível perda ou retirada de dinheiro não registrada.",
+    ];
+  }
+
+  return [
+    "Diferença na contagem física da bag (notas contadas a mais, ou de outra bag).",
+    "Fechamento digital da Machine Pay duplicado ou contando período de outra máquina.",
+    "Contador IN lido incorretamente em uma das duas coletas.",
+    "Valor de outra máquina/bag lançado nesta movimentação por engano.",
+  ];
+}
+
+function FinanceiroAlertCard({ alerta, onClick, onResolver, resolvendo }) {
+  const suspeito = alerta?.tipo === "contador_suspeito";
+  const faltando = alerta?.tipo === "dinheiro_faltando";
+  const config =
+    FINANCEIRO_ALERTA_CONFIG[alerta?.tipo] ||
+    FINANCEIRO_ALERTA_CONFIG.dinheiro_extra;
+
+  return (
+    <article
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") onClick?.();
+      }}
+      className={`cursor-pointer rounded-xl border bg-white p-4 shadow-sm transition hover:shadow-md hover:-translate-y-0.5 sm:p-5 ${config.border}`}
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 className="text-lg font-bold text-gray-900">
+            {alerta?.maquina?.codigo || "Sem código"} -{" "}
+            {alerta?.maquina?.nome || "Máquina sem nome"}
+          </h3>
+          <p className="mt-1 text-sm font-medium text-gray-600">
+            🏪 Loja: {alerta?.maquina?.loja || "Não informada"}
+          </p>
+          <p className="mt-1 text-sm text-gray-500">
+            Bag: <span className="font-semibold">{alerta?.numeroBag}</span> ·{" "}
+            {formatarData(alerta?.dataColeta)}
+          </p>
+        </div>
+        <span
+          className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-bold ${config.badge}`}
+        >
+          {config.label}
+        </span>
+      </div>
+
+      {suspeito && (
+        <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-800">
+          O valor esperado calculado a partir do contador IN ficou fora do
+          plausível para uma única bag. Provavelmente há um erro de
+          leitura/digitação no contador desta coleta ou da anterior — confira
+          os dois valores antes de tratar como divergência de dinheiro.
+        </div>
+      )}
+
+      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="rounded-lg bg-gray-50 p-3">
+          <p className="text-xs font-bold uppercase text-gray-500">Esperado</p>
+          <p className="mt-1 text-lg font-bold text-gray-900">
+            {formatarMoeda(alerta?.valorEsperado)}
+          </p>
+        </div>
+        <div className="rounded-lg bg-gray-50 p-3">
+          <p className="text-xs font-bold uppercase text-gray-500">Preenchido</p>
+          <p className="mt-1 text-lg font-bold text-gray-900">
+            {formatarMoeda(alerta?.valorPreenchido)}
+          </p>
+        </div>
+        <div className={`rounded-lg p-3 ${config.box}`}>
+          <p className={`text-xs font-bold uppercase ${config.text}`}>
+            Diferença
+          </p>
+          <p className={`mt-1 text-lg font-bold ${config.textStrong}`}>
+            {suspeito ? (
+              "—"
+            ) : (
+              <>
+                {faltando ? "-" : "+"}
+                {formatarMoeda(Math.abs(toNumber(alerta?.diferenca)))}
+              </>
+            )}
+          </p>
+        </div>
+        <div className="rounded-lg bg-gray-50 p-3">
+          <p className="text-xs font-bold uppercase text-gray-500">
+            Contador IN (diferença)
+          </p>
+          <p className="mt-1 text-lg font-bold text-gray-900">
+            {toNumber(alerta?.diferencaContador)}
+          </p>
+          <p className="mt-1 text-xs text-gray-500">
+            {alerta?.usaFichas ? (
+              <>
+                {toNumber(alerta?.jogadas).toLocaleString("pt-BR", {
+                  maximumFractionDigits: 2,
+                })}{" "}
+                jogadas ({toNumber(alerta?.fichasNecessarias)} ficha(s)/jogada)
+              </>
+            ) : (
+              "1 real = 1 no contador"
+            )}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-3 text-sm text-gray-600">
+        <span>
+          Responsável:{" "}
+          <span className="font-semibold text-gray-800">
+            {alerta?.usuario || "Não informado"}
+          </span>
+        </span>
+        <div className="flex items-center gap-2">
+          <ResolverAlertaButton onResolver={onResolver} resolvendo={resolvendo} />
+          <span className="text-xs font-semibold text-blue-600">
+            Ver detalhes →
+          </span>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function DetalheMovimentacaoFinanceira({ titulo, movimentacao }) {
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+      <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
+        {titulo}
+      </p>
+      <p className="mt-1 text-sm text-gray-700">
+        Bag <span className="font-semibold">{movimentacao?.numeroBag ?? "-"}</span>{" "}
+        · {formatarData(movimentacao?.dataColeta)}
+      </p>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <div>
+          <p className="text-xs text-gray-500">Contador IN</p>
+          <p className="text-lg font-bold text-gray-900">
+            {movimentacao?.contadorIn ?? "-"}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500">Contador OUT</p>
+          <p className="text-lg font-bold text-gray-900">
+            {movimentacao?.contadorOut ?? "-"}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500">Notas (bag)</p>
+          <p className="text-sm font-semibold text-gray-800">
+            {formatarMoeda(movimentacao?.valorEntradaNotas)}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500">Digital (Machine Pay)</p>
+          <p className="text-sm font-semibold text-gray-800">
+            {formatarMoeda(movimentacao?.valorEntradaCartao)}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConferirAlertaFinanceiroModal({ alerta, onClose }) {
+  if (!alerta) return null;
+
+  const suspeito = alerta?.tipo === "contador_suspeito";
+  const faltando = alerta?.tipo === "dinheiro_faltando";
+  const config =
+    FINANCEIRO_ALERTA_CONFIG[alerta?.tipo] ||
+    FINANCEIRO_ALERTA_CONFIG.dinheiro_extra;
+  const possiveisErros = getPossiveisErrosFinanceiro(alerta);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl bg-white p-6 shadow-2xl">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-xl font-bold text-gray-900">
+              Conferir divergência financeira
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {alerta?.maquina?.codigo || "Máquina"} -{" "}
+              {alerta?.maquina?.nome || "Não informada"} ·{" "}
+              {alerta?.maquina?.loja || "Loja não informada"}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg px-3 py-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+            aria-label="Fechar"
+          >
+            ✕
+          </button>
+        </div>
+
+        <span
+          className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-bold ${config.badge}`}
+        >
+          {config.label}
+        </span>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <DetalheMovimentacaoFinanceira
+            titulo="Última retirada de dinheiro (referência)"
+            movimentacao={alerta?.movimentacaoAnterior}
+          />
+          <DetalheMovimentacaoFinanceira
+            titulo="Movimentação deste preenchimento (atual)"
+            movimentacao={alerta?.movimentacaoAtual}
+          />
+        </div>
+
+        <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
+            Diferença do contador IN
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-gray-700">
+            <span className="font-semibold">
+              {alerta?.movimentacaoAtual?.contadorIn ?? "-"}
+            </span>
+            <span className="text-gray-400">(atual) −</span>
+            <span className="font-semibold">
+              {alerta?.movimentacaoAnterior?.contadorIn ?? "-"}
+            </span>
+            <span className="text-gray-400">(anterior) =</span>
+            <span className="rounded bg-gray-100 px-2 py-0.5 text-lg font-bold text-gray-900">
+              {toNumber(alerta?.diferencaContador)}
+            </span>
+          </div>
+          <p className="mt-2 text-sm text-gray-600">
+            {alerta?.usaFichas ? (
+              <>
+                {toNumber(alerta?.jogadas).toLocaleString("pt-BR", {
+                  maximumFractionDigits: 2,
+                })}{" "}
+                jogadas × {toNumber(alerta?.fichasNecessarias)} ficha(s)/jogada
+                × {formatarMoeda(alerta?.valorFicha)}/ficha ={" "}
+              </>
+            ) : (
+              <>
+                Máquina sem sistema de fichas: o contador soma 1 para cada R$1
+                inserido, então a diferença acima já é o valor em reais ={" "}
+              </>
+            )}
+            <span className="font-bold">
+              {formatarMoeda(alerta?.valorEsperado)}
+            </span>{" "}
+            esperado
+          </p>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="rounded-lg bg-gray-50 p-3">
+            <p className="text-xs font-bold uppercase text-gray-500">Esperado</p>
+            <p className="mt-1 text-lg font-bold text-gray-900">
+              {formatarMoeda(alerta?.valorEsperado)}
+            </p>
+          </div>
+          <div className="rounded-lg bg-gray-50 p-3">
+            <p className="text-xs font-bold uppercase text-gray-500">
+              Preenchido
+            </p>
+            <p className="mt-1 text-lg font-bold text-gray-900">
+              {formatarMoeda(alerta?.valorPreenchido)}
+            </p>
+          </div>
+          <div className={`rounded-lg p-3 ${config.box}`}>
+            <p className={`text-xs font-bold uppercase ${config.text}`}>
+              Diferença
+            </p>
+            <p className={`mt-1 text-lg font-bold ${config.textStrong}`}>
+              {suspeito ? (
+                "—"
+              ) : (
+                <>
+                  {faltando ? "-" : "+"}
+                  {formatarMoeda(Math.abs(toNumber(alerta?.diferenca)))}
+                </>
+              )}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
+            Possíveis causas
+          </p>
+          <ul className="mt-2 space-y-1 text-sm text-gray-800">
+            {possiveisErros.map((erro, index) => (
+              <li key={index} className="flex gap-2">
+                <span className="text-gray-400">•</span>
+                <span>{erro}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="mt-3 text-sm text-gray-600">
+          Responsável pela coleta atual:{" "}
+          <span className="font-semibold text-gray-800">
+            {alerta?.usuario || "Não informado"}
+          </span>
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <button onClick={onClose} className="btn-primary">
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -265,7 +706,7 @@ function VerMaisAlertasButton({ total, visiveis, onClick }) {
   return (
     <div className="pt-2 text-center">
       <button onClick={onClick} className="btn-secondary w-full sm:w-auto">
-        Ver mais {restantes} {restantes === 1 ? "alerta" : "alertas"}
+        Ver mais+ ({restantes} restante{restantes === 1 ? "" : "s"})
       </button>
     </div>
   );
@@ -312,7 +753,14 @@ function limparBlocoInconsistencia(observacoes = "") {
     .trim();
 }
 
-function InconsistentMovementCard({ movimentacao, maquina, loja, onConferir }) {
+function InconsistentMovementCard({
+  movimentacao,
+  maquina,
+  loja,
+  onConferir,
+  onResolver,
+  resolvendo,
+}) {
   const motivos = extrairMotivosInconsistencia(movimentacao, maquina);
   const critica = motivos.some((motivo) =>
     /capacidade|negativo|maior que o estoque|total final/i.test(motivo),
@@ -385,14 +833,17 @@ function InconsistentMovementCard({ movimentacao, maquina, loja, onConferir }) {
         )}
       </div>
 
-      <div className="mt-3 text-sm text-gray-600">
-        Responsável:{" "}
-        <span className="font-semibold text-gray-800">
-          {movimentacao?.usuario?.nome ||
-            movimentacao?.responsavel?.nome ||
-            movimentacao?.usuarioNome ||
-            "Não informado"}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-gray-600">
+        <span>
+          Responsável:{" "}
+          <span className="font-semibold text-gray-800">
+            {movimentacao?.usuario?.nome ||
+              movimentacao?.responsavel?.nome ||
+              movimentacao?.usuarioNome ||
+              "Não informado"}
+          </span>
         </span>
+        <ResolverAlertaButton onResolver={onResolver} resolvendo={resolvendo} />
       </div>
     </article>
   );
@@ -485,17 +936,34 @@ export function AlertasEstoque() {
   const [maquinas, setMaquinas] = useState([]);
   const [movimentacoes, setMovimentacoes] = useState([]);
   const [abaAtiva, setAbaAtiva] = useState("estoque");
+  const [buscaTexto, setBuscaTexto] = useState("");
   const [filtroInconsistenciaLoja, setFiltroInconsistenciaLoja] = useState("");
   const [filtroInconsistenciaMaquina, setFiltroInconsistenciaMaquina] = useState("");
   const [dataInicioInconsistencia, setDataInicioInconsistencia] = useState("");
   const [dataFimInconsistencia, setDataFimInconsistencia] = useState("");
-  const [mostrarTodosAlertasMaquinas, setMostrarTodosAlertasMaquinas] =
-    useState(false);
-  const [mostrarTodosAlertasDeposito, setMostrarTodosAlertasDeposito] =
-    useState(false);
+  const [visivelAlertasMaquinas, setVisivelAlertasMaquinas] = useState(
+    TAMANHO_PAGINA_ALERTAS,
+  );
+  const [visivelAlertasDeposito, setVisivelAlertasDeposito] = useState(
+    TAMANHO_PAGINA_ALERTAS,
+  );
+  const [visivelInconsistencias, setVisivelInconsistencias] = useState(
+    TAMANHO_PAGINA_ALERTAS,
+  );
+  const [visivelFinanceiro, setVisivelFinanceiro] = useState(
+    TAMANHO_PAGINA_ALERTAS,
+  );
   const [movimentacaoConferencia, setMovimentacaoConferencia] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [alertasFinanceiros, setAlertasFinanceiros] = useState([]);
+  const [loadingFinanceiro, setLoadingFinanceiro] = useState(true);
+  const [erroFinanceiro, setErroFinanceiro] = useState("");
+  const [alertaFinanceiroSelecionado, setAlertaFinanceiroSelecionado] =
+    useState(null);
+  const [idsInconsistenciaResolvidos, setIdsInconsistenciaResolvidos] =
+    useState(new Set());
+  const [resolvendoIds, setResolvendoIds] = useState(new Set());
 
   const carregarLojas = useCallback(async () => {
     const res = await api.get("/lojas");
@@ -536,8 +1004,8 @@ export function AlertasEstoque() {
       try {
         setLoading(true);
         setError("");
-        setMostrarTodosAlertasMaquinas(false);
-        setMostrarTodosAlertasDeposito(false);
+        setVisivelAlertasMaquinas(TAMANHO_PAGINA_ALERTAS);
+        setVisivelAlertasDeposito(TAMANHO_PAGINA_ALERTAS);
 
         const lojasCarregadas = await carregarLojas();
         setLojas(lojasCarregadas);
@@ -571,9 +1039,92 @@ export function AlertasEstoque() {
     ],
   );
 
+  const carregarAlertasFinanceiros = useCallback(async () => {
+    try {
+      setLoadingFinanceiro(true);
+      setErroFinanceiro("");
+      setVisivelFinanceiro(TAMANHO_PAGINA_ALERTAS);
+      const res = await api.get("/alertas-financeiros");
+      setAlertasFinanceiros(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      setErroFinanceiro(
+        err.response?.data?.error ||
+          "Não foi possível carregar os alertas financeiros. Tente novamente.",
+      );
+    } finally {
+      setLoadingFinanceiro(false);
+    }
+  }, []);
+
+  const carregarIdsInconsistenciaResolvidos = useCallback(async () => {
+    try {
+      const res = await api.get("/alertas-resolvidos", {
+        params: { categoria: "inconsistencia" },
+      });
+      const ids = Array.isArray(res.data?.alertaIds) ? res.data.alertaIds : [];
+      setIdsInconsistenciaResolvidos(new Set(ids));
+    } catch (err) {
+      console.error("Erro ao carregar inconsistências resolvidas:", err);
+    }
+  }, []);
+
   useEffect(() => {
     carregarDados("");
   }, [carregarDados]);
+
+  useEffect(() => {
+    carregarAlertasFinanceiros();
+  }, [carregarAlertasFinanceiros]);
+
+  useEffect(() => {
+    carregarIdsInconsistenciaResolvidos();
+  }, [carregarIdsInconsistenciaResolvidos]);
+
+  useEffect(() => {
+    setVisivelInconsistencias(TAMANHO_PAGINA_ALERTAS);
+  }, [
+    filtroInconsistenciaLoja,
+    filtroInconsistenciaMaquina,
+    dataInicioInconsistencia,
+    dataFimInconsistencia,
+    buscaTexto,
+  ]);
+
+  useEffect(() => {
+    setVisivelAlertasMaquinas(TAMANHO_PAGINA_ALERTAS);
+    setVisivelAlertasDeposito(TAMANHO_PAGINA_ALERTAS);
+    setVisivelFinanceiro(TAMANHO_PAGINA_ALERTAS);
+  }, [buscaTexto]);
+
+  const buscaNormalizada = buscaTexto.trim().toLowerCase();
+
+  const resolverAlerta = useCallback(
+    async (alerta, aoRemover) => {
+      if (!alerta?.alertaId || !alerta?.categoria) return;
+      if (resolvendoIds.has(alerta.alertaId)) return;
+
+      setResolvendoIds((prev) => new Set(prev).add(alerta.alertaId));
+      try {
+        await api.post("/alertas-resolvidos", {
+          alertaId: alerta.alertaId,
+          categoria: alerta.categoria,
+        });
+        aoRemover(alerta.alertaId);
+      } catch (err) {
+        setError(
+          err.response?.data?.error ||
+            "Erro ao marcar alerta como resolvido. Tente novamente.",
+        );
+      } finally {
+        setResolvendoIds((prev) => {
+          const next = new Set(prev);
+          next.delete(alerta.alertaId);
+          return next;
+        });
+      }
+    },
+    [resolvendoIds],
+  );
 
   const handleTrocarLoja = (event) => {
     const lojaId = event.target.value;
@@ -581,8 +1132,32 @@ export function AlertasEstoque() {
     carregarDados(lojaId);
   };
 
+  const alertasMaquinasFiltrados = useMemo(
+    () =>
+      alertasMaquinas.filter((alerta) =>
+        alertaMaquinaCombinaBusca(alerta, buscaNormalizada),
+      ),
+    [alertasMaquinas, buscaNormalizada],
+  );
+
+  const alertasDepositoFiltrados = useMemo(
+    () =>
+      alertasDeposito.filter((alerta) =>
+        alertaDepositoCombinaBusca(alerta, buscaNormalizada),
+      ),
+    [alertasDeposito, buscaNormalizada],
+  );
+
+  const alertasFinanceirosFiltrados = useMemo(
+    () =>
+      alertasFinanceiros.filter((alerta) =>
+        alertaFinanceiroCombinaBusca(alerta, buscaNormalizada),
+      ),
+    [alertasFinanceiros, buscaNormalizada],
+  );
+
   const resumo = useMemo(() => {
-    const contagemPorNivel = alertasMaquinas.reduce(
+    const contagemPorNivel = alertasMaquinasFiltrados.reduce(
       (acc, alerta) => {
         const nivel = normalizarNivel(alerta?.nivelAlerta);
         if (nivel.includes("CR")) acc.criticos += 1;
@@ -594,12 +1169,12 @@ export function AlertasEstoque() {
     );
 
     return {
-      total: alertasMaquinas.length + alertasDeposito.length,
+      total: alertasMaquinasFiltrados.length + alertasDepositoFiltrados.length,
       criticos: contagemPorNivel.criticos,
       altos: contagemPorNivel.altos,
-      medios: contagemPorNivel.medios + alertasDeposito.length,
+      medios: contagemPorNivel.medios + alertasDepositoFiltrados.length,
     };
-  }, [alertasDeposito.length, alertasMaquinas]);
+  }, [alertasDepositoFiltrados, alertasMaquinasFiltrados]);
 
   const stats = [
     {
@@ -630,15 +1205,20 @@ export function AlertasEstoque() {
   ];
 
   const semAlertas =
-    !loading && !error && alertasMaquinas.length === 0 && alertasDeposito.length === 0;
+    !loading &&
+    !error &&
+    alertasMaquinasFiltrados.length === 0 &&
+    alertasDepositoFiltrados.length === 0;
 
-  const alertasMaquinasVisiveis = mostrarTodosAlertasMaquinas
-    ? alertasMaquinas
-    : alertasMaquinas.slice(0, LIMITE_INICIAL_ALERTAS);
+  const alertasMaquinasVisiveis = alertasMaquinasFiltrados.slice(
+    0,
+    visivelAlertasMaquinas,
+  );
 
-  const alertasDepositoVisiveis = mostrarTodosAlertasDeposito
-    ? alertasDeposito
-    : alertasDeposito.slice(0, LIMITE_INICIAL_ALERTAS);
+  const alertasDepositoVisiveis = alertasDepositoFiltrados.slice(
+    0,
+    visivelAlertasDeposito,
+  );
 
   const maquinasPorId = useMemo(() => {
     const map = new Map();
@@ -664,6 +1244,10 @@ export function AlertasEstoque() {
   const movimentacoesInconsistentes = useMemo(() => {
     return movimentacoes
       .filter(isMovimentacaoInconsistente)
+      .filter(
+        (movimentacao) =>
+          !idsInconsistenciaResolvidos.has(`inconsistencia:${movimentacao.id}`),
+      )
       .filter((movimentacao) => {
         const maquina = maquinasPorId.get(String(getMaquinaId(movimentacao)));
         const lojaId = maquina?.lojaId || maquina?.loja_id || movimentacao?.lojaId;
@@ -695,6 +1279,15 @@ export function AlertasEstoque() {
           if (dataMovimentacao > fim) return false;
         }
 
+        if (buscaNormalizada) {
+          const loja = lojasPorId.get(String(lojaId));
+          if (
+            !movimentacaoCombinaBusca(movimentacao, maquina, loja, buscaNormalizada)
+          ) {
+            return false;
+          }
+        }
+
         return true;
       })
       .sort(
@@ -703,10 +1296,13 @@ export function AlertasEstoque() {
           new Date(a?.dataColeta || a?.createdAt || 0),
       );
   }, [
+    buscaNormalizada,
     dataFimInconsistencia,
     dataInicioInconsistencia,
     filtroInconsistenciaLoja,
     filtroInconsistenciaMaquina,
+    idsInconsistenciaResolvidos,
+    lojasPorId,
     maquinasPorId,
     movimentacoes,
   ]);
@@ -753,6 +1349,53 @@ export function AlertasEstoque() {
           >
             Movimentações Inconsistentes
           </button>
+          <button
+            onClick={() => setAbaAtiva("financeiro")}
+            className={`flex-1 rounded-lg px-4 py-3 text-sm font-bold transition ${
+              abaAtiva === "financeiro"
+                ? "bg-amber-600 text-white shadow"
+                : "text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            💰 Alertas Financeiros
+            {alertasFinanceiros.length > 0 && (
+              <span
+                className={`ml-2 inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-bold ${
+                  abaAtiva === "financeiro"
+                    ? "bg-white/20 text-white"
+                    : "bg-amber-100 text-amber-800"
+                }`}
+              >
+                {alertasFinanceiros.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        <div className="mb-6">
+          <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700">
+            <span>🔎</span>
+            Buscar por loja ou máquina
+          </label>
+          <div className="relative">
+            <input
+              type="text"
+              value={buscaTexto}
+              onChange={(event) => setBuscaTexto(event.target.value)}
+              placeholder="Digite o nome da loja, o nome ou o código da máquina..."
+              className="input-field pr-10"
+            />
+            {buscaTexto && (
+              <button
+                type="button"
+                onClick={() => setBuscaTexto("")}
+                aria-label="Limpar busca"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
 
         {abaAtiva === "estoque" ? (
@@ -798,7 +1441,7 @@ export function AlertasEstoque() {
 
         <StatsGrid stats={stats} />
 
-        {loading && alertasMaquinas.length === 0 && alertasDeposito.length === 0 ? (
+        {loading && alertasMaquinasFiltrados.length === 0 && alertasDepositoFiltrados.length === 0 ? (
           <div className="card">
             <LoadingSpinner message="Carregando alertas de estoque..." />
             <AlertasSkeleton />
@@ -821,21 +1464,31 @@ export function AlertasEstoque() {
               <SectionHeader
                 icon="🎮"
                 title="Máquinas com estoque baixo"
-                total={alertasMaquinas.length}
-                subtitle="Ordenado pelo menor percentual de estoque atual."
+                total={alertasMaquinasFiltrados.length}
+                subtitle="Mais recente primeiro."
               />
-              {alertasMaquinas.length > 0 ? (
+              {alertasMaquinasFiltrados.length > 0 ? (
                 <div className="space-y-4">
                   {alertasMaquinasVisiveis.map((alerta, index) => (
                     <MachineAlertCard
-                      key={`${alerta?.maquina?.id || "maquina"}-${index}`}
+                      key={alerta?.alertaId || `${alerta?.maquina?.id || "maquina"}-${index}`}
                       alerta={alerta}
+                      resolvendo={resolvendoIds.has(alerta?.alertaId)}
+                      onResolver={() =>
+                        resolverAlerta(alerta, (id) =>
+                          setAlertasMaquinas((prev) =>
+                            prev.filter((a) => a.alertaId !== id),
+                          ),
+                        )
+                      }
                     />
                   ))}
                   <VerMaisAlertasButton
-                    total={alertasMaquinas.length}
+                    total={alertasMaquinasFiltrados.length}
                     visiveis={alertasMaquinasVisiveis.length}
-                    onClick={() => setMostrarTodosAlertasMaquinas(true)}
+                    onClick={() =>
+                      setVisivelAlertasMaquinas((v) => v + TAMANHO_PAGINA_ALERTAS)
+                    }
                   />
                 </div>
               ) : (
@@ -847,23 +1500,33 @@ export function AlertasEstoque() {
               <SectionHeader
                 icon="📦"
                 title="Estoque baixo no depósito/loja"
-                total={alertasDeposito.length}
-                subtitle="Itens do estoque da loja abaixo do mínimo configurado."
+                total={alertasDepositoFiltrados.length}
+                subtitle="Mais recente primeiro."
               />
-              {alertasDeposito.length > 0 ? (
+              {alertasDepositoFiltrados.length > 0 ? (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     {alertasDepositoVisiveis.map((alerta, index) => (
                       <StoreAlertCard
-                        key={`${alerta?.loja?.id || "loja"}-${alerta?.produto?.id || "produto"}-${index}`}
+                        key={alerta?.alertaId || `${alerta?.loja?.id || "loja"}-${alerta?.produto?.id || "produto"}-${index}`}
                         alerta={alerta}
+                        resolvendo={resolvendoIds.has(alerta?.alertaId)}
+                        onResolver={() =>
+                          resolverAlerta(alerta, (id) =>
+                            setAlertasDeposito((prev) =>
+                              prev.filter((a) => a.alertaId !== id),
+                            ),
+                          )
+                        }
                       />
                     ))}
                   </div>
                   <VerMaisAlertasButton
-                    total={alertasDeposito.length}
+                    total={alertasDepositoFiltrados.length}
                     visiveis={alertasDepositoVisiveis.length}
-                    onClick={() => setMostrarTodosAlertasDeposito(true)}
+                    onClick={() =>
+                      setVisivelAlertasDeposito((v) => v + TAMANHO_PAGINA_ALERTAS)
+                    }
                   />
                 </div>
               ) : (
@@ -873,7 +1536,7 @@ export function AlertasEstoque() {
           </div>
         )}
           </>
-        ) : (
+        ) : abaAtiva === "inconsistencias" ? (
           <div className="space-y-6">
             <div className="card-gradient">
               <SectionHeader
@@ -961,13 +1624,19 @@ export function AlertasEstoque() {
                 <AlertasSkeleton />
               ) : movimentacoesInconsistentes.length > 0 ? (
                 <div className="space-y-4">
-                  {movimentacoesInconsistentes.map((movimentacao) => {
+                  {movimentacoesInconsistentes
+                    .slice(0, visivelInconsistencias)
+                    .map((movimentacao) => {
                     const maquina = maquinasPorId.get(
                       String(getMaquinaId(movimentacao)),
                     );
                     const lojaId =
                       maquina?.lojaId || maquina?.loja_id || movimentacao?.lojaId;
                     const loja = lojasPorId.get(String(lojaId));
+                    const alertaInconsistencia = {
+                      alertaId: `inconsistencia:${movimentacao.id}`,
+                      categoria: "inconsistencia",
+                    };
 
                     return (
                       <InconsistentMovementCard
@@ -982,12 +1651,90 @@ export function AlertasEstoque() {
                             loja,
                           })
                         }
+                        resolvendo={resolvendoIds.has(alertaInconsistencia.alertaId)}
+                        onResolver={() =>
+                          resolverAlerta(alertaInconsistencia, (id) =>
+                            setIdsInconsistenciaResolvidos((prev) =>
+                              new Set(prev).add(id),
+                            ),
+                          )
+                        }
                       />
                     );
                   })}
+                  <VerMaisAlertasButton
+                    total={movimentacoesInconsistentes.length}
+                    visiveis={Math.min(
+                      visivelInconsistencias,
+                      movimentacoesInconsistentes.length,
+                    )}
+                    onClick={() =>
+                      setVisivelInconsistencias(
+                        (v) => v + TAMANHO_PAGINA_ALERTAS,
+                      )
+                    }
+                  />
                 </div>
               ) : (
                 <SectionEmpty message="Nenhuma movimentação inconsistente encontrada." />
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="card-gradient">
+              <SectionHeader
+                icon="💰"
+                title="Alertas Financeiros"
+                total={alertasFinanceirosFiltrados.length}
+                subtitle="Divergências entre o valor esperado (contador IN x valor da ficha) e o valor preenchido na bag/Machine Pay ao concluir o financeiro."
+              />
+
+              <div className="mb-6 rounded-xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-800">
+                <span className="font-bold">Ação esperada:</span> conferir a
+                contagem da bag e o fechamento na Machine Pay desta máquina.
+                Estes alertas são gerados automaticamente ao preencher o
+                financeiro de movimentações com retirada de dinheiro.
+              </div>
+
+              {erroFinanceiro && (
+                <div className="mb-6 space-y-4">
+                  <AlertBox type="error" message={erroFinanceiro} />
+                  <button onClick={carregarAlertasFinanceiros} className="btn-secondary">
+                    Tentar novamente
+                  </button>
+                </div>
+              )}
+
+              {loadingFinanceiro ? (
+                <AlertasSkeleton />
+              ) : alertasFinanceirosFiltrados.length > 0 ? (
+                <div className="space-y-4">
+                  {alertasFinanceirosFiltrados.slice(0, visivelFinanceiro).map((alerta) => (
+                    <FinanceiroAlertCard
+                      key={alerta.alertaId || alerta.movimentacaoId}
+                      alerta={alerta}
+                      onClick={() => setAlertaFinanceiroSelecionado(alerta)}
+                      resolvendo={resolvendoIds.has(alerta?.alertaId)}
+                      onResolver={() =>
+                        resolverAlerta(alerta, (id) =>
+                          setAlertasFinanceiros((prev) =>
+                            prev.filter((a) => a.alertaId !== id),
+                          ),
+                        )
+                      }
+                    />
+                  ))}
+                  <VerMaisAlertasButton
+                    total={alertasFinanceirosFiltrados.length}
+                    visiveis={Math.min(visivelFinanceiro, alertasFinanceirosFiltrados.length)}
+                    onClick={() =>
+                      setVisivelFinanceiro((v) => v + TAMANHO_PAGINA_ALERTAS)
+                    }
+                  />
+                </div>
+              ) : (
+                <SectionEmpty message="Nenhuma divergência financeira encontrada nas movimentações com bag." />
               )}
             </div>
           </div>
@@ -997,6 +1744,11 @@ export function AlertasEstoque() {
       <ConferirInconsistenciaModal
         item={movimentacaoConferencia}
         onClose={() => setMovimentacaoConferencia(null)}
+      />
+
+      <ConferirAlertaFinanceiroModal
+        alerta={alertaFinanceiroSelecionado}
+        onClose={() => setAlertaFinanceiroSelecionado(null)}
       />
 
       <Footer />

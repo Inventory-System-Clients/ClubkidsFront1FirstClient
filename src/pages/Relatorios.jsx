@@ -24,6 +24,12 @@ export function Relatorios() {
   const [relatorio, setRelatorio] = useState(null);
   const [error, setError] = useState("");
   const [gastosLoja, setGastosLoja] = useState([]);
+  const [mostrarTodosGastos, setMostrarTodosGastos] = useState(false);
+  const [mostrarTodasLojasMovimentacoes, setMostrarTodasLojasMovimentacoes] =
+    useState(false);
+  const [mostrarTodasLojasLucro, setMostrarTodasLojasLucro] = useState(false);
+  const [ordenacaoLojas, setOrdenacaoLojas] = useState("");
+  const ITENS_VISIVEIS_PADRAO = 10;
 
   const toNumber = (value) => {
     if (typeof value === "number") {
@@ -104,6 +110,108 @@ export function Relatorios() {
     });
 
     return Array.from(mapa.values());
+  };
+
+  const agruparMaquinasPorLoja = (maquinasParaAgrupar = [], lojaPadrao = null) => {
+    const dadosPorLoja = new Map();
+
+    maquinasParaAgrupar.forEach((maquina, index) => {
+      const lojaIdMaquina =
+        maquina?.maquina?.lojaId || lojaPadrao?.id || null;
+      const lojaDoEstado = lojas.find(
+        (l) => String(l.id) === String(lojaIdMaquina),
+      );
+      const lojaNoRelatorio = Array.isArray(relatorio?.lojas)
+        ? relatorio.lojas.find(
+            (item) => String(item?.loja?.id) === String(lojaIdMaquina),
+          )
+        : null;
+
+      const nomeLoja =
+        lojaDoEstado?.nome ||
+        lojaNoRelatorio?.loja?.nome ||
+        lojaPadrao?.nome ||
+        (lojaIdMaquina ? `Loja ${lojaIdMaquina}` : "Loja não identificada");
+
+      const chaveLoja = String(lojaIdMaquina ?? nomeLoja);
+
+      if (!dadosPorLoja.has(chaveLoja)) {
+        dadosPorLoja.set(chaveLoja, {
+          id: lojaIdMaquina,
+          nomeLoja,
+          maquinas: [],
+          totais: {
+            dinheiro: 0,
+            cartao: 0,
+            comissao: 0,
+            conferidoTotal: 0,
+            pelucias: 0,
+            lucroLojaPeriodo: 0,
+          },
+        });
+      }
+
+      const dinheiro = toNumber(maquina.valoresEntrada?.notas || 0);
+      const cartao = toNumber(maquina.valoresEntrada?.cartao || 0);
+      const comissao = toNumber(maquina.valoresComissao || 0);
+      const conferidoTotal = dinheiro + cartao;
+      const pelucias = toNumber(maquina?.totais?.produtosSairam);
+      const lucroMaquinaPeriodo = conferidoTotal - comissao;
+      const mediaRecebidaPorPelucia = toNumber(
+        maquina?.indicadoresFinanceiros?.mediaRecebidaPorPelucia,
+      );
+
+      const dadosMaquina = {
+        nomeLoja,
+        nomeMaquina:
+          maquina?.maquina?.nome ||
+          (maquina?.maquina?.id
+            ? `Máquina ${maquina.maquina.id}`
+            : `Máquina ${index + 1}`),
+        codigoMaquina: maquina?.maquina?.codigo || "-",
+        dinheiro,
+        cartao,
+        comissao,
+        conferidoTotal,
+        pelucias,
+        lucroMaquinaPeriodo,
+        mediaRecebidaPorPelucia,
+      };
+
+      const dadosLoja = dadosPorLoja.get(chaveLoja);
+      dadosLoja.maquinas.push(dadosMaquina);
+      dadosLoja.totais.dinheiro += dinheiro;
+      dadosLoja.totais.cartao += cartao;
+      dadosLoja.totais.comissao += comissao;
+      dadosLoja.totais.conferidoTotal += conferidoTotal;
+      dadosLoja.totais.pelucias += pelucias;
+      dadosLoja.totais.lucroLojaPeriodo += lucroMaquinaPeriodo;
+    });
+
+    return Array.from(dadosPorLoja.values()).map((loja) => ({
+      ...loja,
+      maquinas: [...loja.maquinas].sort((a, b) =>
+        a.nomeMaquina.localeCompare(b.nomeMaquina, "pt-BR"),
+      ),
+    }));
+  };
+
+  const ordenarResumoLojasPorLucro = (resumoLojas, ordenacao) => {
+    const lista = [...resumoLojas];
+
+    if (ordenacao === "crescente") {
+      return lista.sort(
+        (a, b) => a.totais.lucroLojaPeriodo - b.totais.lucroLojaPeriodo,
+      );
+    }
+
+    if (ordenacao === "decrescente") {
+      return lista.sort(
+        (a, b) => b.totais.lucroLojaPeriodo - a.totais.lucroLojaPeriodo,
+      );
+    }
+
+    return lista.sort((a, b) => a.nomeLoja.localeCompare(b.nomeLoja, "pt-BR"));
   };
 
   const combinarRelatoriosPorLojas = (relatorios, idsLojas = []) => {
@@ -362,6 +470,9 @@ export function Relatorios() {
       setError("");
       setRelatorio(null);
       setGastosLoja([]);
+      setMostrarTodosGastos(false);
+      setMostrarTodasLojasMovimentacoes(false);
+      setMostrarTodasLojasLucro(false);
 
       let roteiroId = roteiroSelecionado;
       let relatorioData = null;
@@ -480,19 +591,19 @@ export function Relatorios() {
           }
         }
 
-        // Buscar comissões do período
+        // Buscar comissões do período (mantendo a associação com a loja de origem)
         const comissoesPorLoja = await Promise.all(
           idsLojasUnicos.map((lojaId) =>
             api
               .get(`/relatorios/comissoes`, {
                 params: { lojaId, dataInicio, dataFim },
               })
-              .then((res) => res.data?.comissoes || [])
-              .catch(() => []),
+              .then((res) => ({ lojaId, comissoes: res.data?.comissoes || [] }))
+              .catch(() => ({ lojaId, comissoes: [] })),
           ),
         );
 
-        comissoes = comissoesPorLoja.flat();
+        comissoes = comissoesPorLoja.flatMap((item) => item.comissoes);
         totalComissao = comissoes.reduce(
           (acc, c) => acc + toNumber(c.totalComissao),
           0,
@@ -501,6 +612,30 @@ export function Relatorios() {
           (acc, c) => acc + toNumber(c.totalLucro),
           0,
         );
+
+        // Lucro líquido por loja — usado para ordenar as lojas (crescente/decrescente),
+        // calculado aqui pois nem todo fluxo (ex: roteiro) retorna "maquinas" detalhadas.
+        relatorioData.resumoLojasFinanceiro = comissoesPorLoja.map((item) => {
+          const lucroLojaBruto = item.comissoes.reduce(
+            (acc, c) => acc + toNumber(c.totalLucro),
+            0,
+          );
+          const comissaoLoja = item.comissoes.reduce(
+            (acc, c) => acc + toNumber(c.totalComissao),
+            0,
+          );
+          const lojaCadastrada = lojas.find(
+            (l) => String(l.id) === String(item.lojaId),
+          );
+
+          return {
+            id: item.lojaId,
+            nomeLoja: lojaCadastrada?.nome || `Loja ${item.lojaId}`,
+            totais: {
+              lucroLojaPeriodo: lucroLojaBruto - comissaoLoja,
+            },
+          };
+        });
 
         // Buscar gastos por loja
         const gastosPorLoja = await Promise.all(
@@ -763,95 +898,16 @@ export function Relatorios() {
       setError("");
 
       // Usar os mesmos dados do relatório principal
-      // Agrupar máquinas por loja e detalhar cada máquina na planilha
-      const dadosPorLoja = new Map();
+      // Agrupar máquinas por loja e ordenar pelo critério escolhido pelo usuário
       const lojaPadraoRelatorio = relatorio?.loja;
-
-      (relatorio?.maquinas || []).forEach((maquina, index) => {
-        const lojaIdMaquina =
-          maquina?.maquina?.lojaId || lojaPadraoRelatorio?.id || null;
-        const lojaDoEstado = lojas.find(
-          (l) => String(l.id) === String(lojaIdMaquina),
-        );
-        const lojaNoRelatorio = Array.isArray(relatorio?.lojas)
-          ? relatorio.lojas.find(
-              (item) => String(item?.loja?.id) === String(lojaIdMaquina),
-            )
-          : null;
-
-        const nomeLoja =
-          lojaDoEstado?.nome ||
-          lojaNoRelatorio?.loja?.nome ||
-          lojaPadraoRelatorio?.nome ||
-          (lojaIdMaquina ? `Loja ${lojaIdMaquina}` : "Loja não identificada");
-
-        const chaveLoja = String(lojaIdMaquina ?? nomeLoja);
-
-        if (!dadosPorLoja.has(chaveLoja)) {
-          dadosPorLoja.set(chaveLoja, {
-            id: lojaIdMaquina,
-            nomeLoja,
-            maquinas: [],
-            totais: {
-              dinheiro: 0,
-              cartao: 0,
-              comissao: 0,
-              conferidoTotal: 0,
-              pelucias: 0,
-              lucroLojaPeriodo: 0,
-            },
-          });
-        }
-
-        const dinheiro = toNumber(maquina.valoresEntrada?.notas || 0);
-        const cartao = toNumber(maquina.valoresEntrada?.cartao || 0);
-        const comissao = toNumber(maquina.valoresComissao || 0);
-        const conferidoTotal = dinheiro + cartao;
-        const pelucias = toNumber(maquina?.totais?.produtosSairam);
-        const lucroMaquinaPeriodo = conferidoTotal - comissao;
-        const mediaRecebidaPorPelucia = toNumber(
-          maquina?.indicadoresFinanceiros?.mediaRecebidaPorPelucia,
-        );
-
-        const dadosMaquina = {
-          nomeLoja,
-          nomeMaquina:
-            maquina?.maquina?.nome ||
-            (maquina?.maquina?.id
-              ? `Máquina ${maquina.maquina.id}`
-              : `Máquina ${index + 1}`),
-          codigoMaquina: maquina?.maquina?.codigo || "-",
-          dinheiro,
-          cartao,
-          comissao,
-          conferidoTotal,
-          pelucias,
-          lucroMaquinaPeriodo,
-          mediaRecebidaPorPelucia,
-        };
-
-        const dadosLoja = dadosPorLoja.get(chaveLoja);
-        dadosLoja.maquinas.push(dadosMaquina);
-        dadosLoja.totais.dinheiro += dinheiro;
-        dadosLoja.totais.cartao += cartao;
-        dadosLoja.totais.comissao += comissao;
-        dadosLoja.totais.conferidoTotal += conferidoTotal;
-        dadosLoja.totais.pelucias += pelucias;
-        dadosLoja.totais.lucroLojaPeriodo += lucroMaquinaPeriodo;
-      });
-
-      const lojasOrdenadas = Array.from(dadosPorLoja.values())
-        .map((loja) => {
-          const maquinasOrdenadas = [...loja.maquinas].sort((a, b) =>
-            a.nomeMaquina.localeCompare(b.nomeMaquina, "pt-BR"),
-          );
-
-          return {
-            ...loja,
-            maquinas: maquinasOrdenadas,
-          };
-        })
-        .sort((a, b) => a.nomeLoja.localeCompare(b.nomeLoja, "pt-BR"));
+      const resumoPorLoja = agruparMaquinasPorLoja(
+        relatorio?.maquinas || [],
+        lojaPadraoRelatorio,
+      );
+      const lojasOrdenadas = ordenarResumoLojasPorLucro(
+        resumoPorLoja,
+        ordenacaoLojas,
+      );
 
       const totalDinheiro = lojasOrdenadas.reduce(
         (acc, loja) => acc + loja.totais.dinheiro,
@@ -1194,6 +1250,20 @@ export function Relatorios() {
   const lojaDestinoMovimentacoesId =
     lojasSelecionadas[0] || lojasComMovimentacoes[0]?.id;
 
+  const resumoLojasRelatorio = relatorio
+    ? ordenarResumoLojasPorLucro(
+        // Preferimos agrupar a partir das máquinas: o lucro de cada máquina já usa o
+        // percentual de comissão cadastrado como fallback, então bate com o valor exibido
+        // no card "Lucro da Máquina". O resumoLojasFinanceiro (baseado nos registros de
+        // ComissaoLoja) só é usado quando não há detalhamento por máquina (ex: roteiro),
+        // pois esses registros podem não existir para o período e ficar zerados.
+        maquinas.length > 0
+          ? agruparMaquinasPorLoja(maquinas, relatorio?.loja)
+          : relatorio.resumoLojasFinanceiro || [],
+        ordenacaoLojas,
+      )
+    : [];
+
   const abrirLojaMovimentacoes = (lojaId) => {
     if (!lojaId) return;
     navigate(`/lojas/${lojaId}`);
@@ -1394,6 +1464,11 @@ export function Relatorios() {
                 <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                   <span className="text-xl sm:text-2xl">💸</span>
                   Gastos registrados nas lojas selecionadas
+                  {gastosLoja.length > ITENS_VISIVEIS_PADRAO && (
+                    <span className="text-sm font-normal text-gray-600">
+                      ({gastosLoja.length} no total)
+                    </span>
+                  )}
                 </h3>
                 <div className="overflow-x-auto">
                   <table className="min-w-full table-auto">
@@ -1425,7 +1500,10 @@ export function Relatorios() {
                       </tr>
                     </thead>
                     <tbody>
-                      {gastosLoja.map((gasto, idx) => (
+                      {(mostrarTodosGastos
+                        ? gastosLoja
+                        : gastosLoja.slice(0, ITENS_VISIVEIS_PADRAO)
+                      ).map((gasto, idx) => (
                         <tr
                           key={gasto.id || idx}
                           className="border-b border-yellow-200"
@@ -1471,6 +1549,19 @@ export function Relatorios() {
                     </tbody>
                   </table>
                 </div>
+                {gastosLoja.length > ITENS_VISIVEIS_PADRAO && (
+                  <div className="mt-3 text-center no-print">
+                    <button
+                      type="button"
+                      onClick={() => setMostrarTodosGastos((prev) => !prev)}
+                      className="px-4 py-1.5 rounded-lg border border-yellow-400 text-xs font-semibold text-yellow-800 hover:bg-yellow-200 transition-colors"
+                    >
+                      {mostrarTodosGastos
+                        ? "▲ Ver menos"
+                        : `▼ Ver mais (${gastosLoja.length - ITENS_VISIVEIS_PADRAO} restantes)`}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
             <div className="card bg-linear-to-r from-purple-50 to-purple-100 border-2 border-purple-300">
@@ -1535,7 +1626,13 @@ export function Relatorios() {
                         Lojas com movimentações:
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {lojasComMovimentacoes.map((lojaMov) => (
+                        {(mostrarTodasLojasMovimentacoes
+                          ? lojasComMovimentacoes
+                          : lojasComMovimentacoes.slice(
+                              0,
+                              ITENS_VISIVEIS_PADRAO,
+                            )
+                        ).map((lojaMov) => (
                           <button
                             key={lojaMov.id}
                             type="button"
@@ -1549,6 +1646,23 @@ export function Relatorios() {
                           </button>
                         ))}
                       </div>
+                      {lojasComMovimentacoes.length > ITENS_VISIVEIS_PADRAO && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMostrarTodasLojasMovimentacoes((prev) => !prev);
+                          }}
+                          className="mt-2 px-2 py-1 rounded-full text-[11px] sm:text-xs bg-white/10 border border-white/40 hover:bg-white/30"
+                        >
+                          {mostrarTodasLojasMovimentacoes
+                            ? "▲ Ver menos"
+                            : `▼ Ver mais (${
+                                lojasComMovimentacoes.length -
+                                ITENS_VISIVEIS_PADRAO
+                              } restantes)`}
+                        </button>
+                      )}
                     </div>
                   )}
                   {lojaDestinoMovimentacoesId && (
@@ -1635,6 +1749,100 @@ export function Relatorios() {
                 </div>
               </div>
             </div>
+
+            {/* LUCRO POR LOJA - ORDENÁVEL */}
+            {resumoLojasRelatorio.length > 1 && (
+              <div className="card">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <span className="text-xl sm:text-2xl">💰</span>
+                    Lucro por Loja / Ponto
+                    {resumoLojasRelatorio.length > ITENS_VISIVEIS_PADRAO && (
+                      <span className="text-sm font-normal text-gray-500">
+                        ({resumoLojasRelatorio.length} no total)
+                      </span>
+                    )}
+                  </h3>
+                  <div className="flex gap-2 no-print">
+                    <button
+                      type="button"
+                      onClick={() => setOrdenacaoLojas("crescente")}
+                      className={`px-3 py-1 rounded-lg border text-xs font-semibold ${
+                        ordenacaoLojas === "crescente"
+                          ? "bg-primary text-white border-primary"
+                          : "border-gray-300 hover:bg-gray-50"
+                      }`}
+                    >
+                      ⬆️ Crescente
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOrdenacaoLojas("decrescente")}
+                      className={`px-3 py-1 rounded-lg border text-xs font-semibold ${
+                        ordenacaoLojas === "decrescente"
+                          ? "bg-primary text-white border-primary"
+                          : "border-gray-300 hover:bg-gray-50"
+                      }`}
+                    >
+                      ⬇️ Decrescente
+                    </button>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full table-auto">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="px-3 py-2 text-left text-xs font-bold text-gray-700">
+                          #
+                        </th>
+                        <th className="px-3 py-2 text-left text-xs font-bold text-gray-700">
+                          Loja
+                        </th>
+                        <th className="px-3 py-2 text-right text-xs font-bold text-gray-700">
+                          Lucro no Período
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(mostrarTodasLojasLucro
+                        ? resumoLojasRelatorio
+                        : resumoLojasRelatorio.slice(0, ITENS_VISIVEIS_PADRAO)
+                      ).map((loja, idx) => (
+                        <tr
+                          key={loja.id ?? loja.nomeLoja}
+                          className="border-b border-gray-200"
+                        >
+                          <td className="px-3 py-2 text-xs text-gray-500">
+                            {idx + 1}
+                          </td>
+                          <td className="px-3 py-2 text-sm font-semibold text-gray-800">
+                            {loja.nomeLoja}
+                          </td>
+                          <td className="px-3 py-2 text-sm text-right font-bold text-green-700">
+                            {formatarMoedaBRL(loja.totais.lucroLojaPeriodo)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {resumoLojasRelatorio.length > ITENS_VISIVEIS_PADRAO && (
+                  <div className="mt-3 text-center no-print">
+                    <button
+                      type="button"
+                      onClick={() => setMostrarTodasLojasLucro((prev) => !prev)}
+                      className="px-4 py-1.5 rounded-lg border border-gray-300 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      {mostrarTodasLojasLucro
+                        ? "▲ Ver menos"
+                        : `▼ Ver mais (${
+                            resumoLojasRelatorio.length - ITENS_VISIVEIS_PADRAO
+                          } restantes)`}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* DETALHAMENTO POR MÁQUINA - PRINCIPAL */}
             {maquinas.length > 0 && (
