@@ -675,7 +675,7 @@ export function GestaoCarrinhos() {
                           </div>
                           <div className="text-right">
                             <span className="text-xs text-gray-500">
-                              {new Date(carrinho.data).toLocaleDateString('pt-BR')}
+                              {new Date(carrinho.data + 'T00:00:00').toLocaleDateString('pt-BR')}
                             </span>
                           </div>
                         </div>
@@ -1093,7 +1093,7 @@ export function GestaoCarrinhos() {
                 <p className="font-bold text-gray-800">{carrinhoEditando.usuario?.nome}</p>
                 <p className="text-sm text-gray-600 mt-2">Data:</p>
                 <p className="font-semibold text-gray-700">
-                  {new Date(carrinhoEditando.data).toLocaleDateString('pt-BR')}
+                  {new Date(carrinhoEditando.data + 'T00:00:00').toLocaleDateString('pt-BR')}
                 </p>
               </div>
 

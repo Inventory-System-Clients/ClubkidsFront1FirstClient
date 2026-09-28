@@ -225,7 +225,7 @@ export function DevolucaoAdminModal({ carrinho, onClose, onSuccess }) {
               <div>
                 <p className="text-xs text-gray-600 mb-1">Data</p>
                 <p className="text-lg font-bold text-gray-800">
-                  {new Date(carrinho.data).toLocaleDateString('pt-BR')}
+                  {new Date(carrinho.data + 'T00:00:00').toLocaleDateString('pt-BR')}
                 </p>
               </div>
             </div>

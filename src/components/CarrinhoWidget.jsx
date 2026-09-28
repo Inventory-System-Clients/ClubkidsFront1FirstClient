@@ -144,7 +144,7 @@ export function CarrinhoWidget({ onDevolucaoClick, onCarrinhoUpdate }) {
       </button>
 
       <p className="text-xs text-gray-500 text-center mt-3">
-        Data: {new Date(carrinho.data).toLocaleDateString('pt-BR')}
+        Data: {new Date(carrinho.data + 'T00:00:00').toLocaleDateString('pt-BR')}
       </p>
     </div>
   );
