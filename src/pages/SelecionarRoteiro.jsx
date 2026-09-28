@@ -550,10 +550,15 @@ export function SelecionarRoteiro() {
   };
 
   // Exibir todos os roteiros carregados, aplicar filtro de tipo e nome normalmente
-  let roteirosFiltrados = roteiros.filter(r =>
-    !filtroNome ||
-    (r.nome || r.zona || "").toLowerCase().includes(filtroNome.toLowerCase())
-  );
+  let roteirosFiltrados = roteiros.filter(r => {
+    if (!filtroNome) return true;
+    const termo = filtroNome.toLowerCase();
+    const nomeMatch = (r.nome || r.zona || "").toLowerCase().includes(termo);
+    const pontoMatch = (r.lojas || []).some(loja =>
+      (loja.nome || "").toLowerCase().includes(termo)
+    );
+    return nomeMatch || pontoMatch;
+  });
   if (filtroTipoRoteiro === "bolinha") {
     roteirosFiltrados = roteirosFiltrados.filter(r => (r.zona || "").toLowerCase().startsWith("bolinha"));
   } else if (filtroTipoRoteiro === "dias") {
@@ -754,7 +759,7 @@ export function SelecionarRoteiro() {
             </button>
             <input
               type="text"
-              placeholder="🔍 Buscar por nome..."
+              placeholder="🔍 Buscar por nome do roteiro ou do ponto..."
               value={filtroNome}
               onChange={e => setFiltroNome(e.target.value)}
               className="px-3 py-2 rounded-lg border-2 border-gray-300 focus:border-blue-400 outline-none text-sm min-w-40"
