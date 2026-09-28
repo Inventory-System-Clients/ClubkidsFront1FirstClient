@@ -78,6 +78,7 @@ export function DevolucaoAdminModal({ carrinho, onClose, onSuccess }) {
     try {
       const response = await api.post('/carrinho-usuarios/devolucao-admin', {
         usuarioIdFuncionario: carrinho.usuarioId || carrinho.usuario?.id,
+        carrinhoId: carrinho.id,
         itens: itensDevolucao.map(item => ({
           produtoId: item.produtoId,
           quantidadeDevolvida: item.quantidadeDevolvida
