@@ -39,6 +39,8 @@ const Graficos = lazy(() => import("./pages/Graficos").then(m => ({ default: m.G
 const Relatorios = lazy(() => import("./pages/Relatorios").then(m => ({ default: m.Relatorios })));
 const AlertasEstoque = lazy(() => import("./pages/AlertasEstoque").then(m => ({ default: m.AlertasEstoque })));
 const StyleGuide = lazy(() => import("./pages/StyleGuide").then(m => ({ default: m.StyleGuide })));
+const CreditosRemotos = lazy(() => import("./pages/CreditosRemotos").then(m => ({ default: m.CreditosRemotos })));
+const CreditoRemotoPublico = lazy(() => import("./pages/CreditoRemotoPublico").then(m => ({ default: m.CreditoRemotoPublico })));
 
 function AppRoutes() {
   const { usuario } = useAuth();
@@ -52,6 +54,16 @@ function AppRoutes() {
           <Route path="/login" element={<Login />} />
           <Route path="/registrar" element={<Registrar />} />
           <Route path="/style-guide" element={<StyleGuide />} />
+          {/* Voucher (link temporário de crédito remoto): público, sem login */}
+          <Route path="/creditos" element={<CreditoRemotoPublico />} />
+          <Route
+            path="/creditos-remotos"
+            element={
+              <PrivateRoute adminOnly>
+                <CreditosRemotos />
+              </PrivateRoute>
+            }
+          />
            <Route path="/veiculos" element={<Veiculos />} />
           <Route
             path="/"
