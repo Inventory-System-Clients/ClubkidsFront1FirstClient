@@ -4,9 +4,6 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Legend,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -587,104 +584,28 @@ function AbaRanking({ filtrosQuery, periodo, onAbrirMaquina }) {
 // Aba: Gráficos
 // ---------------------------------------------------------------------------
 
-function AbaGraficos({ filtrosQuery, periodo, resumo }) {
-  // Um gráfico de um dia só não diz nada: expande para os 14 dias até a data final.
-  const periodoGrafico =
-    periodo.inicio === periodo.fim
-      ? { inicio: somarDias(periodo.fim, -13), fim: periodo.fim, expandido: true }
-      : periodo;
-
-  const { dados, loading, erro } = useConsulta("/machine-pay/monitor/serie-diaria", {
-    ...filtrosQuery,
-    dataInicio: periodoGrafico.inicio,
-    dataFim: periodoGrafico.fim,
-  });
-
-  const serie = (dados?.serie || []).map((d) => ({
-    ...d,
-    dia: formatarDataCurta(d.data),
-    horasOffline: Number((d.minutosOffline / 60).toFixed(1)),
-  }));
-  const quedasPorHora = (resumo?.quedasPorHoraHoje || []).map((q, hora) => ({
-    hora: `${String(hora).padStart(2, "0")}h`,
-    quedas: q,
-  }));
+function AbaGraficos({ resumo }) {
   const sinais = Object.entries(resumo?.porSinal || {})
     .map(([sinal, total]) => ({ sinal, label: SINAL_INFO[sinal]?.label || sinal, total }))
     .sort((a, b) => Object.keys(SINAL_INFO).indexOf(a.sinal) - Object.keys(SINAL_INFO).indexOf(b.sinal));
 
   return (
     <>
-      {erro && <AlertBox type="error" message={erro} />}
-      <Secao
-        titulo="📈 Quedas por dia"
-        descricao={`Soma das quedas de todas as máquinas filtradas${
-          periodoGrafico.expandido ? " (últimos 14 dias — escolha um período para mudar)" : ""
-        }. Dias sem coleta aparecem zerados.`}
-      >
-        {loading && !dados ? (
-          <LoadingSpinner />
-        ) : (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={serie}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-              <XAxis dataKey="dia" fontSize={12} />
-              <YAxis allowDecimals={false} fontSize={12} />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="quedas" name="Quedas" fill="#f97316" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="maquinasComQueda" name="Máquinas que caíram" fill="#2457B1" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        )}
-      </Secao>
-
-      <Secao
-        titulo="🔴 Máquinas que ficaram offline por dia"
-        descricao="Quantas máquinas passaram algum tempo fora do ar e o total de horas offline somadas."
-      >
-        <ResponsiveContainer width="100%" height={280}>
-          <LineChart data={serie}>
+      <Secao titulo="📶 Qualidade do sinal Wi-Fi" descricao="Situação atual das máquinas filtradas.">
+        <ResponsiveContainer width="100%" height={240}>
+          <BarChart data={sinais} layout="vertical">
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="dia" fontSize={12} />
-            <YAxis yAxisId="esq" allowDecimals={false} fontSize={12} />
-            <YAxis yAxisId="dir" orientation="right" fontSize={12} />
+            <XAxis type="number" allowDecimals={false} fontSize={12} />
+            <YAxis type="category" dataKey="label" width={100} fontSize={12} />
             <Tooltip />
-            <Legend />
-            <Line yAxisId="esq" type="monotone" dataKey="maquinasQueFicaramOffline" name="Máquinas offline" stroke="#ef4444" strokeWidth={2} />
-            <Line yAxisId="dir" type="monotone" dataKey="horasOffline" name="Horas offline (soma)" stroke="#a855f7" strokeWidth={2} />
-          </LineChart>
+            <Bar dataKey="total" name="Máquinas" radius={[0, 4, 4, 0]}>
+              {sinais.map((s) => (
+                <Cell key={s.sinal} fill={SINAL_INFO[s.sinal]?.cor || "#9ca3af"} />
+              ))}
+            </Bar>
+          </BarChart>
         </ResponsiveContainer>
       </Secao>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Secao titulo="⏰ Quedas por hora (hoje)" descricao="Em que horário as máquinas mais caem hoje.">
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={quedasPorHora}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-              <XAxis dataKey="hora" fontSize={11} interval={1} />
-              <YAxis allowDecimals={false} fontSize={12} />
-              <Tooltip />
-              <Bar dataKey="quedas" name="Quedas" fill="#f97316" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </Secao>
-        <Secao titulo="📶 Qualidade do sinal Wi-Fi" descricao="Situação atual das máquinas filtradas.">
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={sinais} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-              <XAxis type="number" allowDecimals={false} fontSize={12} />
-              <YAxis type="category" dataKey="label" width={100} fontSize={12} />
-              <Tooltip />
-              <Bar dataKey="total" name="Máquinas" radius={[0, 4, 4, 0]}>
-                {sinais.map((s) => (
-                  <Cell key={s.sinal} fill={SINAL_INFO[s.sinal]?.cor || "#9ca3af"} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </Secao>
-      </div>
 
       <Secao
         titulo="🧩 Por versão do leitor"
@@ -1397,7 +1318,7 @@ export function MachinePay() {
         {aba === "ranking" && (
           <AbaRanking filtrosQuery={filtrosQuery} periodo={periodo} onAbrirMaquina={setMaquinaAberta} />
         )}
-        {aba === "graficos" && <AbaGraficos filtrosQuery={filtrosQuery} periodo={periodo} resumo={resumo} />}
+        {aba === "graficos" && <AbaGraficos resumo={resumo} />}
         {aba === "eventos" && (
           <AbaEventos filtrosQuery={filtrosQuery} periodo={periodo} onAbrirMaquina={setMaquinaAberta} />
         )}
