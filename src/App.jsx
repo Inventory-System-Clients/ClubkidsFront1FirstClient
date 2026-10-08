@@ -38,6 +38,7 @@ const Financeiro = lazy(() => import("./pages/Financeiro").then(m => ({ default:
 const Graficos = lazy(() => import("./pages/Graficos").then(m => ({ default: m.Graficos })));
 const Relatorios = lazy(() => import("./pages/Relatorios").then(m => ({ default: m.Relatorios })));
 const AlertasEstoque = lazy(() => import("./pages/AlertasEstoque").then(m => ({ default: m.AlertasEstoque })));
+const MachinePay = lazy(() => import("./pages/MachinePay").then(m => ({ default: m.MachinePay })));
 const StyleGuide = lazy(() => import("./pages/StyleGuide").then(m => ({ default: m.StyleGuide })));
 const CreditosRemotos = lazy(() => import("./pages/CreditosRemotos").then(m => ({ default: m.CreditosRemotos })));
 const CreditoRemotoPublico = lazy(() => import("./pages/CreditoRemotoPublico").then(m => ({ default: m.CreditoRemotoPublico })));
@@ -246,6 +247,14 @@ function AppRoutes() {
             element={
               <PrivateRoute allowedRoles={["ADMIN", "FINANCEIRO"]}>
                 <Financeiro />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/machine-pay"
+            element={
+              <PrivateRoute allowedRoles={["ADMIN", "FINANCEIRO"]}>
+                <MachinePay />
               </PrivateRoute>
             }
           />

@@ -55,6 +55,7 @@ export function Navbar() {
   ];
   if (isAdmin || usuario?.role === "FINANCEIRO") {
     links.push({ to: "/financeiro", label: "💰 Financeiro" });
+    links.push({ to: "/machine-pay", label: "📡 Machine Pay" });
   }
   if (isAdmin) {
     links.push({ to: "/graficos", label: "📈 Gráficos" });
