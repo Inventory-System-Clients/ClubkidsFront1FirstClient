@@ -616,6 +616,16 @@ function AbaGraficos({ filtrosQuery, periodo, resumo }) {
   return (
     <>
       {erro && <AlertBox type="error" message={erro} />}
+      {resumo?.monitor?.inicioHistorico && (
+        <AlertBox
+          type="info"
+          message={`Histórico gravado pelo sistema desde ${formatarDataCurta(
+            resumo.monitor.inicioHistorico,
+          )}: dias antes disso aparecem vazios. A Machine Pay só mostra o dia atual, então os gráficos vão se completando com o tempo. Horários têm margem de ${
+            resumo.monitor.intervaloMinutos
+          } min (intervalo entre as leituras do painel).`}
+        />
+      )}
       <Secao
         titulo="📈 Quedas por dia"
         descricao={`Soma das quedas de todas as máquinas filtradas${
