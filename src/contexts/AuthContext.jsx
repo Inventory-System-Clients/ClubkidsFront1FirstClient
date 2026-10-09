@@ -14,6 +14,24 @@ export function AuthProvider({ children }) {
     if (token && usuarioSalvo) {
       setUsuario(JSON.parse(usuarioSalvo));
       api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+      // Atualiza role/permissões em segundo plano (o ADMIN pode ter alterado)
+      api
+        .get("/auth/perfil")
+        .then((res) => {
+          if (!res.data?.id) return;
+          const atualizado = {
+            id: res.data.id,
+            nome: res.data.nome,
+            email: res.data.email,
+            role: res.data.role,
+            telefone: res.data.telefone,
+            permissoes: res.data.permissoes ?? null,
+          };
+          localStorage.setItem("usuario", JSON.stringify(atualizado));
+          setUsuario(atualizado);
+        })
+        .catch(() => {});
     }
 
     setLoading(false);
@@ -71,6 +89,18 @@ export function AuthProvider({ children }) {
 
   const isAdmin = () => usuario?.role === "ADMIN";
 
+  // Usuário com acessos escolhidos pelo ADMIN (lista de chaves)
+  const temPermissoesPersonalizadas =
+    usuario?.role !== "ADMIN" && Array.isArray(usuario?.permissoes);
+
+  // `legado`: regra antiga (por role) usada quando não há personalização
+  const pode = (chave, legado = false) => {
+    if (!usuario) return false;
+    if (usuario.role === "ADMIN") return true;
+    if (Array.isArray(usuario.permissoes)) return usuario.permissoes.includes(chave);
+    return Boolean(legado);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -80,6 +110,8 @@ export function AuthProvider({ children }) {
         registrar,
         logout,
         isAdmin,
+        pode,
+        temPermissoesPersonalizadas,
         signed: !!usuario,
       }}
     >

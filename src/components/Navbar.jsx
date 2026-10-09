@@ -1,9 +1,10 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useEffect, useRef, useState } from "react";
+import { CATALOGO_ABAS } from "../utils/permissoes";
 
 export function Navbar() {
-  const { usuario, logout } = useAuth();
+  const { usuario, logout, pode, temPermissoesPersonalizadas } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -46,25 +47,36 @@ export function Navbar() {
 
   const isAdmin = usuario?.role === "ADMIN";
 
-  const links = [
-    { to: "/", label: "📊 Dashboard" },
-    { to: "/movimentacoes", label: "📦 Movimentações" },
-    { to: "/maquinas", label: "🎮 Máquinas" },
-    { to: "/lojas", label: "🏪 Lojas" },
-    { to: "/produtos", label: "🧸 Produtos" },
-  ];
-  if (isAdmin || usuario?.role === "FINANCEIRO") {
-    links.push({ to: "/financeiro", label: "💰 Financeiro" });
-    links.push({ to: "/machine-pay", label: "📡 Machine Pay" });
-  }
-  if (isAdmin) {
-    links.push({ to: "/graficos", label: "📈 Gráficos" });
-    links.push({ to: "/alertas-estoque", label: "🚨 Alertas de Estoque" });
-    links.push({ to: "/relatorios", label: "📄 Relatórios" });
-    links.push({ to: "/usuarios", label: "👥 Usuários" });
-    // Vouchers: só ADMIN (funcionário nunca vê; rota e API também são só ADMIN)
-    links.push({ to: "/creditos-remotos", label: "🎟️ Vouchers" });
-  }
+  const linksPorRole = () => {
+    const links = [
+      { to: "/", label: "📊 Dashboard" },
+      { to: "/movimentacoes", label: "📦 Movimentações" },
+      { to: "/maquinas", label: "🎮 Máquinas" },
+      { to: "/lojas", label: "🏪 Lojas" },
+      { to: "/produtos", label: "🧸 Produtos" },
+    ];
+    if (isAdmin || usuario?.role === "FINANCEIRO") {
+      links.push({ to: "/financeiro", label: "💰 Financeiro" });
+      links.push({ to: "/machine-pay", label: "📡 Machine Pay" });
+    }
+    if (isAdmin) {
+      links.push({ to: "/graficos", label: "📈 Gráficos" });
+      links.push({ to: "/alertas-estoque", label: "🚨 Alertas de Estoque" });
+      links.push({ to: "/relatorios", label: "📄 Relatórios" });
+      links.push({ to: "/usuarios", label: "👥 Usuários" });
+      // Vouchers: só ADMIN (funcionário nunca vê; rota e API também são só ADMIN)
+      links.push({ to: "/creditos-remotos", label: "🎟️ Vouchers" });
+    }
+    return links;
+  };
+
+  // Usuário com acessos personalizados: só as abas liberadas pelo ADMIN
+  const links = temPermissoesPersonalizadas
+    ? CATALOGO_ABAS.filter((aba) => pode(aba.chave)).map((aba) => ({
+        to: aba.rota,
+        label: aba.label,
+      }))
+    : linksPorRole();
 
   const nomeRole = isAdmin
     ? "Administrador"

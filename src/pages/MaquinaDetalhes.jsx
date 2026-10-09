@@ -11,7 +11,7 @@ import { useAuth } from "../contexts/AuthContext";
 export function MaquinaDetalhes() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { usuario } = useAuth();
+  const { usuario, pode } = useAuth();
 
   const [maquina, setMaquina] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -589,7 +589,7 @@ export function MaquinaDetalhes() {
         </div>
 
         {/* Machine Pay */}
-        {maquina.machinePayPosId && (usuario?.role === "ADMIN" || usuario?.role === "FINANCEIRO") && (
+        {maquina.machinePayPosId && pode("maquinas.machinePay", usuario?.role === "ADMIN" || usuario?.role === "FINANCEIRO") && (
           <div className="card mt-6">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">💳 Machine Pay</h2>
 

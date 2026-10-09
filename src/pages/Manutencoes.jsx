@@ -88,7 +88,7 @@ function Manutencoes() {
         setLoading(false);
       }
     }
-  const { usuario } = useAuth();
+  const { usuario, pode } = useAuth();
   // ...existing code...
   const [funcionarios, setFuncionarios] = useState([]);
   const [editando, setEditando] = useState(false);
@@ -232,10 +232,11 @@ function Manutencoes() {
     setLimiteFeitas(LIMITE_FEITAS_INICIAL);
   }, [filtroLoja, filtroStatus, filtroDataInicio, filtroDataFim, abaManutencao]);
 
-  // Se não for admin, mostrar apenas manutenções atribuídas ao usuário logado
-  const isAdmin = usuario?.role === "ADMIN";
+  // Se não puder gerenciar, mostrar apenas manutenções atribuídas ao usuário logado
+  const podeGerenciar = pode("manutencoes.gerenciar", usuario?.role === "ADMIN");
+  const podeAtualizar = pode("manutencoes.atualizar", true);
   let filtradas = manutencoes.filter(m => {
-    if (!isAdmin) {
+    if (!podeGerenciar) {
       // Funcionário só vê as suas e apenas as que não estão feitas
       if (m.funcionarioId !== usuario?.id) return false;
       if (isConcluida(m.status)) return false;
@@ -261,7 +262,7 @@ function Manutencoes() {
   // Para admin, limitar as manutenções feitas exibidas (com botão "mostrar mais")
   let totalFeitas = 0;
   let temMaisFeitas = false;
-  if (isAdmin && (!filtroStatus || isConcluida(filtroStatus))) {
+  if (podeGerenciar && (!filtroStatus || isConcluida(filtroStatus))) {
     const feitas = filtradas.filter(m => isConcluida(m.status));
     const outras = filtradas.filter(m => !isConcluida(m.status));
     // Ordenar por data decrescente
@@ -298,7 +299,7 @@ function Manutencoes() {
 
   // ALERTA DE MANUTENÇÕES FREQUENTES
   let alertasFrequentes = [];
-  if (isAdmin && manutencoes.length > 0) {
+  if (podeGerenciar && manutencoes.length > 0) {
     const agora = new Date();
     const seteDiasAtras = new Date(agora.getTime() - 7 * 24 * 60 * 60 * 1000);
     // Agrupar por máquina
@@ -330,14 +331,14 @@ function Manutencoes() {
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <PageHeader title="Manutenções" subtitle="Acompanhe todas as manutenções registradas" icon="🛠️" />
-        {isAdmin && (
+        {podeGerenciar && (
           <div className="mb-4">
             <button className="btn-primary" onClick={() => setShowNovaManutencao(true)}>Nova Manutenção</button>
           </div>
         )}
         {error && <AlertBox type="error" message={error} onClose={() => setError("")} />}
         {success && <AlertBox type="success" message={success} onClose={() => setSuccess("")} />}
-        {isAdmin && alertasFrequentes.length > 0 && (
+        {podeGerenciar && alertasFrequentes.length > 0 && (
           <div className="mb-4">
             {alertasFrequentes.map((msg, idx) => (
               <AlertBox key={idx} type="warning" message={msg} />
@@ -496,7 +497,7 @@ function Manutencoes() {
                     className={
                       `hover:bg-blue-50 cursor-pointer` +
                       (isUrgente(m.status) ? " bg-red-100 border-l-4 border-red-500 animate-pulse" : "") +
-                      (isAdmin && isConcluida(m.status) ? " bg-green-100" : "")
+                      (podeGerenciar && isConcluida(m.status) ? " bg-green-100" : "")
                     }
                     onClick={() => setDetalhe(m)}
                   >
@@ -551,9 +552,9 @@ function Manutencoes() {
                 <div><strong>Máquina:</strong> {detalhe.maquina?.nome || '-'} </div>
               </div>
               <div className="flex gap-2 mt-6">
-                <button className="btn-primary" onClick={handleEditOpen}>Editar</button>
-                {isAdmin && <button className="btn-danger" onClick={handleDelete}>Excluir</button>}
-                {(isAdmin || (!isAdmin && !isConcluida(detalhe.status))) && !isConcluida(detalhe.status) && (
+                {podeAtualizar && <button className="btn-primary" onClick={handleEditOpen}>Editar</button>}
+                {podeGerenciar && <button className="btn-danger" onClick={handleDelete}>Excluir</button>}
+                {podeAtualizar && (podeGerenciar || (!podeGerenciar && !isConcluida(detalhe.status))) && !isConcluida(detalhe.status) && (
                   <button className="btn-success" onClick={async () => {
                     try {
                       setLoading(true);

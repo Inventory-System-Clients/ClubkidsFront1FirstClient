@@ -11,6 +11,7 @@ import {
 } from "../components/UIComponents";
 import { PageLoader } from "../components/Loading";
 import api from "../services/api";
+import { useAuth } from "../contexts/AuthContext";
 
 const formatarMoeda = (valor) =>
   Number(valor || 0).toLocaleString("pt-BR", {
@@ -160,6 +161,9 @@ const imprimirVouchers = (vouchers, porFolha = 1) => {
 };
 
 export function CreditosRemotos() {
+  const { pode } = useAuth();
+  // Criar/bloquear/copiar links; sem isso o usuário só consulta a lista
+  const podeGerenciar = pode("vouchers.gerenciar", true);
   const [links, setLinks] = useState([]);
   const [maquinasMachinePay, setMaquinasMachinePay] = useState([]);
   const [lojasMachinePay, setLojasMachinePay] = useState([]);
@@ -417,6 +421,7 @@ export function CreditosRemotos() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {podeGerenciar && (
           <section className="card-gradient lg:col-span-1">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Novos vouchers</h2>
             <form onSubmit={criar} className="space-y-4">
@@ -574,8 +579,9 @@ export function CreditosRemotos() {
               </div>
             )}
           </section>
+          )}
 
-          <section className="lg:col-span-2 space-y-3">
+          <section className={`${podeGerenciar ? "lg:col-span-2" : "lg:col-span-3"} space-y-3`}>
             {links.length === 0 ? (
               <div className="card text-center py-12 text-gray-600">
                 Nenhum voucher criado ainda.
@@ -611,7 +617,7 @@ export function CreditosRemotos() {
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2 shrink-0 sm:max-w-xs sm:justify-end">
-                        {link.situacao === "ativo" && link.podeCopiar && (
+                        {podeGerenciar && link.situacao === "ativo" && link.podeCopiar && (
                           <>
                             <button
                               type="button"
@@ -630,7 +636,7 @@ export function CreditosRemotos() {
                             </button>
                           </>
                         )}
-                        {ehLote && (
+                        {podeGerenciar && ehLote && (
                           <button
                             type="button"
                             className="btn-secondary text-sm"
@@ -649,7 +655,7 @@ export function CreditosRemotos() {
                         >
                           Envios
                         </button>
-                        {link.situacao === "ativo" && (
+                        {podeGerenciar && link.situacao === "ativo" && (
                           <button
                             type="button"
                             className="btn-danger text-sm"

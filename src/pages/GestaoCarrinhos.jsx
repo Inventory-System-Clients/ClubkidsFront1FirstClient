@@ -9,7 +9,7 @@ import api from '../services/api';
 import Swal from 'sweetalert2';
 
 export function GestaoCarrinhos() {
-  const { usuario } = useAuth();
+  const { usuario, pode } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -60,7 +60,7 @@ export function GestaoCarrinhos() {
   const emailsAutorizados = ['eriky@clubekids.com', 'gerson@clubekids.com'];
   const isEmailAutorizado = emailsAutorizados.includes(usuarioEmail.toLowerCase());
   const isAdmin = usuario?.role === 'ADMIN';
-  const podeAcessar = isAdmin || isEmailAutorizado;
+  const podeAcessar = pode('carrinhos', isAdmin || isEmailAutorizado);
   const podeDevolver = isEmailAutorizado; // Apenas emails autorizados podem devolver
 
   // Log de debug de permissões
