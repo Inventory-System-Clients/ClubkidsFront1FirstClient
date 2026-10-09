@@ -155,6 +155,7 @@ function usePermissoesMachinePay() {
   const isAdmin = usuario?.role === "ADMIN";
   const adminOuFinanceiro = isAdmin || usuario?.role === "FINANCEIRO";
   return {
+    isAdmin,
     verValores: pode("machinePay.valores", adminOuFinanceiro),
     podeExtrato: pode("machinePay.extrato", adminOuFinanceiro),
     podeCredito: pode("machinePay.creditoRemoto", isAdmin),
@@ -940,25 +941,33 @@ function CreditoRemoto({ maquina }) {
   );
 }
 
-function ExtratoVendas({ maquina, verValores, podeDevolver }) {
+// Quem não é ADMIN só vê as vendas de hoje e dos últimos dias (o servidor também limita)
+const DIAS_VENDAS_NAO_ADMIN = 3;
+
+function ExtratoVendas({ maquina, verValores, podeDevolver, isAdmin }) {
   const hoje = dataBrasil();
-  const [periodo, setPeriodo] = useState({ inicio: hoje, fim: hoje });
-  const [consulta, setConsulta] = useState(null);
-  const [versao, setVersao] = useState(0);
+  const dataMinima = isAdmin ? undefined : somarDias(hoje, -DIAS_VENDAS_NAO_ADMIN);
+  // Abre já com o extrato: 30 dias para o ADMIN (como o painel), últimos dias para os demais
+  const periodoPadrao = { inicio: isAdmin ? somarDias(hoje, -29) : dataMinima, fim: hoje };
+  const [periodo, setPeriodo] = useState(periodoPadrao);
+  const [consulta, setConsulta] = useState({ ...periodoPadrao, versao: 0 });
   const [devolvendo, setDevolvendo] = useState(null);
   const [aviso, setAviso] = useState(null);
 
-  const { dados, loading, erro } = useConsulta(
-    consulta ? `/machine-pay/monitor/maquinas/${maquina.posId}/vendas` : null,
-    consulta ? { dataInicio: consulta.inicio, dataFim: consulta.fim, _v: versao || undefined } : null,
-  );
+  const { dados, loading, erro } = useConsulta(`/machine-pay/monitor/maquinas/${maquina.posId}/vendas`, {
+    dataInicio: consulta.inicio,
+    dataFim: consulta.fim,
+    _v: consulta.versao || undefined,
+  });
   const vendas = dados?.vendas || [];
+
+  const buscar = () => setConsulta((c) => ({ ...periodo, versao: c.versao + 1 }));
 
   const devolver = async (venda) => {
     const confirmacao = await Swal.fire({
       icon: "warning",
       title: "Devolver este pagamento?",
-      html: `${venda.tipo || "Pagamento"} de ${venda.data} ${venda.hora}${
+      html: `${venda.tipo} de ${formatarDataHora(venda.data)}${
         verValores && venda.valor !== undefined ? ` — <b>${formatarMoeda(venda.valor)}</b>` : ""
       }<br/>O valor é estornado para quem pagou.`,
       showCancelButton: true,
@@ -971,13 +980,13 @@ function ExtratoVendas({ maquina, verValores, podeDevolver }) {
     setDevolvendo(venda.idwebhook);
     setAviso(null);
     try {
-      await api.post(`/machine-pay/monitor/maquinas/${maquina.posId}/devolucao`, {
+      const res = await api.post(`/machine-pay/monitor/maquinas/${maquina.posId}/devolucao`, {
         idwebhook: venda.idwebhook,
         dataInicio: consulta.inicio,
         dataFim: consulta.fim,
       });
-      setAviso({ type: "success", message: "Devolução solicitada na Machine Pay." });
-      setVersao((v) => v + 1);
+      setAviso({ type: "success", message: res.data.mensagem || "Devolução solicitada na Machine Pay." });
+      setConsulta((c) => ({ ...c, versao: c.versao + 1 }));
     } catch (error) {
       setAviso({ type: "error", message: mensagemErro(error, "Erro ao solicitar devolução") });
     } finally {
@@ -987,101 +996,98 @@ function ExtratoVendas({ maquina, verValores, podeDevolver }) {
 
   return (
     <div className="rounded-xl border border-gray-200 p-4">
-      <h4 className="mb-1 font-bold text-gray-900">🧾 Últimas vendas (extrato)</h4>
-      <p className="mb-3 text-xs text-gray-500">Pagamentos desta máquina no período, direto do painel Machine Pay.</p>
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        {[
-          ["Hoje", hoje, hoje],
-          ["Ontem", somarDias(hoje, -1), somarDias(hoje, -1)],
-          ["7 dias", somarDias(hoje, -6), hoje],
-        ].map(([label, inicio, fim]) => (
-          <button
-            key={label}
-            type="button"
-            onClick={() => setPeriodo({ inicio, fim })}
-            className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
-              periodo.inicio === inicio && periodo.fim === fim
-                ? "border-[#2457B1] bg-[#2457B1] text-white"
-                : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-        <input
-          type="date"
-          className="input-field w-auto py-1.5 text-sm"
-          value={periodo.inicio}
-          max={periodo.fim}
-          onChange={(e) => e.target.value && setPeriodo((p) => ({ ...p, inicio: e.target.value }))}
-        />
-        <span className="text-gray-400">até</span>
-        <input
-          type="date"
-          className="input-field w-auto py-1.5 text-sm"
-          value={periodo.fim}
-          min={periodo.inicio}
-          max={hoje}
-          onChange={(e) => e.target.value && setPeriodo((p) => ({ ...p, fim: e.target.value }))}
-        />
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={() => {
-            setConsulta({ ...periodo });
-            setVersao((v) => v + 1);
-          }}
-        >
-          Buscar vendas
+      <h4 className="mb-1 font-bold text-gray-900">🧾 Extrato de vendas</h4>
+      <p className="mb-3 text-xs text-gray-500">
+        Pagamentos desta máquina no painel Machine Pay.
+        {!isAdmin && ` Você pode consultar até ${DIAS_VENDAS_NAO_ADMIN} dias atrás.`}
+      </p>
+      <form
+        className="mb-3 flex flex-wrap items-end gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          buscar();
+        }}
+      >
+        <label className="flex flex-col text-xs font-semibold text-gray-600">
+          Data inicial
+          <input
+            type="date"
+            className="input-field w-auto py-1.5 text-sm"
+            value={periodo.inicio}
+            min={dataMinima}
+            max={periodo.fim}
+            onChange={(e) => e.target.value && setPeriodo((p) => ({ ...p, inicio: e.target.value }))}
+          />
+        </label>
+        <label className="flex flex-col text-xs font-semibold text-gray-600">
+          Data final
+          <input
+            type="date"
+            className="input-field w-auto py-1.5 text-sm"
+            value={periodo.fim}
+            min={periodo.inicio}
+            max={hoje}
+            onChange={(e) => e.target.value && setPeriodo((p) => ({ ...p, fim: e.target.value }))}
+          />
+        </label>
+        <button type="submit" className="btn-primary px-3 py-2" title="Buscar vendas do período" disabled={loading}>
+          🔍
         </button>
-      </div>
+      </form>
 
       {aviso && <AlertBox type={aviso.type} message={aviso.message} onClose={() => setAviso(null)} />}
       {erro && <AlertBox type="error" message={erro} />}
-      {!consulta ? (
-        <p className="text-sm text-gray-500">Escolha o período e clique em Buscar vendas.</p>
-      ) : loading ? (
+      {loading ? (
         <LoadingSpinner message="Consultando o painel..." />
       ) : vendas.length === 0 ? (
         <p className="text-sm text-gray-500">Nenhuma venda encontrada neste período.</p>
       ) : (
-        <div className="max-h-80 overflow-y-auto rounded-lg border">
-          <table className="min-w-full text-sm">
-            <thead className="sticky top-0 bg-gray-50">
-              <tr className="border-b text-left text-xs uppercase text-gray-500">
-                <th className="px-3 py-2">Data</th>
-                <th className="px-3 py-2">Tipo</th>
-                {verValores && <th className="px-3 py-2 text-right">Valor</th>}
-                <th className="px-3 py-2 text-right"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {vendas.map((v, i) => (
-                <tr key={v.idwebhook || i} className={`border-b ${v.devolvido ? "bg-gray-50 text-gray-400" : ""}`}>
-                  <td className="whitespace-nowrap px-3 py-2">{v.data} {v.hora}</td>
-                  <td className="px-3 py-2">{v.tipo || "-"}</td>
-                  {verValores && (
-                    <td className="whitespace-nowrap px-3 py-2 text-right font-semibold">{formatarMoeda(v.valor)}</td>
-                  )}
-                  <td className="whitespace-nowrap px-3 py-2 text-right">
-                    {v.devolvido ? (
-                      <Pill className="border-gray-300 bg-gray-100 text-gray-600">Devolvido</Pill>
-                    ) : podeDevolver && v.podeDevolver ? (
-                      <button
-                        type="button"
-                        className="text-sm font-semibold text-red-600 hover:underline disabled:opacity-50"
-                        onClick={() => devolver(v)}
-                        disabled={Boolean(devolvendo)}
-                      >
-                        {devolvendo === v.idwebhook ? "Devolvendo..." : "↩️ Devolver"}
-                      </button>
-                    ) : null}
-                  </td>
+        <>
+          <p className="mb-2 text-xs text-gray-500">
+            {vendas.length} venda{vendas.length === 1 ? "" : "s"}
+            {verValores &&
+              ` · ${formatarMoeda(vendas.filter((v) => !v.devolvido).reduce((soma, v) => soma + Number(v.valor || 0), 0))}`}
+          </p>
+          <div className="max-h-80 overflow-y-auto rounded-lg border">
+            <table className="min-w-full text-sm">
+              <thead className="sticky top-0 bg-gray-50">
+                <tr className="border-b text-left text-xs uppercase text-gray-500">
+                  <th className="px-3 py-2">Data</th>
+                  <th className="px-3 py-2">Método</th>
+                  <th className="px-3 py-2">Situação</th>
+                  {verValores && <th className="px-3 py-2 text-right">Valor</th>}
+                  <th className="px-3 py-2 text-right"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {vendas.map((v, i) => (
+                  <tr key={v.idwebhook || i} className={`border-b ${v.devolvido ? "bg-gray-50 text-gray-400" : ""}`}>
+                    <td className="whitespace-nowrap px-3 py-2">{formatarDataHora(v.data)}</td>
+                    <td className="px-3 py-2">{v.tipo}</td>
+                    <td className="px-3 py-2 text-xs">{v.status}</td>
+                    {verValores && (
+                      <td className="whitespace-nowrap px-3 py-2 text-right font-semibold">{formatarMoeda(v.valor)}</td>
+                    )}
+                    <td className="whitespace-nowrap px-3 py-2 text-right">
+                      {v.devolvido ? (
+                        <Pill className="border-gray-300 bg-gray-100 text-gray-600">Devolvido</Pill>
+                      ) : podeDevolver && v.podeDevolver ? (
+                        <button
+                          type="button"
+                          className="text-sm font-semibold text-red-600 hover:underline disabled:opacity-50"
+                          onClick={() => devolver(v)}
+                          disabled={Boolean(devolvendo)}
+                        >
+                          {devolvendo === v.idwebhook ? "Devolvendo..." : "↩️ Devolver"}
+                        </button>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );
@@ -1097,6 +1103,7 @@ function AcoesMaquina({ maquina, permissoes }) {
             maquina={maquina}
             verValores={permissoes.verValores}
             podeDevolver={permissoes.podeDevolver}
+            isAdmin={permissoes.isAdmin}
           />
         </div>
       )}
