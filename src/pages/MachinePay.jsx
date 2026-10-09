@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Bar,
   BarChart,
@@ -1112,12 +1113,128 @@ function AcoesMaquina({ maquina, permissoes }) {
 }
 
 // ---------------------------------------------------------------------------
+// Nova manutenção para a máquina aberta (vai para a aba Manutenções)
+// ---------------------------------------------------------------------------
+
+function NovaManutencaoMaquina({ maquina, onFechar }) {
+  const vinculo = maquina.vinculo;
+  const [descricao, setDescricao] = useState("");
+  const [urgente, setUrgente] = useState(false);
+  const [funcionarioId, setFuncionarioId] = useState("");
+  const [funcionarios, setFuncionarios] = useState([]);
+  const [salvando, setSalvando] = useState(false);
+  const [aviso, setAviso] = useState(null);
+
+  useEffect(() => {
+    api
+      .get("/usuarios/funcionarios")
+      .then((res) => setFuncionarios(res.data || []))
+      .catch(() => setFuncionarios([]));
+  }, []);
+
+  const salvar = async () => {
+    if (!descricao.trim()) {
+      setAviso({ type: "error", message: "Descreva o problema da máquina." });
+      return;
+    }
+    setSalvando(true);
+    setAviso(null);
+    try {
+      await api.post("/manutencoes", {
+        maquinaId: vinculo.maquinaId,
+        lojaId: vinculo.lojaId,
+        roteiroId: null,
+        descricao: descricao.trim(),
+        funcionarioId: funcionarioId || null,
+        status: urgente ? "urgente" : "pendente",
+      });
+      setAviso({ type: "success", message: "Manutenção criada. Ela já aparece na aba Manutenções." });
+      setDescricao("");
+      setUrgente(false);
+      setFuncionarioId("");
+    } catch (error) {
+      setAviso({ type: "error", message: mensagemErro(error, "Erro ao criar manutenção") });
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border-2 border-[#2457B1]/30 bg-[#2457B1]/5 p-4">
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <div>
+          <h4 className="font-bold text-gray-900">🛠️ Nova manutenção</h4>
+          <p className="text-xs text-gray-600">
+            Máquina {vinculo.codigo || vinculo.nome}
+            {vinculo.lojaNome ? ` · ${vinculo.lojaNome}` : ""}
+          </p>
+        </div>
+        <button type="button" onClick={onFechar} className="text-sm text-gray-500 hover:text-gray-700">
+          Fechar
+        </button>
+      </div>
+      {aviso && (
+        <AlertBox
+          type={aviso.type}
+          message={
+            aviso.type === "success" ? (
+              <>
+                {aviso.message}{" "}
+                <Link to="/manutencoes" className="font-semibold underline">
+                  Ver manutenções
+                </Link>
+              </>
+            ) : (
+              aviso.message
+            )
+          }
+          onClose={() => setAviso(null)}
+        />
+      )}
+      <div className="space-y-3">
+        <textarea
+          className="input-field w-full"
+          rows={3}
+          placeholder="Descreva o problema (ex: leitor não liga, garra fraca...)"
+          value={descricao}
+          onChange={(e) => setDescricao(e.target.value)}
+        />
+        <div className="flex flex-wrap items-center gap-3">
+          <select
+            className="input-field w-auto"
+            value={funcionarioId}
+            onChange={(e) => setFuncionarioId(e.target.value)}
+          >
+            <option value="">Sem funcionário atribuído</option>
+            {funcionarios.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.nome}
+              </option>
+            ))}
+          </select>
+          <label className="flex items-center gap-2 text-sm font-semibold text-red-700">
+            <input type="checkbox" checked={urgente} onChange={(e) => setUrgente(e.target.checked)} />
+            Urgente
+          </label>
+          <button type="button" onClick={salvar} className="btn-primary ml-auto" disabled={salvando}>
+            {salvando ? "Salvando..." : "Criar manutenção"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Modal: detalhe de uma máquina
 // ---------------------------------------------------------------------------
 
 function DetalheMaquina({ posId, onClose }) {
   const [dias, setDias] = useState(30);
   const permissoes = usePermissoesMachinePay();
+  const { pode } = useAuth();
+  const podeCriarManutencao = pode("manutencoes", true);
+  const [novaManutencaoAberta, setNovaManutencaoAberta] = useState(false);
   const fim = dataBrasil();
   const { dados, loading, erro } = useConsulta(
     posId ? `/machine-pay/monitor/maquinas/${posId}` : null,
@@ -1128,13 +1245,37 @@ function DetalheMaquina({ posId, onClose }) {
   const est = dados?.estatisticas;
   const serie = (dados?.dias || []).map((d) => ({ ...d, dia: formatarDataCurta(d.data) }));
 
+  const titulo = (
+    <span className="flex flex-wrap items-center gap-3">
+      <span>{dados?.nomePonto || "Máquina"}</span>
+      {podeCriarManutencao && m && (
+        <button
+          type="button"
+          onClick={() => setNovaManutencaoAberta(true)}
+          disabled={!m.vinculo}
+          title={
+            m.vinculo
+              ? "Criar manutenção para esta máquina"
+              : "Este leitor não está vinculado a uma máquina do sistema (cadastre o posId na máquina)"
+          }
+          className="btn-primary px-3 py-1.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          ➕ Adicionar manutenção
+        </button>
+      )}
+    </span>
+  );
+
   return (
-    <Modal isOpen={Boolean(posId)} onClose={onClose} title={dados?.nomePonto || "Máquina"} size="xl">
+    <Modal isOpen={Boolean(posId)} onClose={onClose} title={titulo} size="xl">
       {erro && <AlertBox type="error" message={erro} />}
       {loading && !dados ? (
         <LoadingSpinner />
       ) : dados ? (
         <div className="max-h-[75vh] space-y-5 overflow-y-auto pr-1">
+          {novaManutencaoAberta && m?.vinculo && (
+            <NovaManutencaoMaquina maquina={m} onFechar={() => setNovaManutencaoAberta(false)} />
+          )}
           {m ? (
             <div className="flex flex-wrap items-center gap-2">
               <StatusPill online={m.online} />
@@ -1295,6 +1436,7 @@ const ABAS = [
 export function MachinePay() {
   const hoje = dataBrasil();
   const { verValores } = usePermissoesMachinePay();
+  const { pode } = useAuth();
   const [aba, setAba] = useState("maquinas");
   const [statusMaquinas, setStatusMaquinas] = useState("offline");
   const [comQuedaMaquinas, setComQuedaMaquinas] = useState(false);
@@ -1406,14 +1548,21 @@ export function MachinePay() {
           icon="📡"
           action={
             <div className="flex flex-col items-stretch gap-1 sm:items-end">
-              <button
-                onClick={coletarAgora}
-                disabled={coletando}
-                className="btn-primary flex items-center justify-center gap-2 disabled:opacity-70"
-              >
-                <span className={coletando ? "animate-spin" : ""}>🔄</span>
-                {coletando ? "Lendo o painel..." : "Atualizar agora"}
-              </button>
+              <div className="flex flex-wrap items-stretch gap-2 sm:justify-end">
+                {pode("manutencoes", true) && (
+                  <Link to="/manutencoes" className="btn-secondary flex items-center justify-center gap-2">
+                    🛠️ Manutenções
+                  </Link>
+                )}
+                <button
+                  onClick={coletarAgora}
+                  disabled={coletando}
+                  className="btn-primary flex items-center justify-center gap-2 disabled:opacity-70"
+                >
+                  <span className={coletando ? "animate-spin" : ""}>🔄</span>
+                  {coletando ? "Lendo o painel..." : "Atualizar agora"}
+                </button>
+              </div>
               <span className={`text-xs ${coletaAtrasada ? "font-semibold text-red-600" : "text-gray-500"}`}>
                 {monitor?.ultimaColeta
                   ? `Última leitura do painel: há ${tempoDesde(monitor.ultimaColeta)}`
