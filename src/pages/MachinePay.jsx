@@ -1116,7 +1116,7 @@ function AcoesMaquina({ maquina, permissoes }) {
 // Nova manutenção para a máquina aberta (vai para a aba Manutenções)
 // ---------------------------------------------------------------------------
 
-function NovaManutencaoMaquina({ maquina, onFechar }) {
+function NovaManutencaoMaquina({ maquina, onFechar, onCriada }) {
   const vinculo = maquina.vinculo;
   const [descricao, setDescricao] = useState("");
   const [urgente, setUrgente] = useState(false);
@@ -1149,6 +1149,7 @@ function NovaManutencaoMaquina({ maquina, onFechar }) {
         status: urgente ? "urgente" : "pendente",
       });
       setAviso({ type: "success", message: "Manutenção criada. Ela já aparece na aba Manutenções." });
+      onCriada?.();
       setDescricao("");
       setUrgente(false);
       setFuncionarioId("");
@@ -1226,6 +1227,83 @@ function NovaManutencaoMaquina({ maquina, onFechar }) {
 }
 
 // ---------------------------------------------------------------------------
+// Recorrência de manutenções da máquina (últimos 30 dias)
+// ---------------------------------------------------------------------------
+
+const DIAS_RECORRENCIA = 30;
+const LIMITE_RECORRENCIA_ALTA = 10;
+
+const manutencaoConcluida = (status) => /feit|conclu/i.test(String(status || ""));
+
+// Verde: nenhuma nos últimos 30 dias · Amarelo: até 10 · Vermelho: mais de 10
+const nivelRecorrencia = (qtd) => {
+  if (qtd === 0) return { classe: "bg-green-600 hover:bg-green-700", label: "Sem recorrência" };
+  if (qtd <= LIMITE_RECORRENCIA_ALTA) return { classe: "bg-yellow-500 hover:bg-yellow-600", label: "Atenção" };
+  return { classe: "bg-red-600 hover:bg-red-700", label: "Recorrência alta" };
+};
+
+const manutencoesRecentes = (lista) => {
+  const inicio = Date.now() - DIAS_RECORRENCIA * 24 * 60 * 60 * 1000;
+  return lista.filter((m) => new Date(m.createdAt).getTime() >= inicio);
+};
+
+function HistoricoManutencoesMaquina({ manutencoes, onFechar }) {
+  const recentes = manutencoesRecentes(manutencoes);
+  const nivel = nivelRecorrencia(recentes.length);
+
+  return (
+    <div className="rounded-xl border border-gray-200 p-4">
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <div>
+          <h4 className="font-bold text-gray-900">🔁 Histórico de manutenções</h4>
+          <p className="text-xs text-gray-600">
+            <b>{recentes.length}</b> nos últimos {DIAS_RECORRENCIA} dias ({nivel.label.toLowerCase()}) ·{" "}
+            {manutencoes.length} no total
+          </p>
+        </div>
+        <button type="button" onClick={onFechar} className="text-sm text-gray-500 hover:text-gray-700">
+          Fechar
+        </button>
+      </div>
+      {manutencoes.length === 0 ? (
+        <p className="text-sm text-gray-500">Nenhuma manutenção registrada para esta máquina.</p>
+      ) : (
+        <ul className="max-h-72 divide-y overflow-y-auto rounded-lg border">
+          {manutencoes.map((m) => {
+            const recente = recentes.includes(m);
+            return (
+              <li
+                key={m.id}
+                className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm ${
+                  recente ? "" : "bg-gray-50 text-gray-500"
+                }`}
+              >
+                <span className="min-w-0 flex-1">{m.descricao}</span>
+                <span className="flex items-center gap-3 text-xs">
+                  <span className="whitespace-nowrap">{formatarDataHora(m.createdAt)}</span>
+                  <span>{m.funcionario?.nome || "-"}</span>
+                  <Pill
+                    className={
+                      manutencaoConcluida(m.status)
+                        ? "border-green-300 bg-green-100 text-green-800"
+                        : /urgente/i.test(m.status)
+                          ? "border-red-300 bg-red-100 text-red-800"
+                          : "border-yellow-300 bg-yellow-100 text-yellow-800"
+                    }
+                  >
+                    {m.status}
+                  </Pill>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Modal: detalhe de uma máquina
 // ---------------------------------------------------------------------------
 
@@ -1235,6 +1313,8 @@ function DetalheMaquina({ posId, onClose }) {
   const { pode } = useAuth();
   const podeCriarManutencao = pode("manutencoes", true);
   const [novaManutencaoAberta, setNovaManutencaoAberta] = useState(false);
+  const [historicoAberto, setHistoricoAberto] = useState(false);
+  const [versaoManutencoes, setVersaoManutencoes] = useState(0);
   const fim = dataBrasil();
   const { dados, loading, erro } = useConsulta(
     posId ? `/machine-pay/monitor/maquinas/${posId}` : null,
@@ -1244,6 +1324,19 @@ function DetalheMaquina({ posId, onClose }) {
   const m = dados?.maquina;
   const est = dados?.estatisticas;
   const serie = (dados?.dias || []).map((d) => ({ ...d, dia: formatarDataCurta(d.data) }));
+
+  // Histórico de manutenções da máquina do sistema vinculada ao leitor
+  const maquinaSistemaId = podeCriarManutencao ? m?.vinculo?.maquinaId : null;
+  const { dados: manutencoesResposta } = useConsulta(maquinaSistemaId ? "/manutencoes" : null, {
+    maquinaId: maquinaSistemaId,
+    _v: versaoManutencoes || undefined,
+  });
+  // Filtra também aqui, caso o servidor ainda não aplique ?maquinaId=
+  const manutencoesMaquina = manutencoesResposta
+    ? manutencoesResposta.filter((mt) => (mt.maquinaId || mt.maquina?.id) === maquinaSistemaId)
+    : null;
+  const qtdRecentes = manutencoesMaquina ? manutencoesRecentes(manutencoesMaquina).length : null;
+  const nivel = qtdRecentes === null ? null : nivelRecorrencia(qtdRecentes);
 
   const titulo = (
     <span className="flex flex-wrap items-center gap-3">
@@ -1263,6 +1356,25 @@ function DetalheMaquina({ posId, onClose }) {
           ➕ Adicionar manutenção
         </button>
       )}
+      {podeCriarManutencao && m && (
+        <button
+          type="button"
+          onClick={() => setHistoricoAberto((aberto) => !aberto)}
+          disabled={!m.vinculo || !nivel}
+          title={
+            !m.vinculo
+              ? "Este leitor não está vinculado a uma máquina do sistema"
+              : nivel
+                ? `${qtdRecentes} manutenção(ões) nos últimos ${DIAS_RECORRENCIA} dias`
+                : "Carregando manutenções..."
+          }
+          className={`rounded-lg px-3 py-1.5 text-sm font-semibold text-white shadow transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+            nivel ? nivel.classe : "bg-gray-400"
+          }`}
+        >
+          🔁 Ver recorrência{qtdRecentes !== null ? ` (${qtdRecentes})` : ""}
+        </button>
+      )}
     </span>
   );
 
@@ -1274,7 +1386,17 @@ function DetalheMaquina({ posId, onClose }) {
       ) : dados ? (
         <div className="max-h-[75vh] space-y-5 overflow-y-auto pr-1">
           {novaManutencaoAberta && m?.vinculo && (
-            <NovaManutencaoMaquina maquina={m} onFechar={() => setNovaManutencaoAberta(false)} />
+            <NovaManutencaoMaquina
+              maquina={m}
+              onFechar={() => setNovaManutencaoAberta(false)}
+              onCriada={() => setVersaoManutencoes((v) => v + 1)}
+            />
+          )}
+          {historicoAberto && manutencoesMaquina && (
+            <HistoricoManutencoesMaquina
+              manutencoes={manutencoesMaquina}
+              onFechar={() => setHistoricoAberto(false)}
+            />
           )}
           {m ? (
             <div className="flex flex-wrap items-center gap-2">
