@@ -226,6 +226,10 @@ function Manutencoes() {
 
   // Abas de filtro: pendentes/urgentes
   const [abaManutencao, setAbaManutencao] = useState("pendentes");
+  // Aba de recorrência: máquinas com várias manutenções num período curto
+  const [periodoRecorrencia, setPeriodoRecorrencia] = useState(30);
+  const [minimoRecorrencia, setMinimoRecorrencia] = useState(3);
+  const [recorrenciaAberta, setRecorrenciaAberta] = useState(null);
 
   // Reinicia a paginação de "feitas" sempre que os filtros mudam
   useEffect(() => {
@@ -328,6 +332,36 @@ function Manutencoes() {
       });
   }
 
+  // RECORRÊNCIA: máquinas com `minimoRecorrencia`+ manutenções nos últimos `periodoRecorrencia` dias
+  const recorrencias = (() => {
+    if (!podeVerTodas) return [];
+    const inicioPeriodo = new Date(Date.now() - periodoRecorrencia * 24 * 60 * 60 * 1000);
+    const porMaquina = {};
+    manutencoes.forEach(m => {
+      if (!m.maquina?.id) return;
+      if (filtroLoja && m.loja?.nome !== filtroLoja) return;
+      if (new Date(m.createdAt) < inicioPeriodo) return;
+      if (!porMaquina[m.maquina.id]) porMaquina[m.maquina.id] = [];
+      porMaquina[m.maquina.id].push(m);
+    });
+    return Object.entries(porMaquina)
+      .filter(([, lista]) => lista.length >= minimoRecorrencia)
+      .map(([maquinaId, lista]) => {
+        lista.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        return {
+          maquinaId,
+          maquina: lista[0].maquina,
+          loja: lista[0].loja,
+          manutencoes: lista,
+          pendentes: lista.filter(m => !isConcluida(m.status)).length,
+          ultima: lista[0].createdAt,
+          // Dobro do mínimo ou mais = crítico
+          critico: lista.length >= minimoRecorrencia * 2,
+        };
+      })
+      .sort((a, b) => b.manutencoes.length - a.manutencoes.length || new Date(b.ultima) - new Date(a.ultima));
+  })();
+
   return (
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
       <Navbar />
@@ -360,11 +394,46 @@ function Manutencoes() {
               onClick={() => setAbaManutencao("urgentes")}
               type="button"
             >Urgentes</button>
+            {podeVerTodas && (
+              <button
+                className={`btn-secondary ${abaManutencao === "recorrencia" ? "bg-orange-500 text-white" : "bg-gray-200"}`}
+                onClick={() => setAbaManutencao("recorrencia")}
+                type="button"
+              >
+                🔁 Recorrência
+                {recorrencias.length > 0 && (
+                  <span className="ml-2 inline-flex items-center justify-center rounded-full bg-orange-600 text-white text-xs font-bold px-2 py-0.5">
+                    {recorrencias.length}
+                  </span>
+                )}
+              </button>
+            )}
           </div>
           <select className="input-field" value={filtroLoja} onChange={e => setFiltroLoja(e.target.value)}>
             <option value="">Todas as lojas</option>
             {lojas.map(loja => <option key={loja} value={loja}>{loja}</option>)}
           </select>
+          {abaManutencao === "recorrencia" ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="text-sm text-gray-500">Período</label>
+              <select
+                className="input-field"
+                value={periodoRecorrencia}
+                onChange={e => setPeriodoRecorrencia(Number(e.target.value))}
+              >
+                {[7, 15, 30, 60, 90].map(d => <option key={d} value={d}>Últimos {d} dias</option>)}
+              </select>
+              <label className="text-sm text-gray-500">Mínimo</label>
+              <select
+                className="input-field"
+                value={minimoRecorrencia}
+                onChange={e => setMinimoRecorrencia(Number(e.target.value))}
+              >
+                {[2, 3, 4, 5, 6, 8, 10].map(n => <option key={n} value={n}>{n} manutenções</option>)}
+              </select>
+            </div>
+          ) : (
+          <>
           <select className="input-field" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
             <option value="">Todos os status</option>
             {statusList.map(status => <option key={status} value={status}>{status}</option>)}
@@ -396,6 +465,8 @@ function Manutencoes() {
               </button>
             )}
           </div>
+          </>
+          )}
         </div>
         {showNovaManutencao && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
@@ -477,7 +548,82 @@ function Manutencoes() {
             </form>
           </div>
         )}
-        {loading ? <PageLoader /> : (
+        {loading ? <PageLoader /> : abaManutencao === "recorrencia" ? (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600">
+              Máquinas com {minimoRecorrencia} ou mais manutenções nos últimos {periodoRecorrencia} dias
+              {filtroLoja ? ` na loja ${filtroLoja}` : ""}. Clique para ver o histórico.
+            </p>
+            {recorrencias.length === 0 && (
+              <div className="bg-white rounded-lg shadow text-center text-gray-400 py-8">
+                Nenhuma máquina com manutenções recorrentes neste período
+              </div>
+            )}
+            {recorrencias.map(r => {
+              const aberta = recorrenciaAberta === r.maquinaId;
+              return (
+                <div
+                  key={r.maquinaId}
+                  className={`bg-white rounded-lg shadow border-l-4 ${r.critico ? "border-red-500" : "border-orange-400"}`}
+                >
+                  <button
+                    type="button"
+                    className="w-full text-left p-4 flex flex-wrap items-center justify-between gap-3 hover:bg-orange-50 rounded-lg"
+                    onClick={() => setRecorrenciaAberta(aberta ? null : r.maquinaId)}
+                  >
+                    <div className="min-w-0">
+                      <div className="font-bold text-gray-900 flex items-center gap-2">
+                        {r.critico ? "🚨" : "⚠️"} {r.maquina?.nome || "Máquina sem nome"}
+                        {r.critico && (
+                          <span className="text-xs font-semibold bg-red-100 text-red-700 rounded-full px-2 py-0.5">Crítico</span>
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {formatLojaNome(r.loja)}{formatLojaEnderecoSuffix(r.loja)}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 text-sm">
+                      <div className="text-center">
+                        <div className={`text-2xl font-bold ${r.critico ? "text-red-600" : "text-orange-600"}`}>
+                          {r.manutencoes.length}
+                        </div>
+                        <div className="text-xs text-gray-500">em {periodoRecorrencia} dias</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-gray-700">{r.pendentes}</div>
+                        <div className="text-xs text-gray-500">pendente(s)</div>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Última: {new Date(r.ultima).toLocaleDateString("pt-BR")}
+                      </div>
+                      <span className="text-gray-400">{aberta ? "▲" : "▼"}</span>
+                    </div>
+                  </button>
+                  {aberta && (
+                    <ul className="border-t divide-y divide-gray-100">
+                      {r.manutencoes.map(m => (
+                        <li
+                          key={m.id}
+                          className="px-4 py-2 flex flex-wrap justify-between gap-2 text-sm cursor-pointer hover:bg-blue-50"
+                          onClick={() => setDetalhe(m)}
+                        >
+                          <span className="text-gray-900">{m.descricao}</span>
+                          <span className="flex gap-3 text-gray-500">
+                            <span>{new Date(m.createdAt).toLocaleString("pt-BR")}</span>
+                            <span>{m.funcionario?.nome || "-"}</span>
+                            <span className={`font-semibold ${isConcluida(m.status) ? "text-green-700" : isUrgente(m.status) ? "text-red-600" : "text-gray-700"}`}>
+                              {m.status}
+                            </span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
           <div className="overflow-x-auto bg-white rounded-lg shadow">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
