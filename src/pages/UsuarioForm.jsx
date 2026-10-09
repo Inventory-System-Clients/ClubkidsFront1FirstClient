@@ -152,14 +152,6 @@ export function UsuarioForm() {
       return;
     }
 
-    if (
-      formData.role === "FUNCIONARIO" &&
-      formData.lojasPermitidas.length === 0
-    ) {
-      setError("Funcionários devem ter acesso a pelo menos uma loja");
-      return;
-    }
-
     const usaPersonalizado =
       formData.role !== "ADMIN" && formData.personalizado;
 
@@ -368,7 +360,7 @@ export function UsuarioForm() {
             {formData.role === "FUNCIONARIO" && (
               <div>
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                  Lojas Autorizadas *
+                  Lojas Autorizadas
                 </h2>
 
                 <div className="space-y-2 max-h-64 overflow-y-auto border border-gray-300 rounded-lg p-4">

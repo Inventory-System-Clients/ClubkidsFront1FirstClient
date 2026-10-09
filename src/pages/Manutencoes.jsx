@@ -88,7 +88,7 @@ function Manutencoes() {
         setLoading(false);
       }
     }
-  const { usuario, pode } = useAuth();
+  const { usuario, pode, temPermissoesPersonalizadas } = useAuth();
   // ...existing code...
   const [funcionarios, setFuncionarios] = useState([]);
   const [editando, setEditando] = useState(false);
@@ -232,11 +232,13 @@ function Manutencoes() {
     setLimiteFeitas(LIMITE_FEITAS_INICIAL);
   }, [filtroLoja, filtroStatus, filtroDataInicio, filtroDataFim, abaManutencao]);
 
-  // Se não puder gerenciar, mostrar apenas manutenções atribuídas ao usuário logado
   const podeGerenciar = pode("manutencoes.gerenciar", usuario?.role === "ADMIN");
   const podeAtualizar = pode("manutencoes.atualizar", true);
+  // Usuário personalizado com a aba liberada vê todas, mesmo sendo FUNCIONARIO.
+  // Os demais sem "gerenciar" veem apenas as atribuídas a eles.
+  const podeVerTodas = podeGerenciar || temPermissoesPersonalizadas;
   let filtradas = manutencoes.filter(m => {
-    if (!podeGerenciar) {
+    if (!podeVerTodas) {
       // Funcionário só vê as suas e apenas as que não estão feitas
       if (m.funcionarioId !== usuario?.id) return false;
       if (isConcluida(m.status)) return false;
@@ -262,7 +264,7 @@ function Manutencoes() {
   // Para admin, limitar as manutenções feitas exibidas (com botão "mostrar mais")
   let totalFeitas = 0;
   let temMaisFeitas = false;
-  if (podeGerenciar && (!filtroStatus || isConcluida(filtroStatus))) {
+  if (podeVerTodas && (!filtroStatus || isConcluida(filtroStatus))) {
     const feitas = filtradas.filter(m => isConcluida(m.status));
     const outras = filtradas.filter(m => !isConcluida(m.status));
     // Ordenar por data decrescente
@@ -497,7 +499,7 @@ function Manutencoes() {
                     className={
                       `hover:bg-blue-50 cursor-pointer` +
                       (isUrgente(m.status) ? " bg-red-100 border-l-4 border-red-500 animate-pulse" : "") +
-                      (podeGerenciar && isConcluida(m.status) ? " bg-green-100" : "")
+                      (podeVerTodas && isConcluida(m.status) ? " bg-green-100" : "")
                     }
                     onClick={() => setDetalhe(m)}
                   >
