@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import api from "../services/api";
 import { AlertBox, PageHeader } from "../components/UIComponents";
 import { PageLoader } from "../components/Loading";
@@ -366,7 +367,18 @@ function Manutencoes() {
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <PageHeader title="Manutenções" subtitle="Acompanhe todas as manutenções registradas" icon="🛠️" />
+        <PageHeader
+          title="Manutenções"
+          subtitle="Acompanhe todas as manutenções registradas"
+          icon="🛠️"
+          action={
+            pode("machinePay", usuario?.role === "ADMIN" || usuario?.role === "FINANCEIRO") ? (
+              <Link to="/machine-pay" className="btn-secondary flex items-center gap-2">
+                📡 Machine Pay
+              </Link>
+            ) : null
+          }
+        />
         {podeGerenciar && (
           <div className="mb-4">
             <button className="btn-primary" onClick={() => setShowNovaManutencao(true)}>Nova Manutenção</button>
