@@ -77,7 +77,17 @@ export const CATALOGO_ABAS = [
       { chave: "financeiro.machinePay", label: "Buscar valor digital na Machine Pay" },
     ],
   },
-  { chave: "machinePay", label: "📡 Machine Pay", rota: "/machine-pay" },
+  {
+    chave: "machinePay",
+    label: "📡 Machine Pay",
+    rota: "/machine-pay",
+    funcionalidades: [
+      { chave: "machinePay.valores", label: "Ver valores em R$ (vendas hoje, acumulado e extrato)" },
+      { chave: "machinePay.extrato", label: "Ver últimas vendas (extrato) da máquina" },
+      { chave: "machinePay.creditoRemoto", label: "Enviar créditos remotos para a máquina" },
+      { chave: "machinePay.devolucao", label: "Devolver pagamentos do extrato" },
+    ],
+  },
   {
     chave: "vouchers",
     label: "🎟️ Vouchers",
@@ -120,6 +130,8 @@ export const PERMISSOES_PADRAO_POR_ROLE = {
     "financeiro",
     "financeiro.machinePay",
     "machinePay",
+    "machinePay.valores",
+    "machinePay.extrato",
     "veiculos",
   ],
 };

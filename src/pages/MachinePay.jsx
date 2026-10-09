@@ -17,6 +17,8 @@ import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { AlertBox, Modal, PageHeader } from "../components/UIComponents";
 import { LoadingSpinner } from "../components/Loading";
+import { useAuth } from "../contexts/AuthContext";
+import Swal from "sweetalert2";
 
 // ---------------------------------------------------------------------------
 // Constantes e formatação
@@ -145,6 +147,19 @@ function usePagina(chaveFiltros) {
   const page = estado.chave === chaveFiltros ? estado.page : 1;
   const setPage = (novaPagina) => setEstado({ chave: chaveFiltros, page: novaPagina });
   return [page, setPage];
+}
+
+// Sem "machinePay.valores" o servidor nem envia os campos em R$.
+function usePermissoesMachinePay() {
+  const { usuario, pode } = useAuth();
+  const isAdmin = usuario?.role === "ADMIN";
+  const adminOuFinanceiro = isAdmin || usuario?.role === "FINANCEIRO";
+  return {
+    verValores: pode("machinePay.valores", adminOuFinanceiro),
+    podeExtrato: pode("machinePay.extrato", adminOuFinanceiro),
+    podeCredito: pode("machinePay.creditoRemoto", isAdmin),
+    podeDevolver: pode("machinePay.devolucao", isAdmin),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -293,6 +308,7 @@ function AbaMaquinas({ filtrosQuery, onAbrirMaquina, status, setStatus, comQueda
   });
 
   const maquinas = dados?.maquinas || [];
+  const { verValores } = usePermissoesMachinePay();
 
   return (
     <Secao
@@ -428,8 +444,14 @@ function AbaMaquinas({ filtrosQuery, onAbrirMaquina, status, setStatus, comQueda
                     </td>
                     <td className="px-3 py-2 font-mono text-xs text-gray-600">{m.ip || "-"}</td>
                     <td className="px-3 py-2 text-right">
-                      <span className="font-semibold">{formatarMoeda(m.vendasHojeValor)}</span>
-                      <span className="block text-xs text-gray-500">{m.vendasHojeQtd} vendas</span>
+                      {verValores ? (
+                        <>
+                          <span className="font-semibold">{formatarMoeda(m.vendasHojeValor)}</span>
+                          <span className="block text-xs text-gray-500">{m.vendasHojeQtd} vendas</span>
+                        </>
+                      ) : (
+                        <span className="font-semibold">{m.vendasHojeQtd} vendas</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -834,11 +856,261 @@ function AbaAjuda() {
 }
 
 // ---------------------------------------------------------------------------
+// Ações na máquina: crédito remoto e extrato com devolução
+// ---------------------------------------------------------------------------
+
+const VALORES_RAPIDOS = [1, 2, 5, 10, 20, 50];
+
+function CreditoRemoto({ maquina }) {
+  const [valor, setValor] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [aviso, setAviso] = useState(null);
+
+  const enviar = async () => {
+    const numero = Number(String(valor).replace(",", "."));
+    if (!Number.isFinite(numero) || numero < 1) {
+      setAviso({ type: "error", message: "Informe um valor de pelo menos R$ 1,00." });
+      return;
+    }
+    const confirmacao = await Swal.fire({
+      icon: maquina.online ? "question" : "warning",
+      title: `Enviar ${formatarMoeda(numero)}?`,
+      html: `Crédito remoto para <b>${maquina.nomePonto || maquina.posId}</b>.${
+        maquina.online ? "" : "<br/><br/>⚠️ A máquina está <b>offline</b>: o crédito pode não chegar."
+      }`,
+      showCancelButton: true,
+      confirmButtonText: "Enviar crédito",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#2457B1",
+    });
+    if (!confirmacao.isConfirmed) return;
+
+    setEnviando(true);
+    setAviso(null);
+    try {
+      const res = await api.post(`/machine-pay/monitor/maquinas/${maquina.posId}/credito`, {
+        valor: numero,
+      });
+      setAviso({ type: res.data.sucesso ? "success" : "warning", message: res.data.mensagem });
+      if (res.data.sucesso) setValor("");
+    } catch (error) {
+      setAviso({ type: "error", message: mensagemErro(error, "Erro ao enviar crédito") });
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-gray-200 p-4">
+      <h4 className="mb-1 font-bold text-gray-900">🎟️ Enviar crédito remoto</h4>
+      <p className="mb-3 text-xs text-gray-500">
+        Mesmo envio dos vouchers: o valor cai direto na máquina.
+      </p>
+      {aviso && <AlertBox type={aviso.type} message={aviso.message} onClose={() => setAviso(null)} />}
+      <div className="mb-2 flex flex-wrap gap-2">
+        {VALORES_RAPIDOS.map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setValor(String(v))}
+            className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
+              Number(String(valor).replace(",", ".")) === v
+                ? "border-[#2457B1] bg-[#2457B1] text-white"
+                : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            {formatarMoeda(v)}
+          </button>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <input
+          type="text"
+          inputMode="decimal"
+          className="input-field w-40"
+          placeholder="Outro valor (R$)"
+          value={valor}
+          onChange={(e) => setValor(e.target.value.replace(/[^\d.,]/g, ""))}
+        />
+        <button type="button" className="btn-primary" onClick={enviar} disabled={enviando || !valor}>
+          {enviando ? "Enviando..." : "Enviar crédito"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ExtratoVendas({ maquina, verValores, podeDevolver }) {
+  const hoje = dataBrasil();
+  const [periodo, setPeriodo] = useState({ inicio: hoje, fim: hoje });
+  const [consulta, setConsulta] = useState(null);
+  const [versao, setVersao] = useState(0);
+  const [devolvendo, setDevolvendo] = useState(null);
+  const [aviso, setAviso] = useState(null);
+
+  const { dados, loading, erro } = useConsulta(
+    consulta ? `/machine-pay/monitor/maquinas/${maquina.posId}/vendas` : null,
+    consulta ? { dataInicio: consulta.inicio, dataFim: consulta.fim, _v: versao || undefined } : null,
+  );
+  const vendas = dados?.vendas || [];
+
+  const devolver = async (venda) => {
+    const confirmacao = await Swal.fire({
+      icon: "warning",
+      title: "Devolver este pagamento?",
+      html: `${venda.tipo || "Pagamento"} de ${venda.data} ${venda.hora}${
+        verValores && venda.valor !== undefined ? ` — <b>${formatarMoeda(venda.valor)}</b>` : ""
+      }<br/>O valor é estornado para quem pagou.`,
+      showCancelButton: true,
+      confirmButtonText: "Devolver",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#dc2626",
+    });
+    if (!confirmacao.isConfirmed) return;
+
+    setDevolvendo(venda.idwebhook);
+    setAviso(null);
+    try {
+      await api.post(`/machine-pay/monitor/maquinas/${maquina.posId}/devolucao`, {
+        idwebhook: venda.idwebhook,
+        dataInicio: consulta.inicio,
+        dataFim: consulta.fim,
+      });
+      setAviso({ type: "success", message: "Devolução solicitada na Machine Pay." });
+      setVersao((v) => v + 1);
+    } catch (error) {
+      setAviso({ type: "error", message: mensagemErro(error, "Erro ao solicitar devolução") });
+    } finally {
+      setDevolvendo(null);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-gray-200 p-4">
+      <h4 className="mb-1 font-bold text-gray-900">🧾 Últimas vendas (extrato)</h4>
+      <p className="mb-3 text-xs text-gray-500">Pagamentos desta máquina no período, direto do painel Machine Pay.</p>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        {[
+          ["Hoje", hoje, hoje],
+          ["Ontem", somarDias(hoje, -1), somarDias(hoje, -1)],
+          ["7 dias", somarDias(hoje, -6), hoje],
+        ].map(([label, inicio, fim]) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() => setPeriodo({ inicio, fim })}
+            className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
+              periodo.inicio === inicio && periodo.fim === fim
+                ? "border-[#2457B1] bg-[#2457B1] text-white"
+                : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+        <input
+          type="date"
+          className="input-field w-auto py-1.5 text-sm"
+          value={periodo.inicio}
+          max={periodo.fim}
+          onChange={(e) => e.target.value && setPeriodo((p) => ({ ...p, inicio: e.target.value }))}
+        />
+        <span className="text-gray-400">até</span>
+        <input
+          type="date"
+          className="input-field w-auto py-1.5 text-sm"
+          value={periodo.fim}
+          min={periodo.inicio}
+          max={hoje}
+          onChange={(e) => e.target.value && setPeriodo((p) => ({ ...p, fim: e.target.value }))}
+        />
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => {
+            setConsulta({ ...periodo });
+            setVersao((v) => v + 1);
+          }}
+        >
+          Buscar vendas
+        </button>
+      </div>
+
+      {aviso && <AlertBox type={aviso.type} message={aviso.message} onClose={() => setAviso(null)} />}
+      {erro && <AlertBox type="error" message={erro} />}
+      {!consulta ? (
+        <p className="text-sm text-gray-500">Escolha o período e clique em Buscar vendas.</p>
+      ) : loading ? (
+        <LoadingSpinner message="Consultando o painel..." />
+      ) : vendas.length === 0 ? (
+        <p className="text-sm text-gray-500">Nenhuma venda encontrada neste período.</p>
+      ) : (
+        <div className="max-h-80 overflow-y-auto rounded-lg border">
+          <table className="min-w-full text-sm">
+            <thead className="sticky top-0 bg-gray-50">
+              <tr className="border-b text-left text-xs uppercase text-gray-500">
+                <th className="px-3 py-2">Data</th>
+                <th className="px-3 py-2">Tipo</th>
+                {verValores && <th className="px-3 py-2 text-right">Valor</th>}
+                <th className="px-3 py-2 text-right"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {vendas.map((v, i) => (
+                <tr key={v.idwebhook || i} className={`border-b ${v.devolvido ? "bg-gray-50 text-gray-400" : ""}`}>
+                  <td className="whitespace-nowrap px-3 py-2">{v.data} {v.hora}</td>
+                  <td className="px-3 py-2">{v.tipo || "-"}</td>
+                  {verValores && (
+                    <td className="whitespace-nowrap px-3 py-2 text-right font-semibold">{formatarMoeda(v.valor)}</td>
+                  )}
+                  <td className="whitespace-nowrap px-3 py-2 text-right">
+                    {v.devolvido ? (
+                      <Pill className="border-gray-300 bg-gray-100 text-gray-600">Devolvido</Pill>
+                    ) : podeDevolver && v.podeDevolver ? (
+                      <button
+                        type="button"
+                        className="text-sm font-semibold text-red-600 hover:underline disabled:opacity-50"
+                        onClick={() => devolver(v)}
+                        disabled={Boolean(devolvendo)}
+                      >
+                        {devolvendo === v.idwebhook ? "Devolvendo..." : "↩️ Devolver"}
+                      </button>
+                    ) : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AcoesMaquina({ maquina, permissoes }) {
+  return (
+    <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      {permissoes.podeCredito && <CreditoRemoto maquina={maquina} />}
+      {permissoes.podeExtrato && (
+        <div className={permissoes.podeCredito ? "" : "lg:col-span-2"}>
+          <ExtratoVendas
+            maquina={maquina}
+            verValores={permissoes.verValores}
+            podeDevolver={permissoes.podeDevolver}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Modal: detalhe de uma máquina
 // ---------------------------------------------------------------------------
 
 function DetalheMaquina({ posId, onClose }) {
   const [dias, setDias] = useState(30);
+  const permissoes = usePermissoesMachinePay();
   const fim = dataBrasil();
   const { dados, loading, erro } = useConsulta(
     posId ? `/machine-pay/monitor/maquinas/${posId}` : null,
@@ -894,17 +1166,23 @@ function DetalheMaquina({ posId, onClose }) {
               <KpiCard titulo="Última venda" valor={textoUltimaVenda(m)} icone="🧾" />
               <KpiCard
                 titulo="Vendas hoje"
-                valor={formatarMoeda(m.vendasHojeValor)}
-                detalhe={`${m.vendasHojeQtd} vendas`}
+                valor={permissoes.verValores ? formatarMoeda(m.vendasHojeValor) : `${m.vendasHojeQtd}`}
+                detalhe={permissoes.verValores ? `${m.vendasHojeQtd} vendas` : "vendas"}
                 icone="💰"
               />
-              <KpiCard
-                titulo="Acumulado no painel"
-                valor={formatarMoeda(m.totalValor)}
-                detalhe={`PIX ${formatarMoeda(m.pix)} · Déb ${formatarMoeda(m.debito)} · Créd ${formatarMoeda(m.credito)}`}
-                icone="🏦"
-              />
+              {permissoes.verValores && (
+                <KpiCard
+                  titulo="Acumulado no painel"
+                  valor={formatarMoeda(m.totalValor)}
+                  detalhe={`PIX ${formatarMoeda(m.pix)} · Déb ${formatarMoeda(m.debito)} · Créd ${formatarMoeda(m.credito)}`}
+                  icone="🏦"
+                />
+              )}
             </div>
+          )}
+
+          {m && (permissoes.podeCredito || permissoes.podeExtrato) && (
+            <AcoesMaquina maquina={m} permissoes={permissoes} />
           )}
 
           {m && (
@@ -1009,6 +1287,7 @@ const ABAS = [
 
 export function MachinePay() {
   const hoje = dataBrasil();
+  const { verValores } = usePermissoesMachinePay();
   const [aba, setAba] = useState("maquinas");
   const [statusMaquinas, setStatusMaquinas] = useState("offline");
   const [comQuedaMaquinas, setComQuedaMaquinas] = useState(false);
@@ -1352,8 +1631,8 @@ export function MachinePay() {
             />
             <KpiCard
               titulo="Vendas hoje"
-              valor={formatarMoeda(resumo.vendasHojeValor)}
-              detalhe={`${resumo.vendasHojeQtd} vendas · ${resumo.vencendoEm15Dias} planos vencendo`}
+              valor={verValores ? formatarMoeda(resumo.vendasHojeValor) : `${resumo.vendasHojeQtd}`}
+              detalhe={`${verValores ? `${resumo.vendasHojeQtd} vendas · ` : "vendas · "}${resumo.vencendoEm15Dias} planos vencendo`}
               icone="💰"
               cor="text-[#2457B1]"
             />
