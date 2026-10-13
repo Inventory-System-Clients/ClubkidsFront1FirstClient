@@ -11,7 +11,6 @@ export const CATALOGO_ABAS = [
     rota: "/",
     secoes: [
       { chave: "dashboard.resumo", label: "Cards de resumo (roteiros de hoje, prêmios saídos, alertas)" },
-      { chave: "dashboard.carrinho", label: "Widget do carrinho de produtos" },
       { chave: "dashboard.buscaLojasMaquinas", label: "Buscar lojas e máquinas" },
       { chave: "dashboard.historicoMovimentacoes", label: "Histórico de movimentações e estoque da máquina" },
       { chave: "dashboard.alertasMaquinas", label: "Alertas de estoque das máquinas" },
@@ -107,7 +106,6 @@ export const CATALOGO_ABAS = [
 export const PERMISSOES_PADRAO_POR_ROLE = {
   FUNCIONARIO: [
     "dashboard",
-    "dashboard.carrinho",
     "dashboard.buscaLojasMaquinas",
     "movimentacoes",
     "maquinas",
@@ -120,7 +118,6 @@ export const PERMISSOES_PADRAO_POR_ROLE = {
   ],
   FINANCEIRO: [
     "dashboard",
-    "dashboard.carrinho",
     "dashboard.buscaLojasMaquinas",
     "movimentacoes",
     "maquinas",

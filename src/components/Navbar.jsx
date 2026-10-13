@@ -1,6 +1,9 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import api from "../services/api";
+import { DevolucaoModal } from "./DevolucaoModal";
 import { CATALOGO_ABAS } from "../utils/permissoes";
 
 export function Navbar() {
@@ -46,6 +49,24 @@ export function Navbar() {
     }`;
 
   const isAdmin = usuario?.role === "ADMIN";
+
+  // Quem não tem a aba Dashboard não vê o widget do carrinho: o botão de
+  // devolver o próprio carrinho fica aqui no topo, em todas as páginas.
+  const semDashboard = Boolean(usuario) && !pode("dashboard", true);
+  const [carrinhoAtivo, setCarrinhoAtivo] = useState(null);
+  const [devolvendoCarrinho, setDevolvendoCarrinho] = useState(false);
+
+  useEffect(() => {
+    if (!semDashboard) return undefined;
+    let cancelado = false;
+    api
+      .get("/carrinho-usuarios/status")
+      .then((res) => !cancelado && setCarrinhoAtivo(res.data?.temCarrinho ? res.data.carrinho : null))
+      .catch(() => !cancelado && setCarrinhoAtivo(null));
+    return () => {
+      cancelado = true;
+    };
+  }, [semDashboard, usuario?.id]);
 
   const linksPorRole = () => {
     const links = [
@@ -166,6 +187,15 @@ export function Navbar() {
                 {nomeRole}
               </div>
             </div>
+            {semDashboard && carrinhoAtivo && (
+              <button
+                onClick={() => setDevolvendoCarrinho(true)}
+                className="bg-green-500 hover:bg-green-600 px-3 sm:px-4 py-2.5 rounded-lg text-sm font-semibold shadow-lg flex items-center gap-2"
+                title="Registrar a devolução do seu carrinho de produtos"
+              >
+                🛒 <span className="hidden sm:inline">Devolver carrinho</span>
+              </button>
+            )}
             <button
               onClick={handleLogout}
               className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 px-4 sm:px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-2"
@@ -223,6 +253,19 @@ export function Navbar() {
           </div>
         </div>
       )}
+      {devolvendoCarrinho &&
+        carrinhoAtivo &&
+        createPortal(
+          <DevolucaoModal
+            carrinho={carrinhoAtivo}
+            onClose={() => setDevolvendoCarrinho(false)}
+            onSuccess={() => {
+              setDevolvendoCarrinho(false);
+              setCarrinhoAtivo(null);
+            }}
+          />,
+          document.body,
+        )}
     </nav>
   );
 }

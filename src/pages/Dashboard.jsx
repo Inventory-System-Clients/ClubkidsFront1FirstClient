@@ -301,7 +301,6 @@ export function Dashboard() {
 
   // Seções do dashboard (usuário personalizado: escolhidas pelo ADMIN)
   const verResumo = pode("dashboard.resumo", isAdmin);
-  const verCarrinho = pode("dashboard.carrinho", true);
   const verBusca = pode("dashboard.buscaLojasMaquinas", true);
   const verHistoricoMaquina = pode("dashboard.historicoMovimentacoes", isAdmin);
   const verAlertasMaquinas = pode("dashboard.alertasMaquinas", isAdmin);
@@ -1663,20 +1662,18 @@ export function Dashboard() {
           </div>
         )}
         
-        {/* Widget de Carrinho de Produtos */}
-        {verCarrinho && (
-          <div className="mb-8">
-            <CarrinhoWidget 
-              onDevolucaoClick={(carrinho) => {
-                setCarrinhoSelecionado(carrinho);
-                setMostrarModalDevolucao(true);
-              }}
-              onCarrinhoUpdate={() => {
-                // Atualizar dados do dashboard se necessário
-              }}
-            />
-          </div>
-        )}
+        {/* Widget de Carrinho de Produtos: sempre visível para o funcionário devolver o próprio carrinho */}
+        <div className="mb-8">
+          <CarrinhoWidget 
+            onDevolucaoClick={(carrinho) => {
+              setCarrinhoSelecionado(carrinho);
+              setMostrarModalDevolucao(true);
+            }}
+            onCarrinhoUpdate={() => {
+              // Atualizar dados do dashboard se necessário
+            }}
+          />
+        </div>
         {/* Header com boas-vindas */}
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>

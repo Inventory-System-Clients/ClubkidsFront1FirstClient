@@ -34,6 +34,8 @@ export function GestaoCarrinhos() {
   
   // Estado para edição de carrinho
   const [carrinhoEditando, setCarrinhoEditando] = useState(null);
+  // Produto escolhido para adicionar ao carrinho na edição
+  const [produtoAdicionar, setProdutoAdicionar] = useState({ produtoId: '', quantidade: '' });
   const [mostrarModalEdicao, setMostrarModalEdicao] = useState(false);
   const [dadosEdicao, setDadosEdicao] = useState({
     itens: [],
@@ -61,7 +63,7 @@ export function GestaoCarrinhos() {
   const isEmailAutorizado = emailsAutorizados.includes(usuarioEmail.toLowerCase());
   const isAdmin = usuario?.role === 'ADMIN';
   const podeAcessar = pode('carrinhos', isAdmin || isEmailAutorizado);
-  const podeDevolver = isEmailAutorizado; // Apenas emails autorizados podem devolver
+  const podeDevolver = isAdmin || isEmailAutorizado; // Admin e emails autorizados podem devolver
 
   // Log de debug de permissões
   console.log('🔐 Permissões:', {
@@ -285,7 +287,26 @@ export function GestaoCarrinhos() {
       })),
       ativo: carrinho.ativo !== false // Default true se undefined
     });
+    setProdutoAdicionar({ produtoId: '', quantidade: '' });
     setMostrarModalEdicao(true);
+  }
+
+  function handleAdicionarProdutoEdicao() {
+    const quantidade = parseInt(produtoAdicionar.quantidade, 10);
+    const produto = produtos.find(p => p.id === produtoAdicionar.produtoId);
+    if (!produto || Number.isNaN(quantidade) || quantidade <= 0) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Produto inválido',
+        text: 'Escolha um produto e informe uma quantidade maior que zero'
+      });
+      return;
+    }
+    setDadosEdicao(prev => ({
+      ...prev,
+      itens: [...prev.itens, { produtoId: produto.id, nome: produto.nome, quantidade, novo: true }]
+    }));
+    setProdutoAdicionar({ produtoId: '', quantidade: '' });
   }
 
   function handleDevolverCarrinho(carrinho) {
@@ -1110,7 +1131,12 @@ export function GestaoCarrinhos() {
                   <div className="space-y-2">
                     {dadosEdicao.itens.map((item, index) => (
                       <div key={item.produtoId} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
-                        <span className="flex-1 text-sm font-medium text-gray-800">{item.nome}</span>
+                        <span className="flex-1 text-sm font-medium text-gray-800">
+                          {item.nome}
+                          {item.novo && (
+                            <span className="ml-2 text-xs font-semibold text-green-700 bg-green-100 rounded-full px-2 py-0.5">novo</span>
+                          )}
+                        </span>
                         <input
                           type="number"
                           value={item.quantidade}
@@ -1123,8 +1149,59 @@ export function GestaoCarrinhos() {
                           className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-semibold text-center"
                           disabled={salvandoEdicao}
                         />
+                        {item.novo && (
+                          <button
+                            type="button"
+                            onClick={() => setDadosEdicao(prev => ({
+                              ...prev,
+                              itens: prev.itens.filter((_, i) => i !== index)
+                            }))}
+                            className="text-red-500 hover:text-red-700 text-lg leading-none"
+                            title="Remover produto adicionado"
+                            disabled={salvandoEdicao}
+                          >
+                            ×
+                          </button>
+                        )}
                       </div>
                     ))}
+                  </div>
+
+                  {/* Adicionar produto que ainda não está no carrinho */}
+                  <div className="mt-3 p-3 border border-dashed border-gray-300 rounded-lg">
+                    <p className="text-sm font-semibold text-gray-700 mb-2">➕ Adicionar produto</p>
+                    <div className="flex gap-2">
+                      <select
+                        value={produtoAdicionar.produtoId}
+                        onChange={(e) => setProdutoAdicionar(prev => ({ ...prev, produtoId: e.target.value }))}
+                        className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        disabled={salvandoEdicao}
+                      >
+                        <option value="">Selecione o produto</option>
+                        {produtos
+                          .filter(p => !dadosEdicao.itens.some(item => item.produtoId === p.id))
+                          .map(p => (
+                            <option key={p.id} value={p.id}>{p.nome}</option>
+                          ))}
+                      </select>
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="Qtd"
+                        value={produtoAdicionar.quantidade}
+                        onChange={(e) => setProdutoAdicionar(prev => ({ ...prev, quantidade: e.target.value }))}
+                        className="w-20 px-2 py-2 border border-gray-300 rounded-lg text-sm text-center"
+                        disabled={salvandoEdicao}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAdicionarProdutoEdicao}
+                        className="px-3 py-2 bg-primary hover:bg-primary-dark text-black text-sm font-semibold rounded-lg disabled:opacity-50"
+                        disabled={salvandoEdicao || !produtoAdicionar.produtoId}
+                      >
+                        Adicionar
+                      </button>
+                    </div>
                   </div>
                   <p className="text-sm text-gray-500 mt-2">
                     Ao salvar, o uso passa a ser contado das movimentações feitas a partir de agora.
