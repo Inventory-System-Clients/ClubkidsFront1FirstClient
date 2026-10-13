@@ -95,7 +95,14 @@ export const CATALOGO_ABAS = [
       { chave: "vouchers.gerenciar", label: "Criar e bloquear vouchers e copiar os links" },
     ],
   },
-  { chave: "carrinhos", label: "🛒 Carrinhos", rota: "/carrinhos" },
+  {
+    chave: "carrinhos",
+    label: "🛒 Carrinhos",
+    rota: "/carrinhos",
+    funcionalidades: [
+      { chave: "carrinhos.devolver", label: "Devolver carrinhos pelos funcionários" },
+    ],
+  },
   { chave: "graficos", label: "📈 Gráficos", rota: "/graficos" },
   { chave: "alertasEstoque", label: "🚨 Alertas de Estoque", rota: "/alertas-estoque" },
   { chave: "relatorios", label: "📄 Relatórios", rota: "/relatorios" },

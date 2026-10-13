@@ -63,7 +63,8 @@ export function GestaoCarrinhos() {
   const isEmailAutorizado = emailsAutorizados.includes(usuarioEmail.toLowerCase());
   const isAdmin = usuario?.role === 'ADMIN';
   const podeAcessar = pode('carrinhos', isAdmin || isEmailAutorizado);
-  const podeDevolver = isAdmin || isEmailAutorizado; // Admin e emails autorizados podem devolver
+  // Admin, emails autorizados ou usuário personalizado com "carrinhos.devolver"
+  const podeDevolver = pode('carrinhos.devolver', isAdmin || isEmailAutorizado);
 
   // Log de debug de permissões
   console.log('🔐 Permissões:', {
