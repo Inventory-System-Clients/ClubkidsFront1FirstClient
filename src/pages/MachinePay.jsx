@@ -152,7 +152,6 @@ const montarTextoListaWhatsapp = (maquinas, status) => {
           : "antes do monitoramento";
       linhas.push(
         `${indice + 1}. *${m.nomePonto || "Sem nome"}*`,
-        `   Caixa ${m.posId}${m.vinculo?.codigo ? ` · Máquina ${m.vinculo.codigo}` : ""}`,
         `   ${situacao}${offlineHa ? ` ${offlineHa}` : ""}`,
         `   Última venda: ${textoUltimaVenda(m)}`,
       );
