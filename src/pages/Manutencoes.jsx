@@ -5,45 +5,17 @@ import { AlertBox, PageHeader } from "../components/UIComponents";
 import { PageLoader } from "../components/Loading";
 import { Navbar } from "../components/Navbar";
 import { useAuth } from "../contexts/AuthContext";
+import {
+  enviarWhatsapp,
+  formatarMaquinaManutencao,
+  montarTextoWhatsapp,
+} from "../utils/whatsappManutencao";
 
 const normalizarStatusManutencao = status => String(status || "").trim().toLowerCase();
 const isUrgente = status => normalizarStatusManutencao(status) === "urgente";
 const isConcluida = status => {
   const statusNormalizado = normalizarStatusManutencao(status);
   return statusNormalizado === "feito" || statusNormalizado === "concluida";
-};
-
-const formatarMaquina = maquina => {
-  if (!maquina) return "";
-  return [maquina.codigo, maquina.nome].filter(Boolean).join(" - ");
-};
-
-// Texto pronto para mandar a manutenção para o técnico pelo WhatsApp
-const montarTextoWhatsapp = (m, endereco) => {
-  const status = normalizarStatusManutencao(m.status);
-  const linhas = [
-    `*🔧 MANUTENÇÃO${status ? ` - ${status.toUpperCase()}` : ""}*`,
-    "",
-    `📝 *Problema:* ${m.descricao || "-"}`,
-    `📅 *Aberta em:* ${new Date(m.createdAt).toLocaleString("pt-BR")}`,
-    `🏪 *Loja:* ${m.loja?.nome || "-"}`,
-  ];
-  if (endereco) {
-    linhas.push(`📍 *Endereço:* ${endereco}`);
-    linhas.push(
-      `🗺️ *Mapa:* https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-        [m.loja?.nome, endereco].filter(Boolean).join(", ")
-      )}`
-    );
-  }
-  const maquina = formatarMaquina(m.maquina);
-  if (maquina) linhas.push(`🎰 *Máquina:* ${maquina}`);
-  if (m.funcionario?.nome) linhas.push(`👤 *Responsável:* ${m.funcionario.nome}`);
-  return linhas.join("\n");
-};
-
-const abrirWhatsapp = texto => {
-  window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank", "noopener");
 };
 
 function BotaoWhatsapp({ onClick, compacto = false }) {
@@ -343,10 +315,6 @@ function Manutencoes() {
     return "Endereço não cadastrado";
   };
 
-  const enviarWhatsapp = m => {
-    const temEndereco = m.loja && (m.loja.endereco || m.loja.cidade || m.loja.estado);
-    abrirWhatsapp(montarTextoWhatsapp(m, temEndereco ? formatarEnderecoLoja(m.loja) : ""));
-  };
 
   const formatLojaNome = loja => (loja?.nome ? loja.nome : "-");
 
@@ -731,7 +699,7 @@ function Manutencoes() {
                       ) : m.status}
                     </td>
                     <td className="px-4 py-2" onClick={e => e.stopPropagation()}>
-                      <BotaoWhatsapp compacto onClick={() => enviarWhatsapp(m)} />
+                      <BotaoWhatsapp compacto onClick={() => enviarWhatsapp(montarTextoWhatsapp(m))} />
                     </td>
                   </tr>
                 ))}
@@ -769,11 +737,11 @@ function Manutencoes() {
                 <div><strong>Status:</strong> {detalhe.status}</div>
                 <div><strong>Loja:</strong> {formatLojaNome(detalhe.loja)} </div>
                 <div><strong>Endereço:</strong> {formatarEnderecoLoja(detalhe.loja)} </div>
-                <div><strong>Máquina:</strong> {formatarMaquina(detalhe.maquina) || '-'} </div>
+                <div><strong>Máquina:</strong> {formatarMaquinaManutencao(detalhe.maquina) || '-'} </div>
                 <div><strong>Atribuído a:</strong> {detalhe.funcionario?.nome || '-'} </div>
               </div>
               <div className="mt-4">
-                <BotaoWhatsapp onClick={() => enviarWhatsapp(detalhe)} />
+                <BotaoWhatsapp onClick={() => enviarWhatsapp(montarTextoWhatsapp(detalhe))} />
               </div>
               <div className="flex flex-wrap gap-2 mt-4">
                 {podeAtualizar && <button className="btn-primary" onClick={handleEditOpen}>Editar</button>}

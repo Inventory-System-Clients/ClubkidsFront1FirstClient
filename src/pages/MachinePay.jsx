@@ -24,6 +24,11 @@ import {
   horarioParaEditor,
   resumoHorario,
 } from "../utils/horarioFuncionamento";
+import {
+  enviarWhatsapp,
+  montarTextoWhatsapp,
+  reservarAbaWhatsapp,
+} from "../utils/whatsappManutencao";
 import { useAuth } from "../contexts/AuthContext";
 import Swal from "sweetalert2";
 
@@ -1224,10 +1229,12 @@ function NovaManutencaoMaquina({ maquina, onFechar, onCriada }) {
       setAviso({ type: "error", message: "Descreva o problema da máquina." });
       return;
     }
+    // No computador a aba do WhatsApp precisa ser aberta ainda no clique
+    const abaWhatsapp = reservarAbaWhatsapp();
     setSalvando(true);
     setAviso(null);
     try {
-      await api.post("/manutencoes", {
+      const res = await api.post("/manutencoes", {
         maquinaId: vinculo.maquinaId,
         lojaId: vinculo.lojaId,
         roteiroId: null,
@@ -1235,12 +1242,28 @@ function NovaManutencaoMaquina({ maquina, onFechar, onCriada }) {
         funcionarioId: funcionarioId || null,
         status: urgente ? "urgente" : "pendente",
       });
-      setAviso({ type: "success", message: "Manutenção criada. Ela já aparece na aba Manutenções." });
+      const criada = res.data?.manutencao || {};
+      const texto = montarTextoWhatsapp({
+        ...criada,
+        descricao: criada.descricao || descricao.trim(),
+        status: criada.status || (urgente ? "urgente" : "pendente"),
+        loja: criada.loja || { nome: vinculo.lojaNome },
+        maquina: criada.maquina || { codigo: vinculo.codigo, nome: vinculo.nome },
+        funcionario:
+          criada.funcionario || funcionarios.find((f) => String(f.id) === String(funcionarioId)),
+      });
+      enviarWhatsapp(texto, abaWhatsapp);
+      setAviso({
+        type: "success",
+        message: "Manutenção criada e aberta no WhatsApp. Ela já aparece na aba Manutenções.",
+        texto,
+      });
       onCriada?.();
       setDescricao("");
       setUrgente(false);
       setFuncionarioId("");
     } catch (error) {
+      abaWhatsapp?.close();
       setAviso({ type: "error", message: mensagemErro(error, "Erro ao criar manutenção") });
     } finally {
       setSalvando(false);
@@ -1268,6 +1291,14 @@ function NovaManutencaoMaquina({ maquina, onFechar, onCriada }) {
             aviso.type === "success" ? (
               <>
                 {aviso.message}{" "}
+                <button
+                  type="button"
+                  onClick={() => enviarWhatsapp(aviso.texto)}
+                  className="font-semibold underline"
+                >
+                  Enviar de novo
+                </button>
+                {" · "}
                 <Link to="/manutencoes" className="font-semibold underline">
                   Ver manutenções
                 </Link>
@@ -1305,7 +1336,7 @@ function NovaManutencaoMaquina({ maquina, onFechar, onCriada }) {
             Urgente
           </label>
           <button type="button" onClick={salvar} className="btn-primary ml-auto" disabled={salvando}>
-            {salvando ? "Salvando..." : "Criar manutenção"}
+            {salvando ? "Salvando..." : "Criar e enviar no WhatsApp"}
           </button>
         </div>
       </div>
