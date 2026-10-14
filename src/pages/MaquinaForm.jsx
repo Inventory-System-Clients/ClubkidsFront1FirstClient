@@ -5,6 +5,11 @@ import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { PageHeader, AlertBox } from "../components/UIComponents";
 import { PageLoader } from "../components/Loading";
+import { HorarioFuncionamentoEditor } from "../components/HorarioFuncionamento";
+import {
+  editorParaHorario,
+  horarioParaEditor,
+} from "../utils/horarioFuncionamento";
 
 export function MaquinaForm() {
   const { id } = useParams();
@@ -35,6 +40,7 @@ export function MaquinaForm() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [errosCampo, setErrosCampo] = useState({});
+  const [horario, setHorario] = useState(() => horarioParaEditor(null));
 
   useEffect(() => {
     carregarLojas();
@@ -81,6 +87,7 @@ export function MaquinaForm() {
         machinePayPosId: response.data.machinePayPosId || "",
         machinePayUsrId: response.data.machinePayUsrId || "",
       });
+      setHorario(horarioParaEditor(response.data.horarioFuncionamento));
     } catch (error) {
       setError(
         "Erro ao carregar máquina: " +
@@ -131,6 +138,14 @@ export function MaquinaForm() {
         return;
       }
 
+      const { valor: horarioFuncionamento, erro: erroHorario } =
+        editorParaHorario(horario);
+      if (erroHorario) {
+        setError(erroHorario);
+        setLoading(false);
+        return;
+      }
+
       const data = {
         codigo: formData.codigo.trim(),
         nome: formData.nome.trim(),
@@ -149,6 +164,7 @@ export function MaquinaForm() {
         ativo: formData.ativo,
         machinePayPosId: formData.machinePayPosId?.trim() || null,
         machinePayUsrId: formData.machinePayUsrId?.trim() || null,
+        horarioFuncionamento,
       };
 
       console.log("Dados enviados:", JSON.stringify(data, null, 2)); // Debug detalhado
@@ -546,6 +562,20 @@ export function MaquinaForm() {
                   </div>
                 </div>
               </details>
+            </div>
+
+            {/* Horário de funcionamento */}
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 mb-1 flex items-center gap-2">
+                <span className="text-xl">🕒</span>
+                Horário de funcionamento do ponto
+              </h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Fora desses horários, se o leitor estiver offline, o monitor
+                Machine Pay mostra "Ponto fechado" em vez de "Offline".
+              </p>
+
+              <HorarioFuncionamentoEditor valor={horario} onChange={setHorario} />
             </div>
 
             {/* Botões */}

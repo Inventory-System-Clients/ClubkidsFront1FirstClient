@@ -18,6 +18,12 @@ import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { AlertBox, Modal, PageHeader } from "../components/UIComponents";
 import { LoadingSpinner } from "../components/Loading";
+import { HorarioFuncionamentoEditor } from "../components/HorarioFuncionamento";
+import {
+  editorParaHorario,
+  horarioParaEditor,
+  resumoHorario,
+} from "../utils/horarioFuncionamento";
 import { useAuth } from "../contexts/AuthContext";
 import Swal from "sweetalert2";
 
@@ -161,6 +167,7 @@ function usePermissoesMachinePay() {
     podeExtrato: pode("machinePay.extrato", adminOuFinanceiro),
     podeCredito: pode("machinePay.creditoRemoto", isAdmin),
     podeDevolver: pode("machinePay.devolucao", isAdmin),
+    podeHorario: pode("machinePay.horario", isAdmin),
   };
 }
 
@@ -179,7 +186,17 @@ function Pill({ className = "", children, title }) {
   );
 }
 
-function StatusPill({ online }) {
+function StatusPill({ online, pontoFechado }) {
+  if (!online && pontoFechado) {
+    return (
+      <Pill
+        className="border-slate-300 bg-slate-100 text-slate-700"
+        title="Offline fora do horário de funcionamento cadastrado na máquina"
+      >
+        🌙 Ponto fechado
+      </Pill>
+    );
+  }
   return online ? (
     <Pill className="border-green-300 bg-green-100 text-green-800">🟢 Online</Pill>
   ) : (
@@ -317,20 +334,25 @@ function AbaMaquinas({ filtrosQuery, onAbrirMaquina, status, setStatus, comQueda
       titulo={
         status === "offline"
           ? "🔴 Máquinas offline agora"
-          : status === "online"
+          : status === "fechado"
+            ? "🌙 Ponto fechado agora"
+            : status === "online"
             ? "🟢 Máquinas online"
             : "📋 Todas as máquinas"
       }
       descricao={
         status === "offline"
-          ? "Só as que estão fora do ar neste momento. As que estão offline há mais tempo aparecem primeiro."
-          : "Clique no nome do ponto para ver o histórico completo da máquina."
+          ? "Só as que estão fora do ar dentro do horário de funcionamento. As que estão offline há mais tempo aparecem primeiro."
+          : status === "fechado"
+            ? "Offline, mas fora do horário de funcionamento cadastrado na máquina — o ponto está fechado."
+            : "Clique no nome do ponto para ver o histórico completo da máquina."
       }
       acao={
         <div className="flex flex-wrap gap-2">
           <div className="flex overflow-hidden rounded-lg border border-gray-200">
             {[
               ["offline", "🔴 Offline"],
+              ["fechado", "🌙 Ponto fechado"],
               ["online", "🟢 Online"],
               ["todas", "Todas"],
             ].map(([valor, label]) => (
@@ -369,11 +391,13 @@ function AbaMaquinas({ filtrosQuery, onAbrirMaquina, status, setStatus, comQueda
         <LoadingSpinner message="Carregando máquinas..." />
       ) : maquinas.length === 0 ? (
         <Vazio
-          icone={status === "offline" ? "🎉" : "📭"}
+          icone={status === "offline" ? "🎉" : status === "fechado" ? "🌙" : "📭"}
           mensagem={
             status === "offline"
               ? "Nenhuma máquina offline com esses filtros. Tudo no ar!"
-              : "Nenhuma máquina encontrada com esses filtros."
+              : status === "fechado"
+                ? "Nenhum ponto fechado agora com esses filtros."
+                : "Nenhuma máquina encontrada com esses filtros."
           }
         />
       ) : (
@@ -387,7 +411,9 @@ function AbaMaquinas({ filtrosQuery, onAbrirMaquina, status, setStatus, comQueda
                 <tr className="border-b bg-gray-50 text-left text-xs uppercase text-gray-500">
                   <th className="px-3 py-2">Ponto / Caixa</th>
                   <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2">{status === "offline" ? "Offline há" : "Quedas hoje"}</th>
+                  <th className="px-3 py-2">
+                    {status === "offline" || status === "fechado" ? "Offline há" : "Quedas hoje"}
+                  </th>
                   <th className="px-3 py-2">Última venda</th>
                   <th className="px-3 py-2">Sinal</th>
                   <th className="px-3 py-2">Versão</th>
@@ -399,7 +425,9 @@ function AbaMaquinas({ filtrosQuery, onAbrirMaquina, status, setStatus, comQueda
                 {maquinas.map((m) => (
                   <tr
                     key={m.posId}
-                    className={`border-b align-top hover:bg-gray-50 ${m.online ? "" : "bg-red-50/40"}`}
+                    className={`border-b align-top hover:bg-gray-50 ${
+                      m.online ? "" : m.pontoFechado ? "bg-slate-50" : "bg-red-50/40"
+                    }`}
                   >
                     <td className="px-3 py-2">
                       <NomePonto maquina={m} onAbrir={() => onAbrirMaquina(m.posId)} />
@@ -408,15 +436,15 @@ function AbaMaquinas({ filtrosQuery, onAbrirMaquina, status, setStatus, comQueda
                       )}
                     </td>
                     <td className="px-3 py-2">
-                      <StatusPill online={m.online} />
+                      <StatusPill online={m.online} pontoFechado={m.pontoFechado} />
                       {m.telemetria && m.telemetria !== "Consultado" && (
                         <span className="mt-1 block text-xs text-gray-500">{m.telemetria}</span>
                       )}
                     </td>
                     <td className="px-3 py-2">
-                      {status === "offline" ? (
+                      {status === "offline" || status === "fechado" ? (
                         <>
-                          <span className="font-semibold text-red-700">
+                          <span className={`font-semibold ${m.pontoFechado ? "text-slate-600" : "text-red-700"}`}>
                             {m.offlineDesde
                               ? formatarDuracao(m.offlineHaMinutos)
                               : "Antes do monitoramento"}
@@ -584,7 +612,7 @@ function AbaRanking({ filtrosQuery, periodo, onAbrirMaquina }) {
                         <span className="text-xs text-gray-400">Removida do painel</span>
                       ) : (
                         <div className="flex flex-col gap-1">
-                          <StatusPill online={r.online} />
+                          <StatusPill online={r.online} pontoFechado={r.pontoFechado} />
                           <SinalPill sinal={r.sinalWifi} />
                         </div>
                       )}
@@ -835,6 +863,7 @@ function AbaAjuda() {
     ["⚡ Quedas (Nx)", "É o contador que o painel Machine Pay mostra ao lado do botão ON/OFF: quantas vezes o leitor perdeu a conexão e reconectou hoje. Zera à meia-noite."],
     ["🟢 Estável · 🟡 Atenção · 🟠 Instável · 🔴 Crítico", "0 quedas = estável · 1 a 2 = atenção · 3 a 4 = instável · 5 ou mais = crítico (vale ir ao ponto ou trocar o roteador/modem)."],
     ["🔴 Offline", "O leitor não está respondendo ao painel agora. Nesse estado ele não recebe pagamentos PIX ou cartão."],
+    ["🌙 Ponto fechado", "O leitor está offline, mas fora do horário de funcionamento cadastrado na máquina (Máquinas → Editar → Horário de funcionamento). Não entra na contagem de offline. Máquinas sem horário cadastrado são tratadas como 24h."],
     ["Offline há…", "Tempo desde que o monitoramento viu a máquina cair. \"Antes do monitoramento\" significa que ela já estava offline quando começamos a acompanhar — use a última venda como referência."],
     ["📶 Sinal Wi-Fi", "Ótimo / Bom / Fraco / Ruim, como informado pelo leitor. \"Não informado\" é normal em leitores WEBSOCKET, que não mandam o sinal."],
     ["MQTT Instantâneo / Confirmado", "Como o leitor recebe o crédito: Instantâneo (WEBSOCKET) ou com confirmação de pulso (MQTT). \"Sem resposta\" = leitor não respondeu a última consulta."],
@@ -1116,6 +1145,64 @@ function AcoesMaquina({ maquina, permissoes }) {
 // Nova manutenção para a máquina aberta (vai para a aba Manutenções)
 // ---------------------------------------------------------------------------
 
+function EditarHorarioMaquina({ maquina, onFechar, onSalvo }) {
+  const [horario, setHorario] = useState(() => horarioParaEditor(maquina.horarioFuncionamento));
+  const [salvando, setSalvando] = useState(false);
+  const [aviso, setAviso] = useState(null);
+
+  const salvar = async () => {
+    const { valor, erro } = editorParaHorario(horario);
+    if (erro) {
+      setAviso({ type: "error", message: erro });
+      return;
+    }
+    setSalvando(true);
+    setAviso(null);
+    try {
+      await api.put(`/machine-pay/monitor/maquinas/${maquina.posId}/horario`, {
+        horarioFuncionamento: valor,
+      });
+      setAviso({ type: "success", message: "Horário salvo." });
+      onSalvo?.();
+    } catch (error) {
+      setAviso({ type: "error", message: mensagemErro(error, "Erro ao salvar horário") });
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border-2 border-slate-300 bg-slate-50 p-4">
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <div>
+          <h4 className="font-bold text-gray-900">🕒 Horário de funcionamento</h4>
+          <p className="text-xs text-gray-600">
+            Offline fora desse horário aparece como "Ponto fechado".{" "}
+            {maquina.vinculo
+              ? `Salvo no cadastro da máquina ${maquina.vinculo.codigo || maquina.vinculo.nome}.`
+              : "Leitor sem máquina vinculada: o horário fica salvo para este caixa."}
+          </p>
+        </div>
+        <button type="button" onClick={onFechar} className="text-sm text-gray-500 hover:text-gray-700">
+          Fechar
+        </button>
+      </div>
+      {aviso && <AlertBox type={aviso.type} message={aviso.message} onClose={() => setAviso(null)} />}
+      <HorarioFuncionamentoEditor valor={horario} onChange={setHorario} />
+      <div className="mt-4 flex justify-end">
+        <button
+          type="button"
+          onClick={salvar}
+          disabled={salvando}
+          className="btn-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          {salvando ? "Salvando..." : "Salvar horário"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function NovaManutencaoMaquina({ maquina, onFechar, onCriada }) {
   const vinculo = maquina.vinculo;
   const [descricao, setDescricao] = useState("");
@@ -1315,10 +1402,12 @@ function DetalheMaquina({ posId, onClose }) {
   const [novaManutencaoAberta, setNovaManutencaoAberta] = useState(false);
   const [historicoAberto, setHistoricoAberto] = useState(false);
   const [versaoManutencoes, setVersaoManutencoes] = useState(0);
+  const [horarioAberto, setHorarioAberto] = useState(false);
+  const [versaoHorario, setVersaoHorario] = useState(0);
   const fim = dataBrasil();
   const { dados, loading, erro } = useConsulta(
     posId ? `/machine-pay/monitor/maquinas/${posId}` : null,
-    { dataInicio: somarDias(fim, -(dias - 1)), dataFim: fim },
+    { dataInicio: somarDias(fim, -(dias - 1)), dataFim: fim, _v: versaoHorario || undefined },
   );
 
   const m = dados?.maquina;
@@ -1375,6 +1464,16 @@ function DetalheMaquina({ posId, onClose }) {
           🔁 Ver recorrência{qtdRecentes !== null ? ` (${qtdRecentes})` : ""}
         </button>
       )}
+      {permissoes.podeHorario && m && (
+        <button
+          type="button"
+          onClick={() => setHorarioAberto((aberto) => !aberto)}
+          title={`Horário atual: ${resumoHorario(m.horarioFuncionamento)}`}
+          className="rounded-lg bg-slate-600 px-3 py-1.5 text-sm font-semibold text-white shadow transition-colors hover:bg-slate-700"
+        >
+          🕒 Editar horário
+        </button>
+      )}
     </span>
   );
 
@@ -1385,6 +1484,13 @@ function DetalheMaquina({ posId, onClose }) {
         <LoadingSpinner />
       ) : dados ? (
         <div className="max-h-[75vh] space-y-5 overflow-y-auto pr-1">
+          {horarioAberto && m && (
+            <EditarHorarioMaquina
+              maquina={m}
+              onFechar={() => setHorarioAberto(false)}
+              onSalvo={() => setVersaoHorario((v) => v + 1)}
+            />
+          )}
           {novaManutencaoAberta && m?.vinculo && (
             <NovaManutencaoMaquina
               maquina={m}
@@ -1400,7 +1506,10 @@ function DetalheMaquina({ posId, onClose }) {
           )}
           {m ? (
             <div className="flex flex-wrap items-center gap-2">
-              <StatusPill online={m.online} />
+              <StatusPill online={m.online} pontoFechado={m.pontoFechado} />
+              <Pill className="border-slate-200 bg-slate-50 text-slate-700" title="Horário de funcionamento do ponto">
+                🕒 {resumoHorario(m.horarioFuncionamento)}
+              </Pill>
               <QuedasPill quedas={m.quedasHoje} />
               <SinalPill sinal={m.sinalWifi} />
               <Pill className="border-blue-200 bg-blue-50 text-blue-800">
@@ -1422,7 +1531,7 @@ function DetalheMaquina({ posId, onClose }) {
           {m && (
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               <KpiCard
-                titulo={m.online ? "Situação" : "Offline há"}
+                titulo={m.online ? "Situação" : m.pontoFechado ? "Ponto fechado há" : "Offline há"}
                 valor={
                   m.online
                     ? "No ar"
@@ -1431,7 +1540,7 @@ function DetalheMaquina({ posId, onClose }) {
                       : "?"
                 }
                 detalhe={m.online ? `Última leitura ${formatarDataHora(m.coletadoEm)}` : m.offlineDesde ? `desde ${formatarDataHora(m.offlineDesde)}` : "Já estava offline no início do monitoramento"}
-                icone={m.online ? "🟢" : "🔴"}
+                icone={m.online ? "🟢" : m.pontoFechado ? "🌙" : "🔴"}
               />
               <KpiCard titulo="Última venda" valor={textoUltimaVenda(m)} icone="🧾" />
               <KpiCard
@@ -1843,7 +1952,7 @@ export function MachinePay() {
         {loadingResumo && !resumo ? (
           <LoadingSpinner message="Lendo situação das máquinas..." />
         ) : resumo ? (
-          <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
             <KpiCard
               titulo="Monitoradas"
               valor={resumo.total}
@@ -1869,6 +1978,15 @@ export function MachinePay() {
               cor="text-red-600"
               onClick={() => irParaMaquinas("offline")}
               ativo={aba === "maquinas" && statusMaquinas === "offline" && !comQuedaMaquinas}
+            />
+            <KpiCard
+              titulo="Ponto fechado"
+              valor={resumo.pontoFechado ?? 0}
+              detalhe="Offline fora do horário do ponto"
+              icone="🌙"
+              cor="text-slate-600"
+              onClick={() => irParaMaquinas("fechado")}
+              ativo={aba === "maquinas" && statusMaquinas === "fechado" && !comQuedaMaquinas}
             />
             <KpiCard
               titulo="Quedas hoje"
@@ -1929,7 +2047,12 @@ export function MachinePay() {
                 >
                   <QuedasPill quedas={m.quedasHoje} />
                   <span className="max-w-[220px] truncate">{m.nomePonto}</span>
-                  {!m.online && <span title="Offline agora">🔴</span>}
+                  {!m.online &&
+                    (m.pontoFechado ? (
+                      <span title="Ponto fechado">🌙</span>
+                    ) : (
+                      <span title="Offline agora">🔴</span>
+                    ))}
                 </button>
               ))}
             </div>
