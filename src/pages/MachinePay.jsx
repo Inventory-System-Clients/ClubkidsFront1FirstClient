@@ -116,6 +116,119 @@ const textoUltimaVenda = (m) => {
   return "Sem registro";
 };
 
+const REGIOES = [
+  ["CAPITAL", "🏙️ CAPITAL"],
+  ["INTERIOR", "🌳 INTERIOR"],
+];
+
+const TITULO_STATUS_WHATSAPP = {
+  offline: "🔴 *MÁQUINAS OFFLINE AGORA*",
+  fechado: "🌙 *PONTO FECHADO AGORA*",
+  online: "🟢 *MÁQUINAS ONLINE*",
+  todas: "📋 *MÁQUINAS MACHINE PAY*",
+};
+
+// Lista do monitor -> mensagem de WhatsApp, separada por capital/interior
+const montarTextoListaWhatsapp = (maquinas, status) => {
+  const agora = new Date().toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+  const porRegiao = Object.fromEntries(REGIOES.map(([regiao]) => [regiao, []]));
+  for (const m of maquinas) (porRegiao[m.regiao] || porRegiao.CAPITAL).push(m);
+
+  const linhas = [
+    TITULO_STATUS_WHATSAPP[status] || TITULO_STATUS_WHATSAPP.todas,
+    `📅 ${agora}`,
+    `Total: ${maquinas.length} (Capital ${porRegiao.CAPITAL.length} · Interior ${porRegiao.INTERIOR.length})`,
+  ];
+  for (const [regiao, titulo] of REGIOES) {
+    const lista = porRegiao[regiao];
+    if (!lista.length) continue;
+    linhas.push("", `*${titulo} (${lista.length})*`);
+    lista.forEach((m, indice) => {
+      const situacao = m.online ? "🟢 Online" : m.pontoFechado ? "🌙 Ponto fechado" : "🔴 Offline";
+      const offlineHa = m.online
+        ? null
+        : m.offlineDesde
+          ? `há ${formatarDuracao(m.offlineHaMinutos)}`
+          : "antes do monitoramento";
+      linhas.push(
+        `${indice + 1}. *${m.nomePonto || "Sem nome"}*`,
+        `   Caixa ${m.posId}${m.vinculo?.codigo ? ` · Máquina ${m.vinculo.codigo}` : ""}`,
+        `   ${situacao}${offlineHa ? ` ${offlineHa}` : ""}`,
+        `   Última venda: ${textoUltimaVenda(m)}`,
+      );
+    });
+  }
+  return linhas.join("\n");
+};
+
+const TITULO_STATUS_IMPRESSAO = {
+  offline: "Máquinas offline agora",
+  fechado: "Ponto fechado agora",
+  online: "Máquinas online",
+  todas: "Todas as máquinas",
+};
+
+const escaparHtml = (valor) =>
+  String(valor ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+// Lista do monitor -> página HTML com a mesma tabela da tela, pronta para imprimir
+const montarHtmlImpressao = (maquinas, { status, regiao, verValores }) => {
+  const mostrarOffline = status === "offline" || status === "fechado";
+  const titulo = `${TITULO_STATUS_IMPRESSAO[status] || TITULO_STATUS_IMPRESSAO.todas}${
+    regiao === "CAPITAL" ? " · Capital" : regiao === "INTERIOR" ? " · Interior" : ""
+  }`;
+  const agora = new Date().toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+  const linhas = maquinas
+    .map((m) => {
+      const situacao = m.online ? "Online" : m.pontoFechado ? "Ponto fechado" : "Offline";
+      const offlineHa = m.online
+        ? "-"
+        : m.offlineDesde
+          ? `${formatarDuracao(m.offlineHaMinutos)}<br><small>desde ${escaparHtml(formatarDataHora(m.offlineDesde))}</small>`
+          : "Antes do monitoramento";
+      const vinculo = m.vinculo
+        ? ` · ${escaparHtml([m.vinculo.codigo, m.vinculo.lojaNome].filter(Boolean).join(" · "))}`
+        : "";
+      return `<tr class="${m.online ? "" : m.pontoFechado ? "fechado" : "offline"}">
+        <td><b>${escaparHtml(m.nomePonto || "Sem nome")}</b><br><small>Caixa ${escaparHtml(m.posId)}${vinculo}</small></td>
+        <td>${situacao}</td>
+        <td>${m.regiao === "INTERIOR" ? "Interior" : "Capital"}</td>
+        <td>${mostrarOffline ? offlineHa : `${m.quedasHoje}x`}</td>
+        <td>${escaparHtml(textoUltimaVenda(m))}</td>
+        <td>${escaparHtml((SINAL_INFO[m.sinalWifi] || SINAL_INFO.SEM_SINAL).label)}</td>
+        <td>${escaparHtml(m.tipoVersao || "?")} v${escaparHtml(m.versao)}<br><small>${escaparHtml(MODO_RESPOSTA[m.modoResposta] || "")}</small></td>
+        <td>${escaparHtml(m.ip || "-")}</td>
+        <td class="num">${verValores ? `${formatarMoeda(m.vendasHojeValor)}<br><small>${m.vendasHojeQtd} vendas</small>` : `${m.vendasHojeQtd} vendas`}</td>
+      </tr>`;
+    })
+    .join("");
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<title>${escaparHtml(titulo)}</title>
+<style>
+  body { font-family: Arial, sans-serif; color: #111; margin: 16px; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  p { margin: 0 0 12px; font-size: 12px; color: #555; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th { text-align: left; text-transform: uppercase; font-size: 10px; color: #555; background: #f3f4f6; }
+  th, td { border-bottom: 1px solid #ddd; padding: 5px 6px; vertical-align: top; }
+  small { color: #666; }
+  .num { text-align: right; }
+  tr.offline td { background: #fef2f2; }
+  tr.fechado td { background: #f8fafc; }
+  thead { display: table-header-group; }
+  tr { page-break-inside: avoid; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @page { size: landscape; margin: 10mm; }
+</style></head><body>
+<h1>${escaparHtml(titulo)}</h1>
+<p>${maquinas.length} máquina${maquinas.length === 1 ? "" : "s"} · gerado em ${agora}</p>
+<table><thead><tr>
+  <th>Ponto / Caixa</th><th>Status</th><th>Região</th><th>${mostrarOffline ? "Offline há" : "Quedas hoje"}</th>
+  <th>Última venda</th><th>Sinal</th><th>Versão</th><th>IP</th><th class="num">Vendas hoje</th>
+</tr></thead><tbody>${linhas}</tbody></table>
+</body></html>`;
+};
+
 const mensagemErro = (error, padrao) =>
   error?.response?.data?.error || error?.message || padrao;
 
@@ -319,11 +432,21 @@ function NomePonto({ maquina, onAbrir }) {
 // Aba: Máquinas (offline por padrão)
 // ---------------------------------------------------------------------------
 
-function AbaMaquinas({ filtrosQuery, onAbrirMaquina, status, setStatus, comQueda, setComQueda }) {
+function AbaMaquinas({
+  filtrosQuery,
+  onAbrirMaquina,
+  status,
+  setStatus,
+  comQueda,
+  setComQueda,
+  regiao,
+  setRegiao,
+}) {
   const [ordenar, setOrdenar] = useState("");
-  const [page, setPage] = usePagina(JSON.stringify([filtrosQuery, status, comQueda, ordenar]));
+  const [page, setPage] = usePagina(JSON.stringify([filtrosQuery, status, comQueda, ordenar, regiao]));
   const { dados, loading, erro } = useConsulta("/machine-pay/monitor/maquinas", {
     ...filtrosQuery,
+    regiao: regiao || undefined,
     status,
     comQueda: comQueda ? "true" : undefined,
     ordenar: ordenar || undefined,
@@ -333,6 +456,65 @@ function AbaMaquinas({ filtrosQuery, onAbrirMaquina, status, setStatus, comQueda
 
   const maquinas = dados?.maquinas || [];
   const { verValores } = usePermissoesMachinePay();
+  const [enviandoWhatsapp, setEnviandoWhatsapp] = useState(false);
+  const [erroWhatsapp, setErroWhatsapp] = useState("");
+
+  const [imprimindo, setImprimindo] = useState(false);
+
+  // Lista inteira do filtro atual (todas as páginas), não só a página aberta
+  const buscarListaCompleta = async () => {
+    const res = await api.get("/machine-pay/monitor/maquinas", {
+      params: {
+        ...filtrosQuery,
+        regiao: regiao || undefined,
+        status,
+        comQueda: comQueda ? "true" : undefined,
+        ordenar: ordenar || undefined,
+        page: 1,
+        limit: 500,
+      },
+    });
+    return res.data?.maquinas || [];
+  };
+
+  const enviarListaWhatsapp = async () => {
+    const aba = reservarAbaWhatsapp();
+    setEnviandoWhatsapp(true);
+    setErroWhatsapp("");
+    try {
+      enviarWhatsapp(montarTextoListaWhatsapp(await buscarListaCompleta(), status), aba);
+    } catch (error) {
+      aba?.close();
+      setErroWhatsapp(mensagemErro(error, "Erro ao montar a lista para o WhatsApp"));
+    } finally {
+      setEnviandoWhatsapp(false);
+    }
+  };
+
+  const imprimirLista = async () => {
+    // A janela abre já no clique para o navegador não bloquear
+    const janela = window.open("", "_blank");
+    if (!janela) {
+      setErroWhatsapp("O navegador bloqueou a janela de impressão. Libere pop-ups para este site.");
+      return;
+    }
+    janela.document.write("<p style='font-family:Arial'>Montando a lista...</p>");
+    setImprimindo(true);
+    setErroWhatsapp("");
+    try {
+      const html = montarHtmlImpressao(await buscarListaCompleta(), { status, regiao, verValores });
+      janela.document.open();
+      janela.document.write(html);
+      janela.document.close();
+      janela.focus();
+      setTimeout(() => janela.print(), 300);
+    } catch (error) {
+      janela.close();
+      setErroWhatsapp(mensagemErro(error, "Erro ao montar a lista para impressão"));
+    } finally {
+      setImprimindo(false);
+    }
+  };
 
   return (
     <Secao
@@ -378,6 +560,15 @@ function AbaMaquinas({ filtrosQuery, onAbrirMaquina, status, setStatus, comQueda
           </label>
           <select
             className="input-field w-auto py-1.5 text-sm"
+            value={regiao}
+            onChange={(e) => setRegiao(e.target.value)}
+          >
+            <option value="">Capital e interior</option>
+            <option value="CAPITAL">🏙️ Só capital</option>
+            <option value="INTERIOR">🌳 Só interior</option>
+          </select>
+          <select
+            className="input-field w-auto py-1.5 text-sm"
             value={ordenar}
             onChange={(e) => setOrdenar(e.target.value)}
           >
@@ -388,9 +579,30 @@ function AbaMaquinas({ filtrosQuery, onAbrirMaquina, status, setStatus, comQueda
             <option value="vendas">Mais vendas hoje</option>
             <option value="nome">Número da loja</option>
           </select>
+          <div className="flex basis-full justify-end gap-2">
+            <button
+              type="button"
+              onClick={imprimirLista}
+              disabled={imprimindo || !dados?.total}
+              title="Imprime a tabela com os filtros atuais (todas as páginas)"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              🖨️ {imprimindo ? "Montando..." : "Imprimir"}
+            </button>
+            <button
+              type="button"
+              onClick={enviarListaWhatsapp}
+              disabled={enviandoWhatsapp || !dados?.total}
+              title="Envia a lista com os filtros atuais, separada por capital e interior"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#25D366] px-3 py-1.5 text-sm font-semibold text-white hover:bg-[#1ebe5b] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              💬 {enviandoWhatsapp ? "Montando lista..." : "Enviar para o WhatsApp"}
+            </button>
+          </div>
         </div>
       }
     >
+      {erroWhatsapp && <AlertBox type="error" message={erroWhatsapp} onClose={() => setErroWhatsapp("")} />}
       {erro && <AlertBox type="error" message={erro} />}
       {loading && !dados ? (
         <LoadingSpinner message="Carregando máquinas..." />
@@ -416,6 +628,7 @@ function AbaMaquinas({ filtrosQuery, onAbrirMaquina, status, setStatus, comQueda
                 <tr className="border-b bg-gray-50 text-left text-xs uppercase text-gray-500">
                   <th className="px-3 py-2">Ponto / Caixa</th>
                   <th className="px-3 py-2">Status</th>
+                  <th className="px-3 py-2">Região</th>
                   <th className="px-3 py-2">
                     {status === "offline" || status === "fechado" ? "Offline há" : "Quedas hoje"}
                   </th>
@@ -445,6 +658,9 @@ function AbaMaquinas({ filtrosQuery, onAbrirMaquina, status, setStatus, comQueda
                       {m.telemetria && m.telemetria !== "Consultado" && (
                         <span className="mt-1 block text-xs text-gray-500">{m.telemetria}</span>
                       )}
+                    </td>
+                    <td className="px-3 py-2 text-xs font-semibold text-gray-700">
+                      {m.regiao === "INTERIOR" ? "Interior" : "Capital"}
                     </td>
                     <td className="px-3 py-2">
                       {status === "offline" || status === "fechado" ? (
@@ -1435,6 +1651,21 @@ function DetalheMaquina({ posId, onClose }) {
   const [versaoManutencoes, setVersaoManutencoes] = useState(0);
   const [horarioAberto, setHorarioAberto] = useState(false);
   const [versaoHorario, setVersaoHorario] = useState(0);
+  const [salvandoRegiao, setSalvandoRegiao] = useState(false);
+  const [erroRegiao, setErroRegiao] = useState("");
+
+  const alterarRegiao = async (regiao) => {
+    setSalvandoRegiao(true);
+    setErroRegiao("");
+    try {
+      await api.put(`/machine-pay/monitor/maquinas/${posId}/regiao`, { regiao });
+      setVersaoHorario((v) => v + 1);
+    } catch (error) {
+      setErroRegiao(mensagemErro(error, "Erro ao salvar região"));
+    } finally {
+      setSalvandoRegiao(false);
+    }
+  };
   const fim = dataBrasil();
   const { dados, loading, erro } = useConsulta(
     posId ? `/machine-pay/monitor/maquinas/${posId}` : null,
@@ -1505,12 +1736,29 @@ function DetalheMaquina({ posId, onClose }) {
           🕒 Editar horário
         </button>
       )}
+      {permissoes.podeHorario && m && (
+        <select
+          value={m.regiao || "CAPITAL"}
+          onChange={(e) => alterarRegiao(e.target.value)}
+          disabled={salvandoRegiao}
+          title={
+            m.vinculo
+              ? "Região salva no cadastro da máquina"
+              : "Leitor sem máquina vinculada: a região fica salva para este caixa"
+          }
+          className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm font-semibold text-gray-700 shadow-sm disabled:opacity-50"
+        >
+          <option value="CAPITAL">🏙️ Capital</option>
+          <option value="INTERIOR">🌳 Interior</option>
+        </select>
+      )}
     </span>
   );
 
   return (
     <Modal isOpen={Boolean(posId)} onClose={onClose} title={titulo} size="xl">
       {erro && <AlertBox type="error" message={erro} />}
+      {erroRegiao && <AlertBox type="error" message={erroRegiao} onClose={() => setErroRegiao("")} />}
       {loading && !dados ? (
         <LoadingSpinner />
       ) : dados ? (
@@ -1538,6 +1786,9 @@ function DetalheMaquina({ posId, onClose }) {
           {m ? (
             <div className="flex flex-wrap items-center gap-2">
               <StatusPill online={m.online} pontoFechado={m.pontoFechado} />
+              <Pill className="border-slate-200 bg-slate-50 text-slate-700" title="Região">
+                {m.regiao === "INTERIOR" ? "🌳 Interior" : "🏙️ Capital"}
+              </Pill>
               <Pill className="border-slate-200 bg-slate-50 text-slate-700" title="Horário de funcionamento do ponto">
                 🕒 {resumoHorario(m.horarioFuncionamento)}
               </Pill>
@@ -1702,6 +1953,7 @@ export function MachinePay() {
   const [aba, setAba] = useState("maquinas");
   const [statusMaquinas, setStatusMaquinas] = useState("offline");
   const [comQuedaMaquinas, setComQuedaMaquinas] = useState(false);
+  const [regiaoMaquinas, setRegiaoMaquinas] = useState("");
 
   const [buscaDigitada, setBuscaDigitada] = useState("");
   const [busca, setBusca] = useState("");
@@ -1778,9 +2030,10 @@ export function MachinePay() {
     }
   };
 
-  const irParaMaquinas = (status, comQueda = false) => {
+  const irParaMaquinas = (status, comQueda = false, regiao = "") => {
     setStatusMaquinas(status);
     setComQuedaMaquinas(comQueda);
+    setRegiaoMaquinas(regiao);
     setAba("maquinas");
   };
 
@@ -2002,13 +2255,32 @@ export function MachinePay() {
               ativo={aba === "maquinas" && statusMaquinas === "online" && !comQuedaMaquinas}
             />
             <KpiCard
-              titulo="Offline agora"
-              valor={resumo.offline}
+              titulo="Offline capital"
+              valor={resumo.offlineCapital ?? 0}
               detalhe="Clique para ver a lista"
-              icone="🔴"
+              icone="🏙️"
               cor="text-red-600"
-              onClick={() => irParaMaquinas("offline")}
-              ativo={aba === "maquinas" && statusMaquinas === "offline" && !comQuedaMaquinas}
+              onClick={() => irParaMaquinas("offline", false, "CAPITAL")}
+              ativo={
+                aba === "maquinas" &&
+                statusMaquinas === "offline" &&
+                regiaoMaquinas === "CAPITAL" &&
+                !comQuedaMaquinas
+              }
+            />
+            <KpiCard
+              titulo="Offline interior"
+              valor={resumo.offlineInterior ?? 0}
+              detalhe="Clique para ver a lista"
+              icone="🌳"
+              cor="text-red-600"
+              onClick={() => irParaMaquinas("offline", false, "INTERIOR")}
+              ativo={
+                aba === "maquinas" &&
+                statusMaquinas === "offline" &&
+                regiaoMaquinas === "INTERIOR" &&
+                !comQuedaMaquinas
+              }
             />
             <KpiCard
               titulo="Ponto fechado"
@@ -2113,6 +2385,8 @@ export function MachinePay() {
             setStatus={setStatusMaquinas}
             comQueda={comQuedaMaquinas}
             setComQueda={setComQuedaMaquinas}
+            regiao={regiaoMaquinas}
+            setRegiao={setRegiaoMaquinas}
           />
         )}
         {aba === "ranking" && (

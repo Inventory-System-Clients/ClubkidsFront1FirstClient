@@ -32,6 +32,7 @@ export function MaquinaForm() {
     ativo: true,
     machinePayPosId: "",
     machinePayUsrId: "",
+    regiao: "CAPITAL",
   });
 
   const [lojas, setLojas] = useState([]);
@@ -86,6 +87,7 @@ export function MaquinaForm() {
         ativo: response.data.ativo !== undefined ? response.data.ativo : true,
         machinePayPosId: response.data.machinePayPosId || "",
         machinePayUsrId: response.data.machinePayUsrId || "",
+        regiao: response.data.regiao || "CAPITAL",
       });
       setHorario(horarioParaEditor(response.data.horarioFuncionamento));
     } catch (error) {
@@ -165,6 +167,7 @@ export function MaquinaForm() {
         machinePayPosId: formData.machinePayPosId?.trim() || null,
         machinePayUsrId: formData.machinePayUsrId?.trim() || null,
         horarioFuncionamento,
+        regiao: formData.regiao || "CAPITAL",
       };
 
       console.log("Dados enviados:", JSON.stringify(data, null, 2)); // Debug detalhado
@@ -485,6 +488,23 @@ export function MaquinaForm() {
               </h3>
 
               <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Região
+                  </label>
+                  <select
+                    name="regiao"
+                    value={formData.regiao}
+                    onChange={handleChange}
+                    className="input-field md:w-64"
+                  >
+                    <option value="CAPITAL">Capital</option>
+                    <option value="INTERIOR">Interior</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Usado para separar as máquinas no monitor Machine Pay
+                  </p>
+                </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Localização na Loja
