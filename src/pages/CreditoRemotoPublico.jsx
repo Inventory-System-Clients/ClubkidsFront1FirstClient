@@ -220,9 +220,16 @@ export function CreditoRemotoPublico() {
                     key={maquina.id}
                     className="card flex items-center justify-between gap-3"
                   >
-                    <span className="font-bold text-gray-900 min-w-0 wrap-break-word">
-                      🎮 {maquina.nome}
-                    </span>
+                    <div className="min-w-0">
+                      {maquina.loja && (
+                        <p className="text-xs font-bold uppercase text-primary wrap-break-word">
+                          📍 {maquina.loja}
+                        </p>
+                      )}
+                      <p className="font-bold text-gray-900 wrap-break-word">
+                        🎮 {maquina.nome}
+                      </p>
+                    </div>
                     <button
                       type="button"
                       className="btn-primary shrink-0"
@@ -246,6 +253,11 @@ export function CreditoRemotoPublico() {
                 <p className="text-xs font-bold uppercase text-gray-500">
                   Usar voucher em
                 </p>
+                {maquinaAberta.loja && (
+                  <p className="text-sm font-bold text-primary">
+                    📍 {maquinaAberta.loja}
+                  </p>
+                )}
                 <h3 className="text-lg font-black text-gray-900">
                   {maquinaAberta.nome}
                 </h3>

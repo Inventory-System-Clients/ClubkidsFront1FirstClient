@@ -177,6 +177,7 @@ export function CreditosRemotos() {
   const [escopo, setEscopo] = useState("todas");
   const [lojaIds, setLojaIds] = useState([]);
   const [expiraEm, setExpiraEm] = useState("");
+  const [modoLoja, setModoLoja] = useState("todas");
   const [maquinaId, setMaquinaId] = useState("");
   const [criando, setCriando] = useState(false);
   const [linkCriado, setLinkCriado] = useState(null);
@@ -273,7 +274,8 @@ export function CreditosRemotos() {
       setError("Escolha pelo menos uma loja.");
       return;
     }
-    if (escopo === "maquina" && !maquinaId) {
+    const maquinaEspecifica = escopo === "lojas" && modoLoja === "maquina";
+    if (maquinaEspecifica && !maquinaId) {
       setError("Escolha a máquina.");
       return;
     }
@@ -282,8 +284,8 @@ export function CreditosRemotos() {
       limite: limite.replace(",", "."),
       quantidade: Number(quantidade),
       expiraEm: expiraEm ? new Date(expiraEm).toISOString() : null,
-      maquinaId: escopo === "maquina" ? maquinaId : null,
-      lojaIds: escopo === "lojas" ? lojaIds : [],
+      maquinaId: maquinaEspecifica ? maquinaId : null,
+      lojaIds: escopo === "lojas" && !maquinaEspecifica ? lojaIds : [],
     });
     if (ok) {
       setDescricao("");
@@ -293,10 +295,15 @@ export function CreditosRemotos() {
     }
   };
 
-  const alternarLoja = (id) =>
-    setLojaIds((atual) =>
-      atual.includes(id) ? atual.filter((item) => item !== id) : [...atual, id],
-    );
+  const alternarLoja = (id) => {
+    const novas = lojaIds.includes(id)
+      ? lojaIds.filter((item) => item !== id)
+      : [...lojaIds, id];
+    setLojaIds(novas);
+    // Máquina escolhida de uma loja que foi desmarcada deixa de valer
+    const maquina = maquinasMachinePay.find((item) => item.id === maquinaId);
+    if (maquina && !novas.includes(maquina.lojaId)) setMaquinaId("");
+  };
 
   const copiarLinkExistente = async (link) => {
     try {
@@ -479,8 +486,7 @@ export function CreditosRemotos() {
                 <div className="space-y-1 text-sm">
                   {[
                     ["todas", `Todas as máquinas ${NOME_CONTA_MACHINE_PAY}`],
-                    ["lojas", "Lojas escolhidas"],
-                    ["maquina", "Uma máquina só"],
+                    ["lojas", "Escolher loja"],
                   ].map(([valor, rotulo]) => (
                     <label key={valor} className="flex items-center gap-2">
                       <input
@@ -521,19 +527,50 @@ export function CreditosRemotos() {
                 </div>
               )}
 
-              {escopo === "maquina" && (
-                <select
-                  className="input-field w-full"
-                  value={maquinaId}
-                  onChange={(event) => setMaquinaId(event.target.value)}
-                >
-                  <option value="">Escolha a máquina</option>
-                  {maquinasMachinePay.map((maquina) => (
-                    <option key={maquina.id} value={maquina.id}>
-                      {maquina.nome}
-                    </option>
-                  ))}
-                </select>
+              {escopo === "lojas" && lojaIds.length > 0 && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Máquinas
+                  </label>
+                  <div className="space-y-1 text-sm">
+                    {[
+                      ["todas", "Todas as máquinas da loja"],
+                      ["maquina", "Máquina específica"],
+                    ].map(([valor, rotulo]) => (
+                      <label key={valor} className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="modoLoja"
+                          checked={modoLoja === valor}
+                          onChange={() => setModoLoja(valor)}
+                        />
+                        {rotulo}
+                      </label>
+                    ))}
+                  </div>
+                  {modoLoja === "maquina" && (
+                    <select
+                      className="input-field w-full mt-2"
+                      value={maquinaId}
+                      onChange={(event) => setMaquinaId(event.target.value)}
+                    >
+                      <option value="">Escolha a máquina</option>
+                      {lojasMachinePay
+                        .filter((loja) => lojaIds.includes(loja.id))
+                        .map((loja) => (
+                          <optgroup key={loja.id} label={loja.nome}>
+                            {maquinasMachinePay
+                              .filter((maquina) => maquina.lojaId === loja.id)
+                              .map((maquina) => (
+                                <option key={maquina.id} value={maquina.id}>
+                                  {maquina.nome}
+                                </option>
+                              ))}
+                          </optgroup>
+                        ))}
+                    </select>
+                  )}
+                </div>
               )}
 
               <div>

@@ -19,6 +19,7 @@ import { Footer } from "../components/Footer";
 import { AlertBox, Modal, PageHeader } from "../components/UIComponents";
 import { LoadingSpinner } from "../components/Loading";
 import { HorarioFuncionamentoEditor } from "../components/HorarioFuncionamento";
+import { MapaMachinePay } from "../components/MapaMachinePay";
 import {
   editorParaHorario,
   horarioParaEditor,
@@ -128,6 +129,13 @@ const TITULO_STATUS_WHATSAPP = {
   todas: "📋 *MÁQUINAS MACHINE PAY*",
 };
 
+// "Loja 53 Espetaria 3 Garotos" / "TakeBall37, Frango Assado" -> só o nome do ponto
+const nomeLojaSemCodigo = (nome) => {
+  const original = String(nome || "").trim();
+  const limpo = original.replace(/^(loja|take\s*ball)\s*\d+\s*[,.;:\-–]?\s*/i, "").trim();
+  return limpo || original || "Sem nome";
+};
+
 // Lista do monitor -> mensagem de WhatsApp, separada por capital/interior
 const montarTextoListaWhatsapp = (maquinas, status) => {
   const agora = new Date().toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
@@ -144,6 +152,11 @@ const montarTextoListaWhatsapp = (maquinas, status) => {
     if (!lista.length) continue;
     linhas.push("", `*${titulo} (${lista.length})*`);
     lista.forEach((m, indice) => {
+      // Offline: só o nome do ponto, sem número, situação nem última venda
+      if (status === "offline") {
+        linhas.push(`🔴 ${nomeLojaSemCodigo(m.nomePonto)}`);
+        return;
+      }
       const situacao = m.online ? "🟢 Online" : m.pontoFechado ? "🌙 Ponto fechado" : "🔴 Offline";
       const offlineHa = m.online
         ? null
@@ -1942,12 +1955,13 @@ const ABAS = [
   ["ranking", "🏆 Ranking de quedas"],
   ["graficos", "📊 Gráficos"],
   ["eventos", "🕒 Linha do tempo"],
+  ["mapa", "🗺️ Mapa"],
   ["ajuda", "❓ Como ler"],
 ];
 
 export function MachinePay() {
   const hoje = dataBrasil();
-  const { verValores } = usePermissoesMachinePay();
+  const { verValores, podeHorario } = usePermissoesMachinePay();
   const { pode } = useAuth();
   const [aba, setAba] = useState("maquinas");
   const [statusMaquinas, setStatusMaquinas] = useState("offline");
@@ -2394,6 +2408,14 @@ export function MachinePay() {
         {aba === "graficos" && <AbaGraficos filtrosQuery={filtrosQuery} periodo={periodo} resumo={resumo} />}
         {aba === "eventos" && (
           <AbaEventos filtrosQuery={filtrosQuery} periodo={periodo} onAbrirMaquina={setMaquinaAberta} />
+        )}
+        {aba === "mapa" && (
+          <MapaMachinePay
+            filtrosQuery={filtrosQuery}
+            onAbrirMaquina={setMaquinaAberta}
+            verValores={verValores}
+            podeEditar={podeHorario}
+          />
         )}
         {aba === "ajuda" && <AbaAjuda />}
       </main>
