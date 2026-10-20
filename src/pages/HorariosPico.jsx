@@ -40,7 +40,6 @@ const METRICAS = {
     formatar: formatarNumero,
     emMedia: (v) => `${formatarNumero(v)} ${Number(v) === 1 ? "venda" : "vendas"} em média`,
   },
-  pelucias: { label: "Pelúcias" },
 };
 
 const nivel = (valor, maximo) => (valor > 0 && maximo > 0 ? Math.max(1, Math.ceil((valor / maximo) * 7)) : 0);
@@ -194,7 +193,6 @@ export function HorariosPicoConteudo() {
 
   const dados = picos.dados;
   const config = METRICAS[metrica];
-  const semPelucias = metrica === "pelucias";
   const sinc = dados?.sincronizacao;
   const semDados = dados && dados.diasComDados === 0;
 
@@ -259,18 +257,7 @@ export function HorariosPicoConteudo() {
 
         {picos.erro && <Aviso tipo="erro">{picos.erro}</Aviso>}
 
-        {semPelucias ? (
-          <Cartao>
-            <h2 className="text-lg font-bold text-[#1b2f5c]">Pelúcias por horário não existem</h2>
-            <p className="mt-2 text-sm leading-relaxed text-[#5b6475]">
-              A Machine Pay só registra os pagamentos (com dia e hora). As pelúcias que saíram são
-              contadas nas coletas (movimentações), uma vez por visita e sem a hora em que cada uma
-              saiu — então não dá para dizer em que horário elas saem sem inventar números. Use{" "}
-              <strong>Vendas</strong> para saber quando o movimento é maior; as pelúcias por máquina
-              estão no <strong>Ranking das máquinas</strong>.
-            </p>
-          </Cartao>
-        ) : !dados ? (
+        {!dados ? (
           !picos.erro && (
             <Cartao>
               <p className="text-sm text-[#5b6475]">Carregando...</p>
