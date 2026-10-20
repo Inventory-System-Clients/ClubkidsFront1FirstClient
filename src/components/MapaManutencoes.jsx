@@ -216,7 +216,9 @@ export function MapaManutencoes({ rota, linkMaps, mostrarTrajeto, onAbrirDetalhe
   const semPosicao = rota.filter((m) => m.loja?.posicao?.lat == null).length;
 
   return (
-    <div className="overflow-hidden rounded-2xl bg-white shadow">
+    // isolate: as camadas do Leaflet (z-index 400 a 1000) ficam dentro do mapa
+    // e não passam por cima das janelas de detalhe (z-50)
+    <div className="relative isolate z-0 overflow-hidden rounded-2xl bg-white shadow">
       <div ref={mapaDivRef} className="h-[360px] w-full sm:h-[460px]" />
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 text-xs text-gray-600">
         {saida && (
