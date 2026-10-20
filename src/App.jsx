@@ -39,6 +39,8 @@ const Graficos = lazy(() => import("./pages/Graficos").then(m => ({ default: m.G
 const Relatorios = lazy(() => import("./pages/Relatorios").then(m => ({ default: m.Relatorios })));
 const AlertasEstoque = lazy(() => import("./pages/AlertasEstoque").then(m => ({ default: m.AlertasEstoque })));
 const MachinePay = lazy(() => import("./pages/MachinePay").then(m => ({ default: m.MachinePay })));
+const HorariosPico = lazy(() => import("./pages/HorariosPico").then(m => ({ default: m.HorariosPico })));
+const RankingMaquinas = lazy(() => import("./pages/RankingMaquinas").then(m => ({ default: m.RankingMaquinas })));
 const StyleGuide = lazy(() => import("./pages/StyleGuide").then(m => ({ default: m.StyleGuide })));
 const CreditosRemotos = lazy(() => import("./pages/CreditosRemotos").then(m => ({ default: m.CreditosRemotos })));
 const CreditoRemotoPublico = lazy(() => import("./pages/CreditoRemotoPublico").then(m => ({ default: m.CreditoRemotoPublico })));
@@ -262,6 +264,22 @@ function AppRoutes() {
             element={
               <PrivateRoute permissao="machinePay" allowedRoles={["ADMIN", "FINANCEIRO"]}>
                 <MachinePay />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/machine-pay/horarios-pico"
+            element={
+              <PrivateRoute permissao="machinePay" allowedRoles={["ADMIN", "FINANCEIRO"]}>
+                <HorariosPico />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/machine-pay/ranking"
+            element={
+              <PrivateRoute permissao="machinePay" allowedRoles={["ADMIN", "FINANCEIRO"]}>
+                <RankingMaquinas />
               </PrivateRoute>
             }
           />

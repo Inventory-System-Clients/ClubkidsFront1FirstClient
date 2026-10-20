@@ -92,12 +92,23 @@ export function Navbar() {
   };
 
   // Usuário com acessos personalizados: só as abas liberadas pelo ADMIN
-  const links = temPermissoesPersonalizadas
-    ? CATALOGO_ABAS.filter((aba) => pode(aba.chave)).map((aba) => ({
-        to: aba.rota,
-        label: aba.label,
-      }))
-    : linksPorRole();
+  const links = (
+    temPermissoesPersonalizadas
+      ? CATALOGO_ABAS.filter((aba) => pode(aba.chave)).map((aba) => ({
+          to: aba.rota,
+          label: aba.label,
+        }))
+      : linksPorRole()
+  ).flatMap((link) =>
+    // Páginas de análise da Machine Pay: mesma permissão da aba, logo abaixo dela
+    link.to === "/machine-pay"
+      ? [
+          link,
+          { to: "/machine-pay/horarios-pico", label: "⏰ Horários de pico" },
+          { to: "/machine-pay/ranking", label: "🏆 Ranking das máquinas" },
+        ]
+      : [link],
+  );
 
   const nomeRole = isAdmin
     ? "Administrador"
