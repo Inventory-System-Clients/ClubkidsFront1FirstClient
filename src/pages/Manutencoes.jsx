@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import { AlertBox, PageHeader } from "../components/UIComponents";
@@ -43,6 +43,79 @@ function BotaoWhatsapp({ onClick, compacto = false }) {
       </svg>
       {compacto ? "Enviar" : "Enviar no WhatsApp"}
     </button>
+  );
+}
+
+const normalizarBusca = texto => String(texto || "")
+  .toLowerCase()
+  .normalize("NFD")
+  .replace(/[̀-ͯ]/g, "");
+
+// Campo com busca: digita e vai mostrando os nomes que batem. Vazio = todos.
+function CampoBusca({ opcoes, valor, onChange, placeholder }) {
+  const [texto, setTexto] = useState("");
+  const [aberto, setAberto] = useState(false);
+  const inputRef = useRef(null);
+  const selecionada = opcoes.find(o => o.valor === valor);
+  const busca = normalizarBusca(texto);
+  const visiveis = opcoes.filter(o => normalizarBusca(o.rotulo).includes(busca));
+
+  const escolher = novoValor => {
+    onChange(novoValor);
+    setAberto(false);
+    inputRef.current?.blur();
+  };
+
+  return (
+    <div className="relative w-full">
+      <input
+        ref={inputRef}
+        type="text"
+        className="input-field w-full pr-9"
+        placeholder={`🔍 ${placeholder}`}
+        value={aberto ? texto : (selecionada?.rotulo || "")}
+        onFocus={() => { setTexto(""); setAberto(true); }}
+        onChange={e => { setTexto(e.target.value); setAberto(true); }}
+        onBlur={() => setAberto(false)}
+        onKeyDown={e => {
+          if (e.key === "Escape") inputRef.current?.blur();
+          if (e.key === "Enter" && visiveis.length > 0) {
+            e.preventDefault();
+            escolher(visiveis[0].valor);
+          }
+        }}
+      />
+      {valor && !aberto && (
+        <button
+          type="button"
+          className="absolute right-2 top-1/2 -translate-y-1/2 px-1 text-lg text-gray-400 hover:text-gray-600"
+          onMouseDown={e => { e.preventDefault(); escolher(""); }}
+          title="Limpar"
+          aria-label="Limpar"
+        >×</button>
+      )}
+      {aberto && (
+        // onMouseDown + preventDefault: escolhe antes de o campo perder o foco
+        <ul className="absolute z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+          <li
+            className={`cursor-pointer px-3 py-2 text-gray-500 hover:bg-blue-50 ${!valor ? "font-semibold" : ""}`}
+            onMouseDown={e => { e.preventDefault(); escolher(""); }}
+          >
+            {placeholder}
+          </li>
+          {visiveis.map(o => (
+            <li
+              key={o.valor}
+              className={`cursor-pointer px-3 py-2 hover:bg-blue-50 ${o.valor === valor ? "bg-blue-100 font-semibold" : ""}`}
+              onMouseDown={e => { e.preventDefault(); escolher(o.valor); }}
+            >
+              {o.rotulo}
+            </li>
+          ))}
+          {visiveis.length === 0 && <li className="px-3 py-2 text-gray-400">Nenhum resultado</li>}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -582,10 +655,12 @@ function Manutencoes() {
               type="button"
             >🗺️ Mapa de manutenções</button>
           </div>
-          <select className="input-field" value={filtroLoja} onChange={e => setFiltroLoja(e.target.value)}>
-            <option value="">Todas as lojas</option>
-            {lojas.map(loja => <option key={loja} value={loja}>{loja}</option>)}
-          </select>
+          <CampoBusca
+            placeholder="Todas as lojas"
+            opcoes={[...lojas].sort((a, b) => a.localeCompare(b)).map(loja => ({ valor: loja, rotulo: loja }))}
+            valor={filtroLoja}
+            onChange={setFiltroLoja}
+          />
           {abaManutencao === "recorrencia" ? (
             <div className="flex flex-wrap items-center gap-2">
               <label className="text-sm text-gray-500">Período</label>
@@ -607,14 +682,12 @@ function Manutencoes() {
             </div>
           ) : abaManutencao === "mapa" ? (
             verTodasNaRota && (
-              <select
-                className="input-field"
-                value={filtroFuncionarioRota}
-                onChange={e => setFiltroFuncionarioRota(e.target.value)}
-              >
-                <option value="">Todos os funcionários</option>
-                {funcionariosRota.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
-              </select>
+              <CampoBusca
+                placeholder="Todos os funcionários"
+                opcoes={funcionariosRota.map(f => ({ valor: f.id, rotulo: f.nome || "Sem nome" }))}
+                valor={filtroFuncionarioRota}
+                onChange={setFiltroFuncionarioRota}
+              />
             )
           ) : (
           <>
