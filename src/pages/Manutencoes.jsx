@@ -322,6 +322,7 @@ function Manutencoes() {
       try {
         const res = await api.get("/manutencoes");
         setManutencoes(res.data);
+        setUltimaAtualizacao(new Date());
       } catch (err) {
         console.error("Erro ao buscar manutenções:", err?.response?.status, err?.response?.data, err);
         setError("Erro ao buscar manutenções: troque api" + (err?.response?.status ? `${err.response.status} - ${JSON.stringify(err.response.data)}` : err.message || err));
@@ -330,6 +331,52 @@ function Manutencoes() {
       }
     }
     fetchManutencoes();
+  }, []);
+
+  // Atualização automática (mapa, ordem e status mudados por outras pessoas).
+  // Pausa enquanto arrasta ou salva a ordem, e descarta a resposta se a ordem
+  // mudou nesse meio tempo, para não desfazer o que acabou de ser movido.
+  const [ultimaAtualizacao, setUltimaAtualizacao] = useState(null);
+  const bloqueioAtualizacaoRef = useRef(false);
+  const versaoOrdemRef = useRef(0);
+  const noMapaRef = useRef(false);
+  useEffect(() => {
+    bloqueioAtualizacaoRef.current = salvandoOrdem || Boolean(arrastandoId);
+  }, [salvandoOrdem, arrastandoId]);
+  useEffect(() => {
+    // Mapa: a cada 20 s, só as não feitas (sem o histórico).
+    // Tabelas: a cada 60 s, a lista completa.
+    const INTERVALO_MAPA_MS = 20000;
+    const INTERVALO_TABELAS_MS = 60000;
+    let ultimaBusca = Date.now();
+    async function atualizarEmSegundoPlano(forcar = false) {
+      if (document.hidden || bloqueioAtualizacaoRef.current) return;
+      const noMapa = noMapaRef.current;
+      if (!forcar && Date.now() - ultimaBusca < (noMapa ? INTERVALO_MAPA_MS : INTERVALO_TABELAS_MS) - 1000) return;
+      ultimaBusca = Date.now();
+      const versao = versaoOrdemRef.current;
+      try {
+        const res = await api.get("/manutencoes", { params: noMapa ? { pendentes: true } : undefined });
+        if (bloqueioAtualizacaoRef.current || versao !== versaoOrdemRef.current) return;
+        // Só pendentes: mantém as feitas que já estavam na tela
+        setManutencoes(anteriores => (noMapa
+          ? [...res.data, ...anteriores.filter(m => isConcluida(m.status))]
+          : res.data));
+        setUltimaAtualizacao(new Date());
+      } catch (err) {
+        // Sem conexão no campo: tenta de novo no próximo ciclo
+        console.warn("Falha ao atualizar manutenções:", err?.message || err);
+      }
+    }
+    const timer = window.setInterval(atualizarEmSegundoPlano, INTERVALO_MAPA_MS);
+    const aoVoltarParaAba = () => {
+      if (!document.hidden) atualizarEmSegundoPlano(true);
+    };
+    document.addEventListener("visibilitychange", aoVoltarParaAba);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", aoVoltarParaAba);
+    };
   }, []);
 
   const lojas = Array.from(new Set(manutencoes.map(m => m.loja?.nome).filter(Boolean)));
@@ -341,6 +388,9 @@ function Manutencoes() {
   const [abaManutencao, setAbaManutencao] = useState(
     searchParams.get("aba") === "mapa" ? "mapa" : "pendentes"
   );
+  useEffect(() => {
+    noMapaRef.current = abaManutencao === "mapa";
+  }, [abaManutencao]);
   // Aba de recorrência: máquinas com várias manutenções num período curto
   const [periodoRecorrencia, setPeriodoRecorrencia] = useState(30);
   const [minimoRecorrencia, setMinimoRecorrencia] = useState(3);
@@ -401,6 +451,7 @@ function Manutencoes() {
 
   async function salvarOrdem(itens) {
     if (itens.length === 0) return;
+    versaoOrdemRef.current += 1;
     const anterior = manutencoes;
     const novasPosicoes = new Map(itens.map(item => [item.id, item.ordem]));
     setManutencoes(lista => lista.map(m => (
@@ -810,6 +861,11 @@ function Manutencoes() {
             <p className="text-sm text-gray-600">
               {verTodasNaRota ? "Todas as manutenções pendentes" : "Suas manutenções pendentes"}, na ordem definida em Pendentes/Urgentes.
               Toque na primeira para abrir o endereço no Maps.
+              {ultimaAtualizacao && (
+                <span className="ml-1 text-gray-400">
+                  Atualiza sozinho · última às {ultimaAtualizacao.toLocaleTimeString("pt-BR")}.
+                </span>
+              )}
               {podeOrdenar && " Use ▲ ▼ para mudar a ordem (urgentes ficam sempre antes das pendentes)."}
               {salvandoOrdem && <span className="ml-2 text-blue-600">Salvando...</span>}
             </p>

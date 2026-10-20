@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import api from "../services/api";
 
 // Mapa das manutenções pendentes, na ordem da fila. Cada loja vira um pino com
 // o(s) número(s) da fila; a posição é a mesma do mapa Machine Pay (correção à
@@ -10,6 +11,8 @@ const COR_PROXIMA = "#16a34a";
 const COR_URGENTE = "#dc2626";
 const COR_NORMAL = "#2457B1";
 const CENTRO_PADRAO = [-23.55, -46.63];
+// Ponto de saída (sede Club Kids): o trajeto começa sempre nele
+const LOGO_SAIDA = "/ClubeKidsLogo%20(1).png";
 
 function escaparHtml(texto) {
   return String(texto ?? "").replace(
@@ -47,6 +50,29 @@ function pinoIcone(grupo) {
   return L.divIcon({ className: "", html, iconSize: [0, 0], iconAnchor: [0, 0] });
 }
 
+function saidaIcone() {
+  const html = `
+    <div style="transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center">
+      <div style="width:52px;height:52px;border-radius:50%;background:#fff url('${LOGO_SAIDA}') center/150% no-repeat;
+        border:3px solid #fff;box-shadow:0 4px 12px rgba(20,30,60,.35)"></div>
+      <div style="margin-top:2px;padding:1px 8px;border-radius:999px;background:#1f2937;color:#fff;
+        font:700 11px/1.4 system-ui,sans-serif;white-space:nowrap">Saída</div>
+    </div>`;
+  return L.divIcon({ className: "", html, iconSize: [0, 0], iconAnchor: [0, 0] });
+}
+
+function saidaPopupHtml(saida) {
+  const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(saida.endereco)}`;
+  return `
+    <div style="min-width:200px;max-width:260px;font-family:inherit;font-size:13px">
+      <div style="font-weight:800;font-size:14px">${escaparHtml(saida.nome)} · Saída</div>
+      <div style="margin-top:4px;color:#4b5563">${escaparHtml(saida.endereco)}</div>
+      <a href="${escaparHtml(maps)}" target="_blank" rel="noopener noreferrer"
+        style="display:inline-block;margin-top:10px;padding:6px 14px;border-radius:999px;background:#2457B1;
+        color:#fff;font-weight:700;text-decoration:none">🗺️ Abrir no Maps</a>
+    </div>`;
+}
+
 function popupHtml(grupo, linkMaps) {
   const loja = grupo[0].manutencao.loja;
   const maps = linkMaps(loja);
@@ -82,6 +108,7 @@ export function MapaManutencoes({ rota, linkMaps, mostrarTrajeto, onAbrirDetalhe
   const abrirRef = useRef(onAbrirDetalhe);
   const rotaRef = useRef(rota);
   const linkMapsRef = useRef(linkMaps);
+  const [saida, setSaida] = useState(null);
   useEffect(() => {
     abrirRef.current = onAbrirDetalhe;
     rotaRef.current = rota;
@@ -92,6 +119,20 @@ export function MapaManutencoes({ rota, linkMaps, mostrarTrajeto, onAbrirDetalhe
   const assinatura = rota
     .map((m) => [m.id, m.status, m.descricao, m.funcionario?.nome, m.loja?.posicao?.lat, m.loja?.posicao?.lng].join(":"))
     .join("|");
+
+  // Ponto de saída: busca uma vez (o servidor guarda a posição)
+  useEffect(() => {
+    let ativo = true;
+    api
+      .get("/manutencoes/saida")
+      .then(({ data }) => {
+        if (ativo && data?.lat != null && data?.lng != null) setSaida(data);
+      })
+      .catch((error) => console.warn("Ponto de saída indisponível:", error?.message || error));
+    return () => {
+      ativo = false;
+    };
+  }, []);
 
   // Cria o mapa uma vez.
   useEffect(() => {
@@ -133,9 +174,19 @@ export function MapaManutencoes({ rota, linkMaps, mostrarTrajeto, onAbrirDetalhe
       .filter(({ manutencao: m }) => m.loja?.posicao?.lat != null && m.loja?.posicao?.lng != null);
     const posicaoDe = (m) => [m.loja.posicao.lat, m.loja.posicao.lng];
 
-    if (mostrarTrajeto && itens.length > 1) {
-      const trajeto = itens
-        .map(({ manutencao }) => posicaoDe(manutencao))
+    const pontoSaida = saida ? [saida.lat, saida.lng] : null;
+    if (pontoSaida) {
+      L.marker(pontoSaida, { icon: saidaIcone(), zIndexOffset: 200000 })
+        .bindPopup(saidaPopupHtml(saida), { offset: [0, -60] })
+        .addTo(camada);
+    }
+
+    // Trajeto: sai da Club Kids e segue a ordem da fila
+    if (mostrarTrajeto && itens.length + (pontoSaida ? 1 : 0) > 1) {
+      const trajeto = [
+        ...(pontoSaida ? [pontoSaida] : []),
+        ...itens.map(({ manutencao }) => posicaoDe(manutencao)),
+      ]
         .filter((p, i, lista) => i === 0 || p[0] !== lista[i - 1][0] || p[1] !== lista[i - 1][1]);
       L.polyline(trajeto, { color: COR_NORMAL, weight: 3, opacity: 0.6, dashArray: "8 8" }).addTo(camada);
     }
@@ -153,13 +204,14 @@ export function MapaManutencoes({ rota, linkMaps, mostrarTrajeto, onAbrirDetalhe
     });
 
     const pontos = grupos.map((grupo) => posicaoDe(grupo[0].manutencao));
-    const chave = grupos.map((grupo) => grupo[0].manutencao.loja.id).sort().join(",");
+    if (pontoSaida) pontos.push(pontoSaida);
+    const chave = grupos.map((grupo) => grupo[0].manutencao.loja.id).sort().join(",") + (pontoSaida ? "|saida" : "");
     if (pontos.length && chave !== enquadradoRef.current) {
       enquadradoRef.current = chave;
       if (pontos.length === 1) mapa.setView(pontos[0], 15);
       else mapa.fitBounds(pontos, { padding: [40, 40], maxZoom: 15 });
     }
-  }, [assinatura, mostrarTrajeto]);
+  }, [assinatura, mostrarTrajeto, saida]);
 
   const semPosicao = rota.filter((m) => m.loja?.posicao?.lat == null).length;
 
@@ -167,6 +219,11 @@ export function MapaManutencoes({ rota, linkMaps, mostrarTrajeto, onAbrirDetalhe
     <div className="overflow-hidden rounded-2xl bg-white shadow">
       <div ref={mapaDivRef} className="h-[360px] w-full sm:h-[460px]" />
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 text-xs text-gray-600">
+        {saida && (
+          <span className="inline-flex items-center gap-1">
+            <img src={LOGO_SAIDA} alt="" className="h-4 w-4 rounded-full object-cover" /> Saída ({saida.nome})
+          </span>
+        )}
         <span><span style={{ color: COR_PROXIMA }}>●</span> Próxima</span>
         <span><span style={{ color: COR_URGENTE }}>●</span> Urgente</span>
         <span><span style={{ color: COR_NORMAL }}>●</span> Depois</span>
