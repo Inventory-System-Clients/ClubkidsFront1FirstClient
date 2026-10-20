@@ -140,10 +140,14 @@ export function MapaManutencoes({ rota, linkMaps, mostrarTrajeto, onAbrirDetalhe
       L.polyline(trajeto, { color: COR_NORMAL, weight: 3, opacity: 0.6, dashArray: "8 8" }).addTo(camada);
     }
 
-    // Desenha do fim para o começo: a próxima fica por cima.
+    // Número menor fica por cima (o Leaflet empilha pela latitude se não mandar)
     const grupos = agruparPorLoja(itens);
-    [...grupos].reverse().forEach((grupo) => {
-      L.marker(posicaoDe(grupo[0].manutencao), { icon: pinoIcone(grupo), riseOnHover: true })
+    grupos.forEach((grupo) => {
+      L.marker(posicaoDe(grupo[0].manutencao), {
+        icon: pinoIcone(grupo),
+        riseOnHover: true,
+        zIndexOffset: 100000 - grupo[0].numero * 100,
+      })
         .bindPopup(popupHtml(grupo, linkMapsRef.current), { offset: [0, -30], maxHeight: 320 })
         .addTo(camada);
     });

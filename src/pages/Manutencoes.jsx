@@ -407,15 +407,24 @@ function Manutencoes() {
     maquina => String(maquina.lojaId) === String(editData.lojaId)
   );
 
-  // MAPA: fila de manutenções não feitas, na ordem definida nas abas.
+  // FILA: manutenções não feitas; primeiro as urgentes (na ordem da aba Urgentes),
+  // depois as pendentes (na ordem da aba Pendentes). O número na fila aparece
+  // na coluna Ordem das tabelas e nos pinos do mapa.
   // Admin vê todas (pode filtrar por funcionário); funcionário só as dele.
   const verTodasNaRota = podeVerTodas && usuario?.role !== "FUNCIONARIO";
-  const rota = ordenarManutencoes(manutencoes).filter(m => {
+  const ativasOrdenadas = ordenarManutencoes(manutencoes).filter(m => {
     if (isConcluida(m.status)) return false;
     if (!verTodasNaRota && m.funcionarioId !== usuario?.id) return false;
-    if (verTodasNaRota && filtroFuncionarioRota && m.funcionarioId !== filtroFuncionarioRota) return false;
     return !filtroLoja || m.loja?.nome === filtroLoja;
   });
+  const filaGeral = [
+    ...ativasOrdenadas.filter(m => isUrgente(m.status)),
+    ...ativasOrdenadas.filter(m => !isUrgente(m.status)),
+  ];
+  const numeroNaFila = new Map(filaGeral.map((m, i) => [m.id, i + 1]));
+  const rota = filtroFuncionarioRota
+    ? filaGeral.filter(m => m.funcionarioId === filtroFuncionarioRota)
+    : filaGeral;
   const funcionariosRota = Array.from(
     new Map(
       manutencoes
@@ -728,6 +737,8 @@ function Manutencoes() {
             <p className="text-sm text-gray-600">
               {verTodasNaRota ? "Todas as manutenções pendentes" : "Suas manutenções pendentes"}, na ordem definida em Pendentes/Urgentes.
               Toque na primeira para abrir o endereço no Maps.
+              {podeOrdenar && " Use ▲ ▼ para mudar a ordem (urgentes ficam sempre antes das pendentes)."}
+              {salvandoOrdem && <span className="ml-2 text-blue-600">Salvando...</span>}
             </p>
             {rota.length === 0 ? (
               <div className="bg-white rounded-lg shadow text-center text-gray-400 py-12 text-lg">
@@ -737,6 +748,10 @@ function Manutencoes() {
               const [proxima, ...seguintes] = rota;
               const mapsProxima = linkMaps(proxima.loja);
               const urgente = isUrgente(proxima.status);
+              // Troca só dentro do mesmo grupo: urgente com urgente, pendente com pendente
+              const mesmoGrupo = (a, b) => Boolean(a && b) && isUrgente(a.status) === isUrgente(b.status);
+              const vizinhos = indice => ({ anterior: rota[indice - 1], seguinte: rota[indice + 1] });
+              const classeSeta = "h-8 w-8 rounded border border-gray-300 bg-white text-gray-600 hover:bg-gray-100 disabled:opacity-30";
               return (
                 <>
                   <div className={`overflow-hidden rounded-2xl border-4 shadow-lg ${urgente ? "border-red-500 bg-red-50" : "border-blue-500 bg-white"}`}>
@@ -778,6 +793,16 @@ function Manutencoes() {
                       <button type="button" className="btn-secondary" onClick={() => setDetalhe(proxima)}>
                         Detalhes
                       </button>
+                      {podeOrdenar && mesmoGrupo(proxima, vizinhos(0).seguinte) && (
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => moverManutencao(proxima.id, vizinhos(0).seguinte.id)}
+                          disabled={salvandoOrdem}
+                        >
+                          ▼ Deixar para depois
+                        </button>
+                      )}
                     </div>
                   </div>
                   <MapaManutencoes
@@ -792,6 +817,7 @@ function Manutencoes() {
                       <ol className="space-y-2">
                         {seguintes.map((m, i) => {
                           const maps = linkMaps(m.loja);
+                          const { anterior, seguinte } = vizinhos(i + 1);
                           return (
                             <li
                               key={m.id}
@@ -810,6 +836,26 @@ function Manutencoes() {
                                   <div className="truncate text-xs text-gray-400">{m.funcionario?.nome || "Sem funcionário"}</div>
                                 )}
                               </button>
+                              {podeOrdenar && (
+                                <div className="flex shrink-0 flex-col gap-1">
+                                  <button
+                                    type="button"
+                                    className={classeSeta}
+                                    onClick={() => moverManutencao(m.id, anterior.id)}
+                                    disabled={salvandoOrdem || !mesmoGrupo(m, anterior)}
+                                    title={mesmoGrupo(m, anterior) ? "Subir" : "Urgentes ficam antes das pendentes"}
+                                    aria-label="Subir manutenção"
+                                  >▲</button>
+                                  <button
+                                    type="button"
+                                    className={classeSeta}
+                                    onClick={() => moverManutencao(m.id, seguinte.id)}
+                                    disabled={salvandoOrdem || !mesmoGrupo(m, seguinte)}
+                                    title={mesmoGrupo(m, seguinte) ? "Descer" : "Urgentes ficam antes das pendentes"}
+                                    aria-label="Descer manutenção"
+                                  >▼</button>
+                                </div>
+                              )}
                               {maps && (
                                 <a
                                   href={maps}
@@ -929,9 +975,7 @@ function Manutencoes() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  {podeOrdenar && (
-                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ordem</th>
-                  )}
+                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ordem</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Descrição</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Data/Hora</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Loja</th>
@@ -974,10 +1018,22 @@ function Manutencoes() {
                     } : undefined}
                     onDragEnd={ordenavel ? limparArraste : undefined}
                   >
-                    {podeOrdenar && (
-                      <td className="px-2 py-2" onClick={e => e.stopPropagation()}>
+                    <td className="px-2 py-2" onClick={ordenavel ? e => e.stopPropagation() : undefined}>
+                      <div className="flex items-center gap-1">
+                        {numeroNaFila.has(m.id) ? (
+                          <span
+                            className={`flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full px-1 text-xs font-bold text-white ${
+                              numeroNaFila.get(m.id) === 1 ? "bg-green-600" : isUrgente(m.status) ? "bg-red-600" : "bg-blue-700"
+                            }`}
+                            title="Posição na fila (a mesma do mapa)"
+                          >
+                            {numeroNaFila.get(m.id)}
+                          </span>
+                        ) : (
+                          <span className="w-7 text-center text-gray-300">-</span>
+                        )}
                         {ordenavel && (
-                          <div className="flex items-center gap-1">
+                          <>
                             <span
                               className="hidden md:inline cursor-grab select-none text-gray-400"
                               title="Arraste para mudar a posição"
@@ -1004,10 +1060,10 @@ function Manutencoes() {
                             {temOrdemManual(m) && (
                               <span className="text-xs" title="Posição definida manualmente">📌</span>
                             )}
-                          </div>
+                          </>
                         )}
-                      </td>
-                    )}
+                      </div>
+                    </td>
                     <td className="px-4 py-2">{m.descricao}</td>
                     <td className="px-4 py-2">{new Date(m.createdAt).toLocaleString("pt-BR")}</td>
                     <td className="px-4 py-2">{formatLojaNome(m.loja)}</td>
@@ -1027,7 +1083,7 @@ function Manutencoes() {
                   );
                 })}
                 {filtradas.length === 0 && (
-                  <tr><td colSpan={podeOrdenar ? 9 : 8} className="text-center text-gray-400 py-8">Nenhuma manutenção encontrada</td></tr>
+                  <tr><td colSpan={9} className="text-center text-gray-400 py-8">Nenhuma manutenção encontrada</td></tr>
                 )}
               </tbody>
             </table>
