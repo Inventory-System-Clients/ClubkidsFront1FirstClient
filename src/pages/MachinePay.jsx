@@ -20,6 +20,8 @@ import { AlertBox, Modal, PageHeader } from "../components/UIComponents";
 import { LoadingSpinner } from "../components/Loading";
 import { HorarioFuncionamentoEditor } from "../components/HorarioFuncionamento";
 import { MapaMachinePay } from "../components/MapaMachinePay";
+import { HorariosPicoConteudo } from "./HorariosPico";
+import { RankingMaquinasConteudo } from "./RankingMaquinas";
 import {
   editorParaHorario,
   horarioParaEditor,
@@ -1956,6 +1958,8 @@ const ABAS = [
   ["graficos", "📊 Gráficos"],
   ["eventos", "🕒 Linha do tempo"],
   ["mapa", "🗺️ Mapa"],
+  ["pico", "⏰ Horários de pico"],
+  ["rankingMaquinas", "🏆 Ranking das máquinas"],
   ["ajuda", "❓ Como ler"],
 ];
 
@@ -2417,6 +2421,8 @@ export function MachinePay() {
             podeEditar={podeHorario}
           />
         )}
+        {aba === "pico" && <HorariosPicoConteudo />}
+        {aba === "rankingMaquinas" && <RankingMaquinasConteudo />}
         {aba === "ajuda" && <AbaAjuda />}
       </main>
 

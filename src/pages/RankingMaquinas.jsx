@@ -167,7 +167,8 @@ function PayoutForaDoNormal({ payout, periodo }) {
   );
 }
 
-export function RankingMaquinas() {
+// Conteúdo sem Navbar/Footer: também é usado como aba da página Machine Pay
+export function RankingMaquinasConteudo() {
   const { usuario, pode } = useAuth();
   const verValores = pode(
     "machinePay.valores",
@@ -188,9 +189,7 @@ export function RankingMaquinas() {
   const dados = ranking.dados;
 
   return (
-    <PaginaAnalise>
-      <Navbar />
-      <main className="mx-auto max-w-7xl space-y-4 px-4 py-6 sm:px-6 lg:px-8">
+    <div className="space-y-4 text-[#1c2b22]">
         <CabecalhoAnalise
           sobretitulo="Comparativo"
           titulo="Ranking das máquinas"
@@ -253,6 +252,16 @@ export function RankingMaquinas() {
             </p>
           </>
         )}
+    </div>
+  );
+}
+
+export function RankingMaquinas() {
+  return (
+    <PaginaAnalise>
+      <Navbar />
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <RankingMaquinasConteudo />
       </main>
       <Footer />
     </PaginaAnalise>
