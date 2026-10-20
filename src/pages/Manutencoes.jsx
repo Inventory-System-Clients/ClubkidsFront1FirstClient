@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import { AlertBox, PageHeader } from "../components/UIComponents";
 import { PageLoader } from "../components/Loading";
+import { MapaManutencoes } from "../components/MapaManutencoes";
 import { Navbar } from "../components/Navbar";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -779,6 +780,12 @@ function Manutencoes() {
                       </button>
                     </div>
                   </div>
+                  <MapaManutencoes
+                    rota={rota}
+                    linkMaps={linkMaps}
+                    mostrarTrajeto={!verTodasNaRota || Boolean(filtroFuncionarioRota)}
+                    onAbrirDetalhe={setDetalhe}
+                  />
                   {seguintes.length > 0 && (
                     <div>
                       <h3 className="mb-2 text-sm font-semibold uppercase text-gray-500">Depois</h3>
