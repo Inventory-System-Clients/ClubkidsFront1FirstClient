@@ -425,20 +425,66 @@ function obterGps() {
   });
 }
 
+const TEXTO_ORIGEM_CURTO = { manual: "corrigida", gps: "GPS", endereco: "endereço", cidade: "cidade", ip: "IP" };
+
+const situacaoPosicao = (m) =>
+  m.latitude == null ? "sem posição" : TEXTO_ORIGEM_CURTO[m.localizacao?.origem] || "no mapa";
+
+const comparar = (a, b) => a.rotulo.localeCompare(b.rotulo, "pt-BR", { sensitivity: "base" });
+
+// Uma opção por loja (a posição vale para a loja inteira) e, à parte, os
+// leitores sem loja vinculada. Cada opção aponta para um leitor da loja, que é
+// o que a rota de salvar recebe.
+function montarOpcoes(leitores) {
+  const lojas = new Map();
+  const soltos = [];
+  leitores.forEach((m) => {
+    const lojaId = m.vinculo?.lojaId;
+    if (!lojaId) {
+      soltos.push({ posId: m.posId, leitor: m, rotulo: `${m.nomePonto || m.posId} — ${m.posId}` });
+      return;
+    }
+    const atual = lojas.get(lojaId);
+    // Prefere um leitor que já está no mapa, pra mostrar a posição atual da loja
+    if (!atual) {
+      lojas.set(lojaId, { posId: m.posId, leitor: m, qtd: 1, rotulo: m.vinculo.lojaNome || m.nomePonto || m.posId });
+    } else {
+      atual.qtd += 1;
+      if (atual.leitor.latitude == null && m.latitude != null) {
+        atual.posId = m.posId;
+        atual.leitor = m;
+      }
+    }
+  });
+  return { lojas: [...lojas.values()].sort(comparar), soltos: soltos.sort(comparar) };
+}
+
 function EditarLocalizacao({ dados, onSalvo }) {
   const [posId, setPosId] = useState("");
   const [texto, setTexto] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [aviso, setAviso] = useState({ tipo: "", texto: "" });
+  // Lista própria, sem os filtros de cima, pra aparecerem todas as lojas
+  const [todosDados, setTodosDados] = useState(null);
 
-  const todos = useMemo(
-    () =>
-      [...dados.maquinas, ...dados.semLocalizacao].sort((a, b) =>
-        String(a.nomePonto || a.posId).localeCompare(String(b.nomePonto || b.posId)),
-      ),
-    [dados],
+  const carregarTodos = useCallback(async () => {
+    try {
+      const { data } = await api.get("/machine-pay/monitor/mapa");
+      setTodosDados(data);
+    } catch {
+      // sem a lista completa, usa a do mapa (filtrada)
+    }
+  }, []);
+  useEffect(() => {
+    carregarTodos();
+  }, [carregarTodos]);
+
+  const fonte = todosDados || dados;
+  const opcoes = useMemo(
+    () => montarOpcoes([...fonte.maquinas, ...fonte.semLocalizacao]),
+    [fonte],
   );
-  const leitor = todos.find((m) => m.posId === posId);
+  const leitor = [...opcoes.lojas, ...opcoes.soltos].find((o) => o.posId === posId)?.leitor;
   const manual = leitor?.localizacao?.origem === "manual";
   const daLoja = Boolean(leitor?.vinculo?.lojaId);
 
@@ -449,6 +495,7 @@ function EditarLocalizacao({ dados, onSalvo }) {
       setTexto("");
       setAviso({ tipo: "ok", texto: sucesso });
       onSalvo();
+      carregarTodos();
     } catch (error) {
       setAviso({ tipo: "erro", texto: mensagemErro(error, "Não foi possível salvar a localização.") });
     } finally {
@@ -487,16 +534,23 @@ function EditarLocalizacao({ dados, onSalvo }) {
             setAviso({ tipo: "", texto: "" });
           }}
         >
-          <option value="">Escolha o leitor</option>
-          {todos.map((m) => (
-            <option key={m.posId} value={m.posId}>
-              {`${m.nomePonto || m.posId} — ${m.posId}${
-                m.latitude == null
-                  ? " (sem posição)"
-                  : ` (${{ manual: "corrigida", gps: "GPS", endereco: "endereço", cidade: "cidade", ip: "IP" }[m.localizacao?.origem] || "no mapa"})`
-              }`}
-            </option>
-          ))}
+          <option value="">{`Escolha a loja (${opcoes.lojas.length} lojas)`}</option>
+          <optgroup label="Lojas">
+            {opcoes.lojas.map((o) => (
+              <option key={o.posId} value={o.posId}>
+                {`${o.rotulo}${o.qtd > 1 ? ` · ${o.qtd} leitores` : ""} (${situacaoPosicao(o.leitor)})`}
+              </option>
+            ))}
+          </optgroup>
+          {opcoes.soltos.length > 0 && (
+            <optgroup label="Leitores sem loja vinculada">
+              {opcoes.soltos.map((o) => (
+                <option key={o.posId} value={o.posId}>
+                  {`${o.rotulo} (${situacaoPosicao(o.leitor)})`}
+                </option>
+              ))}
+            </optgroup>
+          )}
         </select>
         {leitor && (
           <div className="flex flex-wrap gap-2">

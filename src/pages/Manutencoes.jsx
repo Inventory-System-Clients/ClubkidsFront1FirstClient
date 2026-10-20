@@ -17,6 +17,15 @@ const isConcluida = status => {
   const statusNormalizado = normalizarStatusManutencao(status);
   return statusNormalizado === "feito" || statusNormalizado === "concluida";
 };
+const temOrdemManual = m => m.ordem !== null && m.ordem !== undefined;
+// Ordem manual primeiro; as sem posição seguem por data (mais recente antes)
+const ordenarManutencoes = lista => [...lista].sort((a, b) => {
+  const aManual = temOrdemManual(a);
+  const bManual = temOrdemManual(b);
+  if (aManual && bManual && a.ordem !== b.ordem) return a.ordem - b.ordem;
+  if (aManual !== bManual) return aManual ? -1 : 1;
+  return new Date(b.createdAt) - new Date(a.createdAt);
+});
 
 function BotaoWhatsapp({ onClick, compacto = false }) {
   return (
@@ -226,6 +235,9 @@ function Manutencoes() {
   const [filtroDataInicio, setFiltroDataInicio] = useState("");
   const [filtroDataFim, setFiltroDataFim] = useState("");
   const [detalhe, setDetalhe] = useState(null);
+  const [salvandoOrdem, setSalvandoOrdem] = useState(false);
+  const [arrastandoId, setArrastandoId] = useState(null);
+  const [alvoArrasteId, setAlvoArrasteId] = useState(null);
   const LIMITE_FEITAS_INICIAL = 10;
   const [limiteFeitas, setLimiteFeitas] = useState(LIMITE_FEITAS_INICIAL);
 
@@ -265,7 +277,9 @@ function Manutencoes() {
   // Usuário personalizado com a aba liberada vê todas, mesmo sendo FUNCIONARIO.
   // Os demais sem "gerenciar" veem apenas as atribuídas a eles.
   const podeVerTodas = podeGerenciar || temPermissoesPersonalizadas;
-  let filtradas = manutencoes.filter(m => {
+  // Mesma regra do backend: ADMIN, ou "gerenciar"/"atualizar" dado pelo ADMIN
+  const podeOrdenar = podeGerenciar || (temPermissoesPersonalizadas && podeAtualizar);
+  let filtradas = ordenarManutencoes(manutencoes).filter(m => {
     if (!podeVerTodas) {
       // Funcionário só vê as suas e apenas as que não estão feitas
       if (m.funcionarioId !== usuario?.id) return false;
@@ -300,6 +314,65 @@ function Manutencoes() {
     totalFeitas = feitas.length;
     temMaisFeitas = feitas.length > limiteFeitas;
     filtradas = outras.concat(feitas.slice(0, limiteFeitas));
+  }
+  // Só as não concluídas entram na ordem manual
+  const ordenaveis = filtradas.filter(m => !isConcluida(m.status));
+  const indiceOrdenavel = new Map(ordenaveis.map((m, i) => [m.id, i]));
+  const temOrdemManualVisivel = ordenaveis.some(temOrdemManual);
+
+  async function salvarOrdem(itens) {
+    if (itens.length === 0) return;
+    const anterior = manutencoes;
+    const novasPosicoes = new Map(itens.map(item => [item.id, item.ordem]));
+    setManutencoes(lista => lista.map(m => (
+      novasPosicoes.has(m.id) ? { ...m, ordem: novasPosicoes.get(m.id) } : m
+    )));
+    setSalvandoOrdem(true);
+    setError("");
+    try {
+      await api.put("/manutencoes/ordem", { itens });
+    } catch (err) {
+      console.error("Erro ao salvar ordem das manutenções:", err?.response?.status, err?.response?.data, err);
+      setManutencoes(anterior);
+      setError("Erro ao salvar a ordem: " + (err?.response?.data?.error || err.message || err));
+    } finally {
+      setSalvandoOrdem(false);
+    }
+  }
+
+  // Move `id` para o lugar de `alvoId`. A conta é feita na lista completa
+  // (todas as abas e filtros), para não embaralhar o que está escondido.
+  function moverManutencao(id, alvoId) {
+    if (!id || !alvoId || id === alvoId || salvandoOrdem) return;
+    const ativas = ordenarManutencoes(manutencoes.filter(m => !isConcluida(m.status)));
+    const de = ativas.findIndex(m => m.id === id);
+    const para = ativas.findIndex(m => m.id === alvoId);
+    if (de < 0 || para < 0) return;
+    const lista = [...ativas];
+    const [movida] = lista.splice(de, 1);
+    const novoIndice = lista.findIndex(m => m.id === alvoId) + (de < para ? 1 : 0);
+    lista.splice(novoIndice, 0, movida);
+    // Numera do topo até a movida (ou até a última que já tinha posição);
+    // o resto continua sem posição, por data
+    const ultimaComPosicao = lista.reduce((ultima, m, i) => (temOrdemManual(m) ? i : ultima), -1);
+    const fim = Math.max(novoIndice, ultimaComPosicao);
+    const itens = lista
+      .slice(0, fim + 1)
+      .map((m, i) => ({ id: m.id, ordem: i + 1 }))
+      .filter((item, i) => lista[i].ordem !== item.ordem);
+    salvarOrdem(itens);
+  }
+
+  function voltarOrdemPorData() {
+    const itens = ordenaveis.filter(temOrdemManual).map(m => ({ id: m.id, ordem: null }));
+    if (itens.length === 0) return;
+    if (!window.confirm("Voltar estas manutenções para a ordem por data?")) return;
+    salvarOrdem(itens);
+  }
+
+  function limparArraste() {
+    setArrastandoId(null);
+    setAlvoArrasteId(null);
   }
 
   const formatarEnderecoLoja = loja => {
@@ -660,10 +733,32 @@ function Manutencoes() {
             })}
           </div>
         ) : (
+          <>
+          {podeOrdenar && ordenaveis.length > 1 && (
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-sm text-gray-600">
+              <span>
+                Use ▲ ▼ ou arraste as linhas para definir a ordem.
+                {salvandoOrdem && <span className="ml-2 text-blue-600">Salvando...</span>}
+              </span>
+              {temOrdemManualVisivel && (
+                <button
+                  type="button"
+                  className="text-blue-600 hover:underline disabled:opacity-50"
+                  onClick={voltarOrdemPorData}
+                  disabled={salvandoOrdem}
+                >
+                  Voltar para ordem por data
+                </button>
+              )}
+            </div>
+          )}
           <div className="overflow-x-auto bg-white rounded-lg shadow">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  {podeOrdenar && (
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ordem</th>
+                  )}
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Descrição</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Data/Hora</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Loja</th>
@@ -676,16 +771,70 @@ function Manutencoes() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filtradas.map(m => (
+                {filtradas.map(m => {
+                  const indice = indiceOrdenavel.get(m.id);
+                  const ordenavel = podeOrdenar && indice !== undefined;
+                  return (
                   <tr
                     key={m.id}
                     className={
                       `hover:bg-blue-50 cursor-pointer` +
                       (isUrgente(m.status) ? " bg-red-100 border-l-4 border-red-500 animate-pulse" : "") +
-                      (podeVerTodas && isConcluida(m.status) ? " bg-green-100" : "")
+                      (podeVerTodas && isConcluida(m.status) ? " bg-green-100" : "") +
+                      (arrastandoId === m.id ? " opacity-50" : "") +
+                      (alvoArrasteId === m.id && arrastandoId !== m.id ? " outline outline-2 outline-blue-400" : "")
                     }
                     onClick={() => setDetalhe(m)}
+                    draggable={ordenavel && !salvandoOrdem}
+                    onDragStart={ordenavel ? e => {
+                      e.dataTransfer.effectAllowed = "move";
+                      setArrastandoId(m.id);
+                    } : undefined}
+                    onDragOver={ordenavel && arrastandoId ? e => {
+                      e.preventDefault();
+                      if (alvoArrasteId !== m.id) setAlvoArrasteId(m.id);
+                    } : undefined}
+                    onDrop={ordenavel && arrastandoId ? e => {
+                      e.preventDefault();
+                      moverManutencao(arrastandoId, m.id);
+                      limparArraste();
+                    } : undefined}
+                    onDragEnd={ordenavel ? limparArraste : undefined}
                   >
+                    {podeOrdenar && (
+                      <td className="px-2 py-2" onClick={e => e.stopPropagation()}>
+                        {ordenavel && (
+                          <div className="flex items-center gap-1">
+                            <span
+                              className="hidden md:inline cursor-grab select-none text-gray-400"
+                              title="Arraste para mudar a posição"
+                              aria-hidden="true"
+                            >⠿</span>
+                            <div className="flex flex-col gap-1">
+                              <button
+                                type="button"
+                                className="h-8 w-8 rounded border border-gray-300 bg-white text-gray-600 hover:bg-gray-100 disabled:opacity-30"
+                                onClick={() => moverManutencao(m.id, ordenaveis[indice - 1]?.id)}
+                                disabled={salvandoOrdem || indice === 0}
+                                title="Subir"
+                                aria-label="Subir manutenção"
+                              >▲</button>
+                              <button
+                                type="button"
+                                className="h-8 w-8 rounded border border-gray-300 bg-white text-gray-600 hover:bg-gray-100 disabled:opacity-30"
+                                onClick={() => moverManutencao(m.id, ordenaveis[indice + 1]?.id)}
+                                disabled={salvandoOrdem || indice === ordenaveis.length - 1}
+                                title="Descer"
+                                aria-label="Descer manutenção"
+                              >▼</button>
+                            </div>
+                            {temOrdemManual(m) && (
+                              <span className="text-xs" title="Posição definida manualmente">📌</span>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    )}
                     <td className="px-4 py-2">{m.descricao}</td>
                     <td className="px-4 py-2">{new Date(m.createdAt).toLocaleString("pt-BR")}</td>
                     <td className="px-4 py-2">{formatLojaNome(m.loja)}</td>
@@ -702,9 +851,10 @@ function Manutencoes() {
                       <BotaoWhatsapp compacto onClick={() => enviarWhatsapp(montarTextoWhatsapp(m))} />
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
                 {filtradas.length === 0 && (
-                  <tr><td colSpan={8} className="text-center text-gray-400 py-8">Nenhuma manutenção encontrada</td></tr>
+                  <tr><td colSpan={podeOrdenar ? 9 : 8} className="text-center text-gray-400 py-8">Nenhuma manutenção encontrada</td></tr>
                 )}
               </tbody>
             </table>
@@ -723,6 +873,7 @@ function Manutencoes() {
               </div>
             )}
           </div>
+          </>
         )}
         {detalhe && !editando && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
