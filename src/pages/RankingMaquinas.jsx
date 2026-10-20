@@ -31,8 +31,8 @@ const SITUACAO = {
 
 function TituloCartao({ icone, children }) {
   return (
-    <h2 className="mb-4 flex items-center gap-3 text-lg font-bold text-[#173a26]">
-      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e3f1e7]" aria-hidden>
+    <h2 className="mb-4 flex items-center gap-3 text-lg font-bold text-[#1b2f5c]">
+      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#fff6d6]" aria-hidden>
         {icone}
       </span>
       {children}
@@ -42,13 +42,13 @@ function TituloCartao({ icone, children }) {
 
 function Linha({ posicao, maquina, direita, children }) {
   return (
-    <li className="rounded-2xl border border-[#e6ebe7] px-3 py-3 sm:px-4">
+    <li className="rounded-2xl border border-[#e5e8ef] px-3 py-3 sm:px-4">
       <div className="flex items-start gap-3 sm:items-center">
         <Medalha posicao={posicao} />
         <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-[#173a26] sm:truncate">{maquina.nomePonto}</p>
-            <p className="truncate text-xs text-[#7a887f]">
+            <p className="text-sm font-semibold text-[#1b2f5c] sm:truncate">{maquina.nomePonto}</p>
+            <p className="truncate text-xs text-[#7b8494]">
               {maquina.codigo} - {maquina.cliente || "sem cliente"}
             </p>
           </div>
@@ -60,7 +60,7 @@ function Linha({ posicao, maquina, direita, children }) {
   );
 }
 
-const vazio = (texto) => <p className="py-6 text-center text-sm text-[#7a887f]">{texto}</p>;
+const vazio = (texto) => <p className="py-6 text-center text-sm text-[#7b8494]">{texto}</p>;
 
 function MaisFaturam({ lista, verValores }) {
   if (!lista.length) return vazio("Nenhuma venda no período.");
@@ -76,18 +76,18 @@ function MaisFaturam({ lista, verValores }) {
           direita={
             <>
               {verValores && (
-                <p className="text-sm font-bold text-[#173a26]">{formatarMoeda(m.vendasValor)}</p>
+                <p className="text-sm font-bold text-[#1b2f5c]">{formatarMoeda(m.vendasValor)}</p>
               )}
-              <p className={verValores ? "text-xs text-[#7a887f]" : "text-sm font-semibold text-[#173a26]"}>
+              <p className={verValores ? "text-xs text-[#7b8494]" : "text-sm font-semibold text-[#1b2f5c]"}>
                 {plural(m.vendasQtd, "venda")} -{" "}
                 {m.pelucias === null ? "sem máquina vinculada" : plural(m.pelucias, "pelúcia")}
               </p>
             </>
           }
         >
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#eef1ee]">
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#eef0f4]">
             <div
-              className="h-full rounded-full bg-[#2e7d4f]"
+              className="h-full rounded-full bg-[#2457B1]"
               style={{ width: `${Math.max(2, Math.round((m[campo] / topo) * 100))}%` }}
             />
           </div>
@@ -108,8 +108,8 @@ function MaisCaem({ lista }) {
           maquina={m}
           direita={
             <>
-              <p className="text-sm font-bold text-[#c8102e]">{plural(m.quedas, "queda")}</p>
-              <p className="text-xs text-[#7a887f]">conexão perdida ou reinício forçado</p>
+              <p className="text-sm font-bold text-[#C91F24]">{plural(m.quedas, "queda")}</p>
+              <p className="text-xs text-[#7b8494]">conexão perdida ou reinício forçado</p>
             </>
           }
         />
@@ -121,7 +121,7 @@ function MaisCaem({ lista }) {
 function PayoutForaDoNormal({ payout, periodo }) {
   if (!payout.normalPorPelucia) {
     return (
-      <p className="text-sm text-[#5b6b60]">
+      <p className="text-sm text-[#5b6475]">
         Nenhuma máquina teve venda e pelúcia registrada no período, então não há um normal da frota
         para comparar.
         {periodo === "hoje" && " Hoje as pelúcias só aparecem depois das coletas do dia."}
@@ -130,7 +130,7 @@ function PayoutForaDoNormal({ payout, periodo }) {
   }
   return (
     <>
-      <p className="mb-4 text-sm text-[#5b6b60]">
+      <p className="mb-4 text-sm text-[#5b6475]">
         Normal da frota no período: cerca de <strong>{formatarMoeda(payout.normalPorPelucia)}</strong> por
         pelúcia. Aparece aqui quem está com menos da metade ou mais do dobro disso.
       </p>
@@ -150,7 +150,7 @@ function PayoutForaDoNormal({ payout, periodo }) {
                     >
                       {situacao.label}
                     </span>
-                    <p className="mt-1 text-xs text-[#7a887f]">
+                    <p className="mt-1 text-xs text-[#7b8494]">
                       {m.porPelucia === null ? "nenhuma pelúcia" : `${formatarMoeda(m.porPelucia)} por pelúcia`} -{" "}
                       {formatarMoeda(m.vendasValor)} / {plural(m.pelucias, "pelúcia")}
                     </p>
@@ -189,7 +189,7 @@ export function RankingMaquinasConteudo() {
   const dados = ranking.dados;
 
   return (
-    <div className="space-y-4 text-[#1c2b22]">
+    <div className="space-y-4 text-[#1f2937]">
         <CabecalhoAnalise
           sobretitulo="Comparativo"
           titulo="Ranking das máquinas"
@@ -221,7 +221,7 @@ export function RankingMaquinasConteudo() {
         {!dados ? (
           !ranking.erro && (
             <Cartao>
-              <p className="text-sm text-[#5b6b60]">Carregando...</p>
+              <p className="text-sm text-[#5b6475]">Carregando...</p>
             </Cartao>
           )
         ) : (
@@ -244,7 +244,7 @@ export function RankingMaquinasConteudo() {
               </Cartao>
             )}
 
-            <p className="px-1 text-xs leading-relaxed text-[#7a887f]">
+            <p className="px-1 text-xs leading-relaxed text-[#7b8494]">
               Vendas e quedas vêm da Machine Pay (vendas = PIX/cartão; dinheiro e fichas não entram).
               Pelúcias são as saídas registradas nas coletas (movimentações) feitas no período, por isso
               só existem para leitores ligados a uma máquina do sistema

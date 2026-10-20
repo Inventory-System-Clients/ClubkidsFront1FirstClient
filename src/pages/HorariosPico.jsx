@@ -15,9 +15,9 @@ import { useAuth } from "../contexts/AuthContext";
 import { useConsultaApi } from "../utils/useConsultaApi";
 
 // Do mais fraco ao mais forte; índice 0 = sem venda
-const ESCALA = ["#eef1ee", "#dcefe2", "#c2e3cc", "#a3d4b2", "#7fc196", "#5aa97a", "#3b8a5d", "#1f5a3c"];
-const COR_BARRA = "#63a87d";
-const COR_BARRA_MAX = "#1f5a3c";
+const ESCALA = ["#eef0f4", "#dbe6fa", "#bed1f4", "#9bb8ec", "#7499e0", "#4f7bd2", "#2f5fbf", "#1b3f8a"];
+const COR_BARRA = "#7499e0";
+const COR_BARRA_MAX = "#ED3136";
 const HORAS = Array.from({ length: 24 }, (_, h) => h);
 
 const formatarMoeda = (valor) =>
@@ -50,21 +50,21 @@ function CardDestaque({ posicao, destaque, metrica }) {
   return (
     <div
       className={`rounded-3xl border p-4 sm:p-5 ${
-        principal ? "border-[#cfe5d6] bg-[#e3f1e7]" : "border-[#e6ebe7] bg-white"
+        principal ? "border-[#ffe08a] bg-[#fff6d6]" : "border-[#e5e8ef] bg-white"
       }`}
     >
-      <p className="flex items-center gap-1.5 text-xs text-[#5b6b60]">
+      <p className="flex items-center gap-1.5 text-xs text-[#5b6475]">
         <span aria-hidden>🕒</span> {posicao}º horário mais forte
       </p>
       {destaque ? (
         <>
-          <p className="mt-1 text-lg font-extrabold text-[#173a26] sm:text-xl">
+          <p className="mt-1 text-lg font-extrabold text-[#1b2f5c] sm:text-xl">
             {destaque.nome}, {faixaHora(destaque.hora)}
           </p>
-          <p className="text-sm text-[#5b6b60]">{metrica.emMedia(destaque.media)}</p>
+          <p className="text-sm text-[#5b6475]">{metrica.emMedia(destaque.media)}</p>
         </>
       ) : (
-        <p className="mt-1 text-sm text-[#5b6b60]">Sem vendas suficientes no período</p>
+        <p className="mt-1 text-sm text-[#5b6475]">Sem vendas suficientes no período</p>
       )}
     </div>
   );
@@ -79,7 +79,7 @@ function Heatmap({ linhas, campo, metrica }) {
     <div>
       <div className="-mx-1 overflow-x-auto px-1 pb-1">
         <div className="min-w-[640px]">
-          <div className="grid grid-cols-[2.5rem_repeat(24,minmax(0,1fr))] gap-[3px] text-[10px] text-[#7a887f]">
+          <div className="grid grid-cols-[2.5rem_repeat(24,minmax(0,1fr))] gap-[3px] text-[10px] text-[#7b8494]">
             <span />
             {HORAS.map((h) => (
               <span key={h} className="text-center">
@@ -88,7 +88,7 @@ function Heatmap({ linhas, campo, metrica }) {
             ))}
             {linhas.map((linha) => (
               <div key={linha.dia} className="contents">
-                <span className="flex items-center text-xs text-[#4a5a50]">{linha.dia}</span>
+                <span className="flex items-center text-xs text-[#4b5563]">{linha.dia}</span>
                 {linha.horas.map((h) => {
                   const ativo = selecionada?.dia === linha.dia && selecionada?.hora === h.hora;
                   return (
@@ -98,7 +98,7 @@ function Heatmap({ linhas, campo, metrica }) {
                       onClick={() => setSelecionada(ativo ? null : { dia: linha.dia, hora: h.hora })}
                       title={`${linha.nome}, ${faixaHora(h.hora)}: ${metrica.formatar(h[campo])}`}
                       aria-label={`${linha.nome}, ${faixaHora(h.hora)}: ${metrica.formatar(h[campo])}`}
-                      className={`h-6 rounded-[5px] sm:h-7 ${ativo ? "ring-2 ring-[#173a26]" : ""}`}
+                      className={`h-6 rounded-[5px] sm:h-7 ${ativo ? "ring-2 ring-[#1b2f5c]" : ""}`}
                       style={{ backgroundColor: ESCALA[nivel(h[campo], maximo)] }}
                     />
                   );
@@ -109,7 +109,7 @@ function Heatmap({ linhas, campo, metrica }) {
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[#7a887f]">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[#7b8494]">
         <div className="flex items-center gap-1.5">
           Menos
           {ESCALA.map((cor) => (
@@ -118,7 +118,7 @@ function Heatmap({ linhas, campo, metrica }) {
           Mais
         </div>
         {celula ? (
-          <span className="font-medium text-[#173a26]">
+          <span className="font-medium text-[#1b2f5c]">
             {celula.nome}, {faixaHora(selecionada.hora)}:{" "}
             {metrica.emMedia(celula.horas[selecionada.hora][campo])}
           </span>
@@ -141,12 +141,12 @@ function GraficoBarras({ dados, chaveX, campo, metrica, rotuloX, ticks }) {
             ticks={ticks}
             interval={ticks ? undefined : 0}
             tickFormatter={rotuloX}
-            tick={{ fontSize: 11, fill: "#7a887f" }}
-            axisLine={{ stroke: "#e1e7e2" }}
+            tick={{ fontSize: 11, fill: "#7b8494" }}
+            axisLine={{ stroke: "#dfe4ee" }}
             tickLine={false}
           />
           <Tooltip
-            cursor={{ fill: "#eef4ef" }}
+            cursor={{ fill: "#eef3fc" }}
             formatter={(valor) => [metrica.formatar(valor), metrica.titulo]}
             labelFormatter={(rotulo) => (typeof rotulo === "number" ? faixaHora(rotulo) : rotulo)}
           />
@@ -199,7 +199,7 @@ export function HorariosPicoConteudo() {
   const semDados = dados && dados.diasComDados === 0;
 
   return (
-    <div className="space-y-4 text-[#1c2b22]">
+    <div className="space-y-4 text-[#1f2937]">
         <CabecalhoAnalise
           sobretitulo="Movimento"
           titulo="Horários de pico"
@@ -261,8 +261,8 @@ export function HorariosPicoConteudo() {
 
         {semPelucias ? (
           <Cartao>
-            <h2 className="text-lg font-bold text-[#173a26]">Pelúcias por horário não existem</h2>
-            <p className="mt-2 text-sm leading-relaxed text-[#5b6b60]">
+            <h2 className="text-lg font-bold text-[#1b2f5c]">Pelúcias por horário não existem</h2>
+            <p className="mt-2 text-sm leading-relaxed text-[#5b6475]">
               A Machine Pay só registra os pagamentos (com dia e hora). As pelúcias que saíram são
               contadas nas coletas (movimentações), uma vez por visita e sem a hora em que cada uma
               saiu — então não dá para dizer em que horário elas saem sem inventar números. Use{" "}
@@ -273,7 +273,7 @@ export function HorariosPicoConteudo() {
         ) : !dados ? (
           !picos.erro && (
             <Cartao>
-              <p className="text-sm text-[#5b6b60]">Carregando...</p>
+              <p className="text-sm text-[#5b6475]">Carregando...</p>
             </Cartao>
           )
         ) : (
@@ -306,13 +306,13 @@ export function HorariosPicoConteudo() {
             </div>
 
             <Cartao>
-              <h2 className="mb-4 font-bold text-[#173a26]">{config.titulo} por dia da semana e hora</h2>
+              <h2 className="mb-4 font-bold text-[#1b2f5c]">{config.titulo} por dia da semana e hora</h2>
               <Heatmap linhas={dados.heatmap} campo={metrica} metrica={config} />
             </Cartao>
 
             <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
               <Cartao>
-                <h2 className="mb-4 font-bold text-[#173a26]">{config.titulo} por hora do dia</h2>
+                <h2 className="mb-4 font-bold text-[#1b2f5c]">{config.titulo} por hora do dia</h2>
                 <GraficoBarras
                   dados={dados.porHora}
                   chaveX="hora"
@@ -323,12 +323,12 @@ export function HorariosPicoConteudo() {
                 />
               </Cartao>
               <Cartao>
-                <h2 className="mb-4 font-bold text-[#173a26]">{config.titulo} por dia da semana</h2>
+                <h2 className="mb-4 font-bold text-[#1b2f5c]">{config.titulo} por dia da semana</h2>
                 <GraficoBarras dados={dados.porDiaSemana} chaveX="dia" campo={metrica} metrica={config} />
               </Cartao>
             </div>
 
-            <p className="px-1 text-xs text-[#7a887f]">
+            <p className="px-1 text-xs text-[#7b8494]">
               Período: {formatarData(dados.periodo.inicio)} a {formatarData(dados.periodo.fim)} ·{" "}
               {dados.maquinas} máquina(s) · Ficam de fora devoluções e créditos manuais.
             </p>
