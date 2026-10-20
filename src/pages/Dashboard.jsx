@@ -1755,6 +1755,15 @@ export function Dashboard() {
             </div>
           </Link>
           )}
+          {pode("manutencoes", true) && (
+          <Link to="/manutencoes?aba=mapa" className="stat-card bg-linear-to-br from-emerald-500 to-teal-700 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 hover:scale-105 transition-transform cursor-pointer relative">
+            <div className="relative z-10 flex flex-col items-center justify-center h-full">
+              <span className="text-5xl mb-2">🗺️</span>
+              <span className="font-bold text-lg text-center">Mapa de manutenções</span>
+              <span className="text-xs text-emerald-100 mt-1 text-center">Próxima manutenção e endereço no Maps</span>
+            </div>
+          </Link>
+          )}
           {verResumo && <>
             {(() => {
               const diasSemanaDisplay = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];

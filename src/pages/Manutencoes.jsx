@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import { AlertBox, PageHeader } from "../components/UIComponents";
 import { PageLoader } from "../components/Loading";
@@ -238,6 +238,7 @@ function Manutencoes() {
   const [salvandoOrdem, setSalvandoOrdem] = useState(false);
   const [arrastandoId, setArrastandoId] = useState(null);
   const [alvoArrasteId, setAlvoArrasteId] = useState(null);
+  const [filtroFuncionarioRota, setFiltroFuncionarioRota] = useState("");
   const LIMITE_FEITAS_INICIAL = 10;
   const [limiteFeitas, setLimiteFeitas] = useState(LIMITE_FEITAS_INICIAL);
 
@@ -261,7 +262,11 @@ function Manutencoes() {
   const statusList = Array.from(new Set(manutencoes.map(m => normalizarStatusManutencao(m.status)).filter(Boolean)));
 
   // Abas de filtro: pendentes/urgentes
-  const [abaManutencao, setAbaManutencao] = useState("pendentes");
+  // ?aba=mapa (atalho do dashboard) já abre no mapa
+  const [searchParams] = useSearchParams();
+  const [abaManutencao, setAbaManutencao] = useState(
+    searchParams.get("aba") === "mapa" ? "mapa" : "pendentes"
+  );
   // Aba de recorrência: máquinas com várias manutenções num período curto
   const [periodoRecorrencia, setPeriodoRecorrencia] = useState(30);
   const [minimoRecorrencia, setMinimoRecorrencia] = useState(3);
@@ -401,6 +406,50 @@ function Manutencoes() {
     maquina => String(maquina.lojaId) === String(editData.lojaId)
   );
 
+  // MAPA: fila de manutenções não feitas, na ordem definida nas abas.
+  // Admin vê todas (pode filtrar por funcionário); funcionário só as dele.
+  const verTodasNaRota = podeVerTodas && usuario?.role !== "FUNCIONARIO";
+  const rota = ordenarManutencoes(manutencoes).filter(m => {
+    if (isConcluida(m.status)) return false;
+    if (!verTodasNaRota && m.funcionarioId !== usuario?.id) return false;
+    if (verTodasNaRota && filtroFuncionarioRota && m.funcionarioId !== filtroFuncionarioRota) return false;
+    return !filtroLoja || m.loja?.nome === filtroLoja;
+  });
+  const funcionariosRota = Array.from(
+    new Map(
+      manutencoes
+        .filter(m => m.funcionario?.id && !isConcluida(m.status))
+        .map(m => [m.funcionario.id, m.funcionario])
+    ).values()
+  ).sort((a, b) => (a.nome || "").localeCompare(b.nome || ""));
+
+  // Link do Google Maps (no celular abre o app) com o endereço da loja
+  function linkMaps(loja) {
+    const temEndereco = Boolean((loja?.endereco || loja?.cidade || "").trim());
+    const destino = temEndereco ? formatarEnderecoLoja(loja) : loja?.nome;
+    if (!destino) return null;
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destino)}`;
+  }
+
+  async function marcarComoFeita(manutencao, confirmar = false) {
+    if (confirmar && !window.confirm(`Marcar "${manutencao.descricao}" como feita?`)) return;
+    try {
+      setLoading(true);
+      setError("");
+      setSuccess("");
+      await api.put(`/manutencoes/${manutencao.id}`, { status: "feito" });
+      setSuccess("Manutenção marcada como feita!");
+      setDetalhe(null);
+      const res = await api.get("/manutencoes");
+      setManutencoes(res.data);
+    } catch (err) {
+      console.error("Erro ao marcar manutenção como feita:", err?.response?.status, err?.response?.data, err);
+      setError("Erro ao marcar manutenção como feita: " + (err?.response?.status ? `${err.response.status} - ${JSON.stringify(err.response.data)}` : err.message || err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   // ALERTA DE MANUTENÇÕES FREQUENTES
   let alertasFrequentes = [];
   if (podeGerenciar && manutencoes.length > 0) {
@@ -492,7 +541,7 @@ function Manutencoes() {
         )}
         <div className="mb-4 flex flex-wrap gap-4 items-center">
           {/* Abas de filtro pendentes/urgentes */}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               className={`btn-secondary ${abaManutencao === "pendentes" ? "bg-blue-500 text-white" : "bg-gray-200"}`}
               onClick={() => setAbaManutencao("pendentes")}
@@ -517,6 +566,11 @@ function Manutencoes() {
                 )}
               </button>
             )}
+            <button
+              className={`btn-secondary ${abaManutencao === "mapa" ? "bg-green-600 text-white" : "bg-gray-200"}`}
+              onClick={() => setAbaManutencao("mapa")}
+              type="button"
+            >🗺️ Mapa de manutenções</button>
           </div>
           <select className="input-field" value={filtroLoja} onChange={e => setFiltroLoja(e.target.value)}>
             <option value="">Todas as lojas</option>
@@ -541,6 +595,17 @@ function Manutencoes() {
                 {[2, 3, 4, 5, 6, 8, 10].map(n => <option key={n} value={n}>{n} manutenções</option>)}
               </select>
             </div>
+          ) : abaManutencao === "mapa" ? (
+            verTodasNaRota && (
+              <select
+                className="input-field"
+                value={filtroFuncionarioRota}
+                onChange={e => setFiltroFuncionarioRota(e.target.value)}
+              >
+                <option value="">Todos os funcionários</option>
+                {funcionariosRota.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+              </select>
+            )
           ) : (
           <>
           <select className="input-field" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
@@ -657,7 +722,108 @@ function Manutencoes() {
             </form>
           </div>
         )}
-        {loading ? <PageLoader /> : abaManutencao === "recorrencia" ? (
+        {loading ? <PageLoader /> : abaManutencao === "mapa" ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              {verTodasNaRota ? "Todas as manutenções pendentes" : "Suas manutenções pendentes"}, na ordem definida em Pendentes/Urgentes.
+              Toque na primeira para abrir o endereço no Maps.
+            </p>
+            {rota.length === 0 ? (
+              <div className="bg-white rounded-lg shadow text-center text-gray-400 py-12 text-lg">
+                Nenhuma manutenção pendente 🎉
+              </div>
+            ) : (() => {
+              const [proxima, ...seguintes] = rota;
+              const mapsProxima = linkMaps(proxima.loja);
+              const urgente = isUrgente(proxima.status);
+              return (
+                <>
+                  <div className={`overflow-hidden rounded-2xl border-4 shadow-lg ${urgente ? "border-red-500 bg-red-50" : "border-blue-500 bg-white"}`}>
+                    <a
+                      href={mapsProxima || undefined}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block p-5 sm:p-8 hover:bg-blue-50"
+                    >
+                      <div className="flex flex-wrap items-center gap-2 text-sm font-semibold uppercase tracking-wide text-blue-700">
+                        Próxima · 1 de {rota.length}
+                        {urgente && (
+                          <span className="rounded-full bg-red-600 px-2 py-0.5 text-xs text-white">Urgente</span>
+                        )}
+                      </div>
+                      <div className="mt-2 text-3xl font-bold text-gray-900 sm:text-4xl">{formatLojaNome(proxima.loja)}</div>
+                      <div className="mt-2 text-lg text-gray-700">📍 {formatarEnderecoLoja(proxima.loja)}</div>
+                      <div className="mt-4 text-xl text-gray-900">{proxima.descricao}</div>
+                      <div className="mt-2 text-sm text-gray-500">
+                        Máquina: {proxima.maquina?.nome || "-"}
+                        {verTodasNaRota && <> · Atribuído a: {proxima.funcionario?.nome || "-"}</>}
+                        {" · "}{new Date(proxima.createdAt).toLocaleString("pt-BR")}
+                      </div>
+                      {mapsProxima ? (
+                        <div className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-4 text-lg font-bold text-white">
+                          🗺️ Abrir no Maps
+                        </div>
+                      ) : (
+                        <div className="mt-6 text-sm text-gray-500">Loja sem endereço cadastrado</div>
+                      )}
+                    </a>
+                    <div className="flex flex-wrap gap-2 border-t border-gray-200 px-5 py-4 sm:px-8">
+                      {podeAtualizar && (
+                        <button type="button" className="btn-success" onClick={() => marcarComoFeita(proxima, true)}>
+                          ✅ Marcar como feita
+                        </button>
+                      )}
+                      <BotaoWhatsapp onClick={() => enviarWhatsapp(montarTextoWhatsapp(proxima))} />
+                      <button type="button" className="btn-secondary" onClick={() => setDetalhe(proxima)}>
+                        Detalhes
+                      </button>
+                    </div>
+                  </div>
+                  {seguintes.length > 0 && (
+                    <div>
+                      <h3 className="mb-2 text-sm font-semibold uppercase text-gray-500">Depois</h3>
+                      <ol className="space-y-2">
+                        {seguintes.map((m, i) => {
+                          const maps = linkMaps(m.loja);
+                          return (
+                            <li
+                              key={m.id}
+                              className={`flex items-center gap-3 rounded-lg bg-white p-3 shadow ${isUrgente(m.status) ? "border-l-4 border-red-500" : ""}`}
+                            >
+                              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-200 font-bold text-gray-700">
+                                {i + 2}
+                              </span>
+                              <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setDetalhe(m)}>
+                                <div className="truncate font-semibold text-gray-900">
+                                  {formatLojaNome(m.loja)}
+                                  {isUrgente(m.status) && <span className="ml-2 text-xs font-bold text-red-600">URGENTE</span>}
+                                </div>
+                                <div className="truncate text-sm text-gray-600">{m.descricao}</div>
+                                {verTodasNaRota && (
+                                  <div className="truncate text-xs text-gray-400">{m.funcionario?.nome || "Sem funcionário"}</div>
+                                )}
+                              </button>
+                              {maps && (
+                                <a
+                                  href={maps}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="shrink-0 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                >
+                                  🗺️ Maps
+                                </a>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        ) : abaManutencao === "recorrencia" ? (
           <div className="space-y-3">
             <p className="text-sm text-gray-600">
               Máquinas com {minimoRecorrencia} ou mais manutenções nos últimos {periodoRecorrencia} dias
@@ -898,27 +1064,7 @@ function Manutencoes() {
                 {podeAtualizar && <button className="btn-primary" onClick={handleEditOpen}>Editar</button>}
                 {podeGerenciar && <button className="btn-danger" onClick={handleDelete}>Excluir</button>}
                 {podeAtualizar && (podeGerenciar || (!podeGerenciar && !isConcluida(detalhe.status))) && !isConcluida(detalhe.status) && (
-                  <button className="btn-success" onClick={async () => {
-                    try {
-                      setLoading(true);
-                      setError("");
-                      setSuccess("");
-                      const url = `/manutencoes/${detalhe.id}`;
-                      const payload = { status: "feito" };
-                      console.log("[DEBUG] PUT para marcar manutenção como feita:", url, payload);
-                      const response = await api.put(url, payload);
-                      console.log("[DEBUG] Resposta do PUT:", response);
-                      setSuccess("Manutenção marcada como feita!");
-                      setDetalhe(null);
-                      const res = await api.get("/manutencoes");
-                      setManutencoes(res.data);
-                    } catch (err) {
-                      console.error("[DEBUG] Erro ao marcar manutenção como feita:", err?.response?.status, err?.response?.data, err);
-                      setError("Erro ao marcar manutenção como feita: " + (err?.response?.status ? `${err.response.status} - ${JSON.stringify(err.response.data)}` : err.message || err));
-                    } finally {
-                      setLoading(false);
-                    }
-                  }}>Marcar como Feita</button>
+                  <button className="btn-success" onClick={() => marcarComoFeita(detalhe)}>Marcar como Feita</button>
                 )}
               </div>
             </div>
