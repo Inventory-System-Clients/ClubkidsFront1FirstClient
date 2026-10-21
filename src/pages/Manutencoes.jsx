@@ -19,12 +19,12 @@ const isConcluida = status => {
   return statusNormalizado === "feito" || statusNormalizado === "concluida";
 };
 const temOrdemManual = m => m.ordem !== null && m.ordem !== undefined;
-// Ordem manual primeiro; as sem posição seguem por data (mais recente antes)
+// Sem posição primeiro (as novas aparecem no topo, por data); depois a ordem manual
 const ordenarManutencoes = lista => [...lista].sort((a, b) => {
   const aManual = temOrdemManual(a);
   const bManual = temOrdemManual(b);
   if (aManual && bManual && a.ordem !== b.ordem) return a.ordem - b.ordem;
-  if (aManual !== bManual) return aManual ? -1 : 1;
+  if (aManual !== bManual) return aManual ? 1 : -1;
   return new Date(b.createdAt) - new Date(a.createdAt);
 });
 
@@ -186,6 +186,11 @@ function Manutencoes() {
         };
         await api.post("/manutencoes", payload);
         setShowNovaManutencao(false);
+        // Recarrega na hora: a nova aparece no topo da aba dela
+        const res = await api.get("/manutencoes");
+        setManutencoes(res.data);
+        setAbaManutencao(novaManutencaoUrgente ? "urgentes" : "pendentes");
+        setSuccess("Manutenção cadastrada!");
         setLoading(false);
       } catch (err) {
         console.error("[NovaManutencao] Erro POST", err);
@@ -482,12 +487,10 @@ function Manutencoes() {
     const [movida] = lista.splice(de, 1);
     const novoIndice = lista.findIndex(m => m.id === alvoId) + (de < para ? 1 : 0);
     lista.splice(novoIndice, 0, movida);
-    // Numera do topo até a movida (ou até a última que já tinha posição);
-    // o resto continua sem posição, por data
-    const ultimaComPosicao = lista.reduce((ultima, m, i) => (temOrdemManual(m) ? i : ultima), -1);
-    const fim = Math.max(novoIndice, ultimaComPosicao);
+    // Numera a lista inteira: as sem posição vão para o topo, então nenhuma
+    // pode ficar sem número depois de mexer. As novas (ainda sem posição) que
+    // estavam no topo ganham posição aqui, no lugar em que estão.
     const itens = lista
-      .slice(0, fim + 1)
       .map((m, i) => ({ id: m.id, ordem: i + 1 }))
       .filter((item, i) => lista[i].ordem !== item.ordem);
     salvarOrdem(itens);
