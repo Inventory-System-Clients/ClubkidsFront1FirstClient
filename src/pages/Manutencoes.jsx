@@ -18,15 +18,12 @@ const isConcluida = status => {
   const statusNormalizado = normalizarStatusManutencao(status);
   return statusNormalizado === "feito" || statusNormalizado === "concluida";
 };
-const temOrdemManual = m => m.ordem !== null && m.ordem !== undefined;
-// Sem posição primeiro (as novas aparecem no topo, por data); depois a ordem manual
-const ordenarManutencoes = lista => [...lista].sort((a, b) => {
-  const aManual = temOrdemManual(a);
-  const bManual = temOrdemManual(b);
-  if (aManual && bManual && a.ordem !== b.ordem) return a.ordem - b.ordem;
-  if (aManual !== bManual) return aManual ? 1 : -1;
-  return new Date(b.createdAt) - new Date(a.createdAt);
-});
+const temOrdemManual = m => m.posicao !== null && m.posicao !== undefined;
+// Chave da lista: a data (ms) ou, se foi movida à mão, a posição escolhida,
+// que fica entre as chaves das vizinhas. Maior = mais em cima.
+const chaveOrdem = m => (temOrdemManual(m) ? m.posicao : new Date(m.createdAt).getTime());
+// Por data (mais nova em cima); a movida à mão fica onde foi colocada
+const ordenarManutencoes = lista => [...lista].sort((a, b) => chaveOrdem(b) - chaveOrdem(a));
 
 function BotaoWhatsapp({ onClick, compacto = false }) {
   return (
@@ -458,9 +455,9 @@ function Manutencoes() {
     if (itens.length === 0) return;
     versaoOrdemRef.current += 1;
     const anterior = manutencoes;
-    const novasPosicoes = new Map(itens.map(item => [item.id, item.ordem]));
+    const novasPosicoes = new Map(itens.map(item => [item.id, item.posicao]));
     setManutencoes(lista => lista.map(m => (
-      novasPosicoes.has(m.id) ? { ...m, ordem: novasPosicoes.get(m.id) } : m
+      novasPosicoes.has(m.id) ? { ...m, posicao: novasPosicoes.get(m.id) } : m
     )));
     setSalvandoOrdem(true);
     setError("");
@@ -487,17 +484,19 @@ function Manutencoes() {
     const [movida] = lista.splice(de, 1);
     const novoIndice = lista.findIndex(m => m.id === alvoId) + (de < para ? 1 : 0);
     lista.splice(novoIndice, 0, movida);
-    // Numera a lista inteira: as sem posição vão para o topo, então nenhuma
-    // pode ficar sem número depois de mexer. As novas (ainda sem posição) que
-    // estavam no topo ganham posição aqui, no lugar em que estão.
-    const itens = lista
-      .map((m, i) => ({ id: m.id, ordem: i + 1 }))
-      .filter((item, i) => lista[i].ordem !== item.ordem);
-    salvarOrdem(itens);
+    // Só a movida muda: ganha uma chave entre a de cima e a de baixo. As outras
+    // continuam no lugar da data delas, e as novas (data de agora) entram no topo.
+    const acima = lista[novoIndice - 1];
+    const abaixo = lista[novoIndice + 1];
+    let posicao;
+    if (acima && abaixo) posicao = (chaveOrdem(acima) + chaveOrdem(abaixo)) / 2;
+    else if (abaixo) posicao = chaveOrdem(abaixo) + 1; // foi para o topo
+    else posicao = chaveOrdem(acima) - 1000; // foi para o fim
+    salvarOrdem([{ id: movida.id, posicao }]);
   }
 
   function voltarOrdemPorData() {
-    const itens = ordenaveis.filter(temOrdemManual).map(m => ({ id: m.id, ordem: null }));
+    const itens = ordenaveis.filter(temOrdemManual).map(m => ({ id: m.id, posicao: null }));
     if (itens.length === 0) return;
     if (!window.confirm("Voltar estas manutenções para a ordem por data?")) return;
     salvarOrdem(itens);
