@@ -177,6 +177,7 @@ export function CreditosRemotos() {
   const [quantidade, setQuantidade] = useState("1");
   const [escopo, setEscopo] = useState("todas");
   const [lojaIds, setLojaIds] = useState([]);
+  const [buscaLoja, setBuscaLoja] = useState("");
   const [expiraEm, setExpiraEm] = useState("");
   const [modoLoja, setModoLoja] = useState("todas");
   const [maquinaIds, setMaquinaIds] = useState([]);
@@ -194,6 +195,14 @@ export function CreditosRemotos() {
   const [linkEnvios, setLinkEnvios] = useState(null);
   const [envios, setEnvios] = useState([]);
   const [carregandoEnvios, setCarregandoEnvios] = useState(false);
+
+  // Busca sem diferenciar maiúsculas nem acentos
+  const normalizar = (texto) =>
+    (texto || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const termoBusca = normalizar(buscaLoja.trim());
+  const lojasFiltradas = termoBusca
+    ? lojasMachinePay.filter((loja) => normalizar(loja.nome).includes(termoBusca))
+    : lojasMachinePay;
 
   const carregar = async () => {
     try {
@@ -510,14 +519,26 @@ export function CreditosRemotos() {
                 </div>
               </div>
 
+              {escopo === "lojas" && lojasMachinePay.length > 0 && (
+                <input
+                  type="text"
+                  placeholder="🔍 Todas as lojas"
+                  value={buscaLoja}
+                  onChange={(e) => setBuscaLoja(e.target.value)}
+                  className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              )}
+
               {escopo === "lojas" && (
                 <div className="rounded-lg border border-gray-200 bg-white p-3 max-h-56 overflow-y-auto space-y-1">
                   {lojasMachinePay.length === 0 ? (
                     <p className="text-sm text-amber-700">
                       Nenhuma loja ativa com máquina Machine Pay.
                     </p>
+                  ) : lojasFiltradas.length === 0 ? (
+                    <p className="text-sm text-gray-500">Nenhuma loja encontrada.</p>
                   ) : (
-                    lojasMachinePay.map((loja) => (
+                    lojasFiltradas.map((loja) => (
                       <label key={loja.id} className="flex items-center gap-2 text-sm">
                         <input
                           type="checkbox"
