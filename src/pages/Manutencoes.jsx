@@ -548,13 +548,14 @@ function Manutencoes() {
     ...ativasOrdenadas.filter(m => !isUrgente(m.status)),
   ];
   const numeroNaFila = new Map(filaGeral.map((m, i) => [m.id, i + 1]));
-  const rota = filtroFuncionarioRota
-    ? filaGeral.filter(m => m.funcionarioId === filtroFuncionarioRota)
-    : filaGeral;
+  // O mapa mostra só as urgentes (elas vêm primeiro na fila, então o número continua o mesmo)
+  const rota = filaGeral.filter(m =>
+    isUrgente(m.status) && (!filtroFuncionarioRota || m.funcionarioId === filtroFuncionarioRota)
+  );
   const funcionariosRota = Array.from(
     new Map(
       manutencoes
-        .filter(m => m.funcionario?.id && !isConcluida(m.status))
+        .filter(m => m.funcionario?.id && isUrgente(m.status))
         .map(m => [m.funcionario.id, m.funcionario])
     ).values()
   ).sort((a, b) => (a.nome || "").localeCompare(b.nome || ""));
@@ -861,19 +862,19 @@ function Manutencoes() {
         {loading ? <PageLoader /> : abaManutencao === "mapa" ? (
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
-              {verTodasNaRota ? "Todas as manutenções pendentes" : "Suas manutenções pendentes"}, na ordem definida em Pendentes/Urgentes.
+              {verTodasNaRota ? "Todas as manutenções urgentes" : "Suas manutenções urgentes"}, na ordem definida em Urgentes.
               Toque na primeira para abrir o endereço no Maps.
               {ultimaAtualizacao && (
                 <span className="ml-1 text-gray-400">
                   Atualiza sozinho · última às {ultimaAtualizacao.toLocaleTimeString("pt-BR")}.
                 </span>
               )}
-              {podeOrdenar && " Use ▲ ▼ para mudar a ordem (urgentes ficam sempre antes das pendentes)."}
+              {podeOrdenar && " Use ▲ ▼ para mudar a ordem."}
               {salvandoOrdem && <span className="ml-2 text-blue-600">Salvando...</span>}
             </p>
             {rota.length === 0 ? (
               <div className="bg-white rounded-lg shadow text-center text-gray-400 py-12 text-lg">
-                Nenhuma manutenção pendente 🎉
+                Nenhuma manutenção urgente 🎉
               </div>
             ) : (() => {
               const [proxima, ...seguintes] = rota;
@@ -1107,9 +1108,9 @@ function Manutencoes() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ordem</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Loja</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Descrição</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Data/Hora</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Loja</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Endereço</th>
                   {/* Coluna de roteiro removida */}
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Máquina</th>
@@ -1195,9 +1196,9 @@ function Manutencoes() {
                         )}
                       </div>
                     </td>
+                    <td className="px-4 py-2">{formatLojaNome(m.loja)}</td>
                     <td className="px-4 py-2">{m.descricao}</td>
                     <td className="px-4 py-2">{new Date(m.createdAt).toLocaleString("pt-BR")}</td>
-                    <td className="px-4 py-2">{formatLojaNome(m.loja)}</td>
                     <td className="px-4 py-2">{formatarEnderecoLoja(m.loja)}</td>
                     {/* Coluna de roteiro removida */}
                     <td className="px-4 py-2">{m.maquina?.nome || '-'}</td>
