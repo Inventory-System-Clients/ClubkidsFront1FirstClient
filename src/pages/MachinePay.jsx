@@ -1975,12 +1975,14 @@ export function MachinePay() {
   const [buscaDigitada, setBuscaDigitada] = useState("");
   const [busca, setBusca] = useState("");
   const [lojaId, setLojaId] = useState("");
+  const [usrId, setUsrId] = useState("");
   const [sinal, setSinal] = useState("");
   const [tipoVersao, setTipoVersao] = useState("");
   const [incluirDesativadas, setIncluirDesativadas] = useState(false);
   const [periodo, setPeriodo] = useState({ inicio: hoje, fim: hoje });
 
   const [lojas, setLojas] = useState([]);
+  const [contas, setContas] = useState([]);
   const [resumo, setResumo] = useState(null);
   const [loadingResumo, setLoadingResumo] = useState(false);
   const [erroResumo, setErroResumo] = useState("");
@@ -1998,6 +2000,10 @@ export function MachinePay() {
       .get("/lojas")
       .then((res) => setLojas(Array.isArray(res.data) ? res.data : res.data?.lojas || []))
       .catch(() => setLojas([]));
+    api
+      .get("/machine-pay/monitor/contas")
+      .then((res) => setContas(res.data?.contas || []))
+      .catch(() => setContas([]));
   }, []);
 
   // versaoDados força as abas a recarregarem depois de "Atualizar agora".
@@ -2005,12 +2011,13 @@ export function MachinePay() {
     () => ({
       busca: busca || undefined,
       lojaId: lojaId || undefined,
+      usrId: usrId || undefined,
       sinal: sinal || undefined,
       tipoVersao: tipoVersao || undefined,
       incluirDesativadas: incluirDesativadas ? "true" : undefined,
       _v: versaoDados || undefined,
     }),
-    [busca, lojaId, sinal, tipoVersao, incluirDesativadas, versaoDados],
+    [busca, lojaId, usrId, sinal, tipoVersao, incluirDesativadas, versaoDados],
   );
 
   const carregarResumo = useCallback(
@@ -2062,7 +2069,7 @@ export function MachinePay() {
   ];
 
   const monitor = resumo?.monitor;
-  const temFiltros = busca || lojaId || sinal || tipoVersao || incluirDesativadas;
+  const temFiltros = busca || lojaId || usrId || sinal || tipoVersao || incluirDesativadas;
   const minutosDesdeColeta = monitor?.ultimaColeta
     ? (Date.now() - new Date(monitor.ultimaColeta).getTime()) / 60000
     : null;
@@ -2157,6 +2164,17 @@ export function MachinePay() {
               </select>
             </label>
             <label className="flex flex-col gap-1 text-xs font-semibold text-gray-600">
+              👤 Conta Machine Pay
+              <select className="input-field" value={usrId} onChange={(e) => setUsrId(e.target.value)}>
+                <option value="">Todas as contas</option>
+                {contas.map((c) => (
+                  <option key={c.usrId} value={c.usrId}>
+                    {c.nome}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-gray-600">
               📶 Sinal Wi-Fi
               <select className="input-field" value={sinal} onChange={(e) => setSinal(e.target.value)}>
                 <option value="">Qualquer sinal</option>
@@ -2231,6 +2249,7 @@ export function MachinePay() {
                   onClick={() => {
                     setBuscaDigitada("");
                     setLojaId("");
+                    setUsrId("");
                     setSinal("");
                     setTipoVersao("");
                     setIncluirDesativadas(false);

@@ -43,13 +43,13 @@ const gerarQrCode = (url) =>
   QRCode.toDataURL(url, { width: 800, margin: 1, errorCorrectionLevel: "M" });
 
 const QUANTIDADE_MAXIMA = 50;
-const NOME_CONTA_MACHINE_PAY = "Clube Kids (LIVIA)";
-
-const descreverEscopo = (link) => {
+// nomeConta = conta Machine Pay do voucher (null = todas as contas)
+const descreverEscopo = (link, nomeConta) => {
+  const conta = nomeConta ? ` (${nomeConta})` : "";
   if (link.maquina) return link.maquina;
-  if (link.maquinas?.length) return `Máquinas: ${link.maquinas.join(", ")}`;
-  if (link.lojas?.length) return `Lojas: ${link.lojas.join(", ")}`;
-  return `Todas as máquinas ${NOME_CONTA_MACHINE_PAY}`;
+  if (link.maquinas?.length) return `Máquinas${conta}: ${link.maquinas.join(", ")}`;
+  if (link.lojas?.length) return `Lojas${conta}: ${link.lojas.join(", ")}`;
+  return nomeConta ? `Todas as máquinas ${nomeConta}` : "Todas as máquinas Machine Pay";
 };
 
 // Folhas A4 dos vouchers: "CLUBE KIDS" em cima, QR Code no meio e o valor
@@ -168,6 +168,7 @@ export function CreditosRemotos() {
   const [links, setLinks] = useState([]);
   const [maquinasMachinePay, setMaquinasMachinePay] = useState([]);
   const [lojasMachinePay, setLojasMachinePay] = useState([]);
+  const [contasMachinePay, setContasMachinePay] = useState([]);
   const [copiadoId, setCopiadoId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -176,6 +177,7 @@ export function CreditosRemotos() {
   const [limite, setLimite] = useState("150");
   const [quantidade, setQuantidade] = useState("1");
   const [escopo, setEscopo] = useState("todas");
+  const [usrId, setUsrId] = useState("");
   const [lojaIds, setLojaIds] = useState([]);
   const [buscaLoja, setBuscaLoja] = useState("");
   const [expiraEm, setExpiraEm] = useState("");
@@ -199,10 +201,29 @@ export function CreditosRemotos() {
   // Busca sem diferenciar maiúsculas nem acentos
   const normalizar = (texto) =>
     (texto || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const nomeDaConta = (id) => contasMachinePay.find((conta) => conta.usrId === id)?.nome || null;
+  const ondeVale = (link) => descreverEscopo(link, nomeDaConta(link.usrId));
+
+  // Lojas e máquinas da conta escolhida (vazio = todas as contas)
+  const maquinasDaConta = usrId
+    ? maquinasMachinePay.filter((maquina) => maquina.usrId === usrId)
+    : maquinasMachinePay;
+  const lojasDaConta = usrId
+    ? lojasMachinePay
+        .filter((loja) => loja.qtdPorConta?.[usrId])
+        .map((loja) => ({ ...loja, qtdMaquinas: loja.qtdPorConta[usrId] }))
+    : lojasMachinePay;
+
   const termoBusca = normalizar(buscaLoja.trim());
   const lojasFiltradas = termoBusca
-    ? lojasMachinePay.filter((loja) => normalizar(loja.nome).includes(termoBusca))
-    : lojasMachinePay;
+    ? lojasDaConta.filter((loja) => normalizar(loja.nome).includes(termoBusca))
+    : lojasDaConta;
+
+  const trocarConta = (id) => {
+    setUsrId(id);
+    setLojaIds([]);
+    setMaquinaIds([]);
+  };
 
   const carregar = async () => {
     try {
@@ -211,6 +232,7 @@ export function CreditosRemotos() {
       setLinks(response.data.links || []);
       setMaquinasMachinePay(response.data.maquinasMachinePay || []);
       setLojasMachinePay(response.data.lojasMachinePay || []);
+      setContasMachinePay(response.data.contasMachinePay || []);
     } catch (err) {
       setError(err.response?.data?.error || "Erro ao carregar os vouchers.");
     } finally {
@@ -294,6 +316,7 @@ export function CreditosRemotos() {
       limite: limite.replace(",", "."),
       quantidade: Number(quantidade),
       expiraEm: expiraEm ? new Date(expiraEm).toISOString() : null,
+      usrId: usrId || null,
       maquinaIds: maquinaEspecifica ? maquinaIds : [],
       lojaIds: escopo === "lojas" && !maquinaEspecifica ? lojaIds : [],
     });
@@ -435,7 +458,7 @@ export function CreditosRemotos() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <PageHeader
           title="Vouchers Remotos"
-          subtitle={`Vouchers com QR Code para jogar nas máquinas Machine Pay ${NOME_CONTA_MACHINE_PAY}`}
+          subtitle="Vouchers com QR Code para jogar nas máquinas Machine Pay"
           icon="🔗"
         />
 
@@ -499,11 +522,29 @@ export function CreditosRemotos() {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Conta Machine Pay
+                </label>
+                <select
+                  className="input-field w-full"
+                  value={usrId}
+                  onChange={(event) => trocarConta(event.target.value)}
+                >
+                  <option value="">Todas as contas</option>
+                  {contasMachinePay.map((conta) => (
+                    <option key={conta.usrId} value={conta.usrId}>
+                      {conta.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
                   Onde vale
                 </label>
                 <div className="space-y-1 text-sm">
                   {[
-                    ["todas", `Todas as máquinas ${NOME_CONTA_MACHINE_PAY}`],
+                    ["todas", descreverEscopo({}, nomeDaConta(usrId))],
                     ["lojas", "Escolher loja"],
                   ].map(([valor, rotulo]) => (
                     <label key={valor} className="flex items-center gap-2">
@@ -519,7 +560,7 @@ export function CreditosRemotos() {
                 </div>
               </div>
 
-              {escopo === "lojas" && lojasMachinePay.length > 0 && (
+              {escopo === "lojas" && lojasDaConta.length > 0 && (
                 <input
                   type="text"
                   placeholder="🔍 Todas as lojas"
@@ -531,9 +572,9 @@ export function CreditosRemotos() {
 
               {escopo === "lojas" && (
                 <div className="rounded-lg border border-gray-200 bg-white p-3 max-h-56 overflow-y-auto space-y-1">
-                  {lojasMachinePay.length === 0 ? (
+                  {lojasDaConta.length === 0 ? (
                     <p className="text-sm text-amber-700">
-                      Nenhuma loja ativa com máquina Machine Pay.
+                      Nenhuma loja ativa com máquina Machine Pay{usrId ? " nesta conta" : ""}.
                     </p>
                   ) : lojasFiltradas.length === 0 ? (
                     <p className="text-sm text-gray-500">Nenhuma loja encontrada.</p>
@@ -580,14 +621,14 @@ export function CreditosRemotos() {
                   </div>
                   {modoLoja === "maquina" && (
                     <div className="mt-2 rounded-lg border border-gray-200 bg-white p-3 max-h-56 overflow-y-auto space-y-2">
-                      {lojasMachinePay
+                      {lojasDaConta
                         .filter((loja) => lojaIds.includes(loja.id))
                         .map((loja) => (
                           <div key={loja.id}>
                             <p className="text-xs font-bold uppercase text-gray-500">
                               {loja.nome}
                             </p>
-                            {maquinasMachinePay
+                            {maquinasDaConta
                               .filter((maquina) => maquina.lojaId === loja.id)
                               .map((maquina) => (
                                 <label
@@ -641,16 +682,16 @@ export function CreditosRemotos() {
             {escopo === "todas" && (
               <div className="mt-6 border-t border-gray-200 pt-4">
                 <p className="text-xs font-bold uppercase text-gray-500 mb-2">
-                  Máquinas {NOME_CONTA_MACHINE_PAY}
+                  Máquinas {nomeDaConta(usrId) || "Machine Pay"}
                 </p>
-                {maquinasMachinePay.length === 0 ? (
+                {maquinasDaConta.length === 0 ? (
                   <p className="text-sm text-amber-700">
                     Nenhuma máquina ativa com ID Machine Pay. Preencha o campo
                     &quot;ID Machine Pay&quot; no cadastro das máquinas.
                   </p>
                 ) : (
                   <ul className="text-sm text-gray-700 space-y-1">
-                    {maquinasMachinePay.map((maquina) => (
+                    {maquinasDaConta.map((maquina) => (
                       <li key={maquina.id}>🎮 {maquina.nome}</li>
                     ))}
                   </ul>
@@ -680,7 +721,7 @@ export function CreditosRemotos() {
                           </Badge>
                         </div>
                         <p className="text-sm text-gray-600 mt-1">
-                          🎮 {descreverEscopo(link)}
+                          🎮 {ondeVale(link)}
                         </p>
                         <p className="text-sm text-gray-600 mt-1">
                           Usado {formatarMoeda(link.usado)} de{" "}
@@ -764,7 +805,7 @@ export function CreditosRemotos() {
               {linkCriado.novo ? "Envie este voucher para " : "Voucher de "}
               <strong>{linkCriado.descricao}</strong>. Saldo de{" "}
               <strong>{formatarMoeda(linkCriado.restante)}</strong> ·{" "}
-              {descreverEscopo(linkCriado)}.
+              {ondeVale(linkCriado)}.
             </p>
             <div className="flex justify-center">
               {qrDataUrl ? (
@@ -815,7 +856,7 @@ export function CreditosRemotos() {
         {lote && (
           <div className="space-y-4">
             <p className="text-gray-700">
-              {lote.length} vouchers ativos · {descreverEscopo(lote[0])}. Total de{" "}
+              {lote.length} vouchers ativos · {ondeVale(lote[0])}. Total de{" "}
               <strong>
                 {formatarMoeda(lote.reduce((soma, item) => soma + Number(item.restante || 0), 0))}
               </strong>
