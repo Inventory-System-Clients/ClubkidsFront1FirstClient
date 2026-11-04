@@ -283,14 +283,23 @@ function Manutencoes() {
       setSuccess("");
       try {
         setErroEdicao("");
-        await api.put(`/manutencoes/${detalhe.id}`, {
-          ...editData,
-          // Campo sem seleção vai como null (string vazia não é um id válido)
-          lojaId: editData.lojaId || null,
-          maquinaId: editData.maquinaId || null,
-          funcionarioId: editData.funcionarioId || null,
-          status: normalizarStatusManutencao(editData.status) || "pendente",
-        });
+        if (editaSoDescricao && !editData.descricao.trim()) {
+          setErroEdicao("A descrição não pode ficar vazia.");
+          return;
+        }
+        await api.put(
+          `/manutencoes/${detalhe.id}`,
+          editaSoDescricao
+            ? { descricao: editData.descricao.trim() }
+            : {
+                ...editData,
+                // Campo sem seleção vai como null (string vazia não é um id válido)
+                lojaId: editData.lojaId || null,
+                maquinaId: editData.maquinaId || null,
+                funcionarioId: editData.funcionarioId || null,
+                status: normalizarStatusManutencao(editData.status) || "pendente",
+              },
+        );
         setSuccess("Manutenção atualizada com sucesso!");
         setEditando(false);
         setDetalhe(null);
@@ -416,6 +425,9 @@ function Manutencoes() {
   // Editar todos os campos: admin ou personalizado com "manutencoes.atualizar".
   // O funcionário comum só consegue marcar como feita (regra do servidor).
   const podeEditar = pode("manutencoes.atualizar", usuario?.role === "ADMIN");
+  // Funcionário comum: só edita a descrição (o servidor recusa os outros campos)
+  const editaSoDescricao =
+    !podeEditar && usuario?.role === "FUNCIONARIO" && pode("manutencoes.atualizar", true);
   // Usuário personalizado com a aba liberada vê todas, mesmo sendo FUNCIONARIO.
   // Os demais sem "gerenciar" veem apenas as atribuídas a eles.
   const podeVerTodas = podeGerenciar || temPermissoesPersonalizadas;
@@ -1268,6 +1280,7 @@ function Manutencoes() {
               </div>
               <div className="flex flex-wrap gap-2 mt-4">
                 {podeEditar && <button className="btn-primary" onClick={handleEditOpen}>Editar</button>}
+                {editaSoDescricao && <button className="btn-primary" onClick={handleEditOpen}>Editar descrição</button>}
                 {podeGerenciar && <button className="btn-danger" onClick={handleDelete}>Excluir</button>}
                 {podeAtualizar && (podeGerenciar || (!podeGerenciar && !isConcluida(detalhe.status))) && !isConcluida(detalhe.status) && (
                   <button className="btn-success" onClick={() => marcarComoFeita(detalhe)}>Marcar como Feita</button>
@@ -1282,11 +1295,13 @@ function Manutencoes() {
               <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-600" type="button" onClick={() => setEditando(false)}>
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
-              <h3 className="text-xl font-bold mb-4">Editar Manutenção</h3>
+              <h3 className="text-xl font-bold mb-4">{editaSoDescricao ? "Editar descrição" : "Editar Manutenção"}</h3>
               {erroEdicao && (
                 <div className="bg-red-100 text-red-700 rounded p-2 mb-3 text-sm">{erroEdicao}</div>
               )}
               <div className="space-y-4">
+                {!editaSoDescricao && (
+                <>
                 <div>
                   <label className="block text-sm font-medium">Loja</label>
                   <select
@@ -1333,9 +1348,16 @@ function Manutencoes() {
                     <option value="urgente">urgente</option>
                   </select>
                 </div>
+                </>
+                )}
                 <div>
                   <label className="block text-sm font-medium">Descrição</label>
-                  <textarea className="input-field w-full" value={editData.descricao} onChange={e => setEditData(d => ({ ...d, descricao: e.target.value }))} />
+                  <textarea
+                    className="input-field w-full"
+                    rows={editaSoDescricao ? 4 : 2}
+                    value={editData.descricao}
+                    onChange={e => setEditData(d => ({ ...d, descricao: e.target.value }))}
+                  />
                 </div>
                 <button className="btn-primary w-full mt-2" type="submit">Salvar</button>
               </div>
