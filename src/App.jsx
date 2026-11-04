@@ -59,6 +59,7 @@ function AppRoutes() {
           <Route path="/style-guide" element={<StyleGuide />} />
           {/* Voucher (link temporário de crédito remoto): público, sem login */}
           <Route path="/creditos" element={<CreditoRemotoPublico />} />
+          <Route path="/creditos/:voucherId" element={<CreditoRemotoPublico />} />
           <Route
             path="/creditos-remotos"
             element={

@@ -1,27 +1,17 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import apiPublica from "../services/apiPublica";
 
 // Página aberta pelo link temporário de crédito remoto. O token vem no
 // fragmento da URL (/creditos#TOKEN), que o navegador nunca manda para
 // nenhum servidor nem em logs de acesso. Não tem Navbar nem nada do sistema:
 // quem tem o link só enxerga esta tela.
+// O voucher é usado de uma vez: escolhida a máquina, vai todo o saldo.
 
 const formatarMoeda = (valor) =>
   Number(valor || 0).toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL",
   });
-
-const parseValor = (valor) => {
-  const normalizado = String(valor || "")
-    .trim()
-    .replace(/\./g, "")
-    .replace(",", ".");
-  const numero = Number(normalizado);
-  return Number.isFinite(numero) ? numero : 0;
-};
-
-const valoresRapidos = [5, 10, 20, 50];
 
 const obterToken = () => window.location.hash.replace(/^#/, "");
 
@@ -41,28 +31,36 @@ export function CreditoRemotoPublico() {
   const [carregando, setCarregando] = useState(true);
   const [expirado, setExpirado] = useState("");
   const [maquinaAberta, setMaquinaAberta] = useState(null);
-  const [valor, setValor] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [mensagem, setMensagem] = useState(null);
+  // Só a resposta da consulta mais recente vale (evita mostrar o voucher anterior)
+  const consultaAtual = useRef(0);
 
   useEffect(() => {
     const atualizarToken = () => setToken(obterToken());
+    // pageshow: página restaurada do cache do navegador (voltar/reabrir aba)
+    const aoMostrar = (event) => event.persisted && atualizarToken();
     window.addEventListener("hashchange", atualizarToken);
     window.addEventListener("popstate", atualizarToken);
+    window.addEventListener("pageshow", aoMostrar);
     return () => {
       window.removeEventListener("hashchange", atualizarToken);
       window.removeEventListener("popstate", atualizarToken);
+      window.removeEventListener("pageshow", aoMostrar);
     };
   }, []);
 
   const carregar = useCallback(async () => {
+    const consulta = ++consultaAtual.current;
     try {
       const response = await apiPublica.get("/credito-remoto/publico", {
         headers: { "X-Link-Token": token },
       });
+      if (consulta !== consultaAtual.current) return;
       setDados(response.data);
       setExpirado("");
     } catch (err) {
+      if (consulta !== consultaAtual.current) return;
       const { situacao, descricao, error } = err.response?.data || {};
       setDados(null);
       setExpirado(
@@ -71,7 +69,7 @@ export function CreditoRemotoPublico() {
           : error || "Não foi possível abrir o voucher. Tente novamente.",
       );
     } finally {
-      setCarregando(false);
+      if (consulta === consultaAtual.current) setCarregando(false);
     }
   }, [token]);
 
@@ -86,39 +84,26 @@ export function CreditoRemotoPublico() {
 
   const abrirMaquina = (maquina) => {
     setMaquinaAberta(maquina);
-    setValor("");
     setMensagem(null);
   };
 
+  // Envia todo o saldo do voucher para a máquina escolhida
   const enviar = async () => {
     if (!maquinaAberta || enviando) return;
-
-    const numero = parseValor(valor);
-    if (numero < 1) {
-      setMensagem({ tipo: "erro", texto: "Digite um valor de pelo menos R$ 1,00." });
-      return;
-    }
-    if (numero > dados.restante) {
-      setMensagem({
-        tipo: "erro",
-        texto: `O saldo disponível é ${formatarMoeda(dados.restante)}.`,
-      });
-      return;
-    }
 
     try {
       setEnviando(true);
       setMensagem(null);
       const response = await apiPublica.post(
         "/credito-remoto/publico/enviar",
-        { maquinaId: maquinaAberta.id, valor: numero },
+        { maquinaId: maquinaAberta.id },
         { headers: { "X-Link-Token": token } },
       );
       setMensagem({
         tipo: response.data.sucesso ? "sucesso" : "aviso",
         texto: response.data.mensagem,
       });
-      setValor("");
+      setMaquinaAberta(null);
     } catch (err) {
       setMensagem({
         tipo: "erro",
@@ -273,40 +258,14 @@ export function CreditoRemotoPublico() {
               </button>
             </div>
 
-            <label className="block text-sm font-semibold text-gray-700 mt-4 mb-1">
-              Valor em reais (saldo: {formatarMoeda(dados.restante)})
-            </label>
-            <input
-              type="text"
-              inputMode="decimal"
-              className="input-field w-full text-2xl font-bold"
-              placeholder="0,00"
-              value={valor}
-              onChange={(event) => setValor(event.target.value)}
-              disabled={enviando}
-              autoFocus
-            />
-
-            <div className="mt-3 flex flex-wrap gap-2">
-              {valoresRapidos
-                .filter((rapido) => rapido <= dados.restante)
-                .map((rapido) => (
-                  <button
-                    key={rapido}
-                    type="button"
-                    className="btn-secondary px-3 py-1 text-sm"
-                    onClick={() =>
-                      setValor(
-                        rapido.toLocaleString("pt-BR", {
-                          minimumFractionDigits: 2,
-                        }),
-                      )
-                    }
-                    disabled={enviando}
-                  >
-                    {formatarMoeda(rapido)}
-                  </button>
-                ))}
+            <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-center">
+              <p className="text-sm text-gray-700">Vai ser enviado todo o saldo do voucher:</p>
+              <p className="text-3xl font-black text-emerald-700 mt-1">
+                {formatarMoeda(dados.restante)}
+              </p>
+              <p className="text-xs text-gray-500 mt-2">
+                Confira se é a máquina certa: depois de enviar, o voucher fica sem saldo.
+              </p>
             </div>
 
             {mensagem && (
@@ -323,7 +282,7 @@ export function CreditoRemotoPublico() {
               onClick={enviar}
               disabled={enviando || dados.restante <= 0}
             >
-              {enviando ? "Enviando..." : "Usar voucher"}
+              {enviando ? "Enviando..." : `Enviar ${formatarMoeda(dados.restante)}`}
             </button>
           </div>
         </div>

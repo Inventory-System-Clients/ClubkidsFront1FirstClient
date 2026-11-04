@@ -37,7 +37,11 @@ const statusEnvio = {
   pendente: { label: "Pendente", variant: "info" },
 };
 
-const montarUrlLink = (token) => `${window.location.origin}/creditos#${token}`;
+// O id do voucher (não é segredo) vai no caminho para cada voucher ter um
+// endereço próprio: com só o "#token" diferente, o navegador do celular
+// reabria a aba do voucher anterior. O token fica no "#", que não vai ao servidor.
+const montarUrlLink = (token, id) =>
+  `${window.location.origin}/creditos${id ? `/${id}` : ""}#${token}`;
 
 const gerarQrCode = (url) =>
   QRCode.toDataURL(url, { width: 800, margin: 1, errorCorrectionLevel: "M" });
@@ -243,7 +247,7 @@ export function CreditosRemotos() {
   const abrirLote = async (lista) => {
     const comQr = await Promise.all(
       lista.map(async (link) => {
-        const url = montarUrlLink(link.token);
+        const url = montarUrlLink(link.token, link.id);
         return { ...link, url, qrDataUrl: await gerarQrCode(url) };
       }),
     );
@@ -260,7 +264,7 @@ export function CreditosRemotos() {
       if (criados.length === 1) {
         setLinkCriado({
           ...criados[0],
-          url: montarUrlLink(criados[0].token),
+          url: montarUrlLink(criados[0].token, criados[0].id),
           novo: true,
         });
         setCopiado(false);
@@ -326,7 +330,7 @@ export function CreditosRemotos() {
     try {
       setError("");
       const response = await api.get(`/credito-remoto/links/${link.id}/token`);
-      await navigator.clipboard.writeText(montarUrlLink(response.data.token));
+      await navigator.clipboard.writeText(montarUrlLink(response.data.token, link.id));
       setCopiadoId(link.id);
       setTimeout(() => setCopiadoId(""), 2500);
     } catch (err) {
@@ -342,7 +346,7 @@ export function CreditosRemotos() {
       setCopiado(false);
       setLinkCriado({
         ...link,
-        url: montarUrlLink(response.data.token),
+        url: montarUrlLink(response.data.token, link.id),
         novo: false,
       });
     } catch (err) {
