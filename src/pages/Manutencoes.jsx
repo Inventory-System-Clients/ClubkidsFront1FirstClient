@@ -201,6 +201,7 @@ function Manutencoes() {
   // ...existing code...
   const [funcionarios, setFuncionarios] = useState([]);
   const [editando, setEditando] = useState(false);
+  const [erroEdicao, setErroEdicao] = useState("");
   const [editData, setEditData] = useState({
     lojaId: "",
     maquinaId: "",
@@ -261,6 +262,7 @@ function Manutencoes() {
 
   // Função para abrir modal de edição
   function handleEditOpen() {
+    setErroEdicao("");
     const statusNormalizado = normalizarStatusManutencao(detalhe?.status);
     setEditData({
       lojaId: detalhe?.lojaId || detalhe?.loja?.id || "",
@@ -280,9 +282,13 @@ function Manutencoes() {
       setError("");
       setSuccess("");
       try {
+        setErroEdicao("");
         await api.put(`/manutencoes/${detalhe.id}`, {
           ...editData,
+          // Campo sem seleção vai como null (string vazia não é um id válido)
+          lojaId: editData.lojaId || null,
           maquinaId: editData.maquinaId || null,
+          funcionarioId: editData.funcionarioId || null,
           status: normalizarStatusManutencao(editData.status) || "pendente",
         });
         setSuccess("Manutenção atualizada com sucesso!");
@@ -293,6 +299,8 @@ function Manutencoes() {
         setManutencoes(res.data);
       } catch (err) {
         console.error("Erro ao atualizar manutenção (axios):", err?.response?.status, err?.response?.data, err);
+        // Mostra dentro do modal de edição (o aviso da página fica atrás dele)
+        setErroEdicao(err?.response?.data?.error || err.message || "Erro ao salvar a manutenção");
         setError("Erro ao atualizar manutenção: " + (err?.response?.status ? `${err.response.status} - ${JSON.stringify(err.response.data)}` : err.message || err));
       }
     } catch (err) {
@@ -405,6 +413,9 @@ function Manutencoes() {
 
   const podeGerenciar = pode("manutencoes.gerenciar", usuario?.role === "ADMIN");
   const podeAtualizar = pode("manutencoes.atualizar", true);
+  // Editar todos os campos: admin ou personalizado com "manutencoes.atualizar".
+  // O funcionário comum só consegue marcar como feita (regra do servidor).
+  const podeEditar = pode("manutencoes.atualizar", usuario?.role === "ADMIN");
   // Usuário personalizado com a aba liberada vê todas, mesmo sendo FUNCIONARIO.
   // Os demais sem "gerenciar" veem apenas as atribuídas a eles.
   const podeVerTodas = podeGerenciar || temPermissoesPersonalizadas;
@@ -1256,7 +1267,7 @@ function Manutencoes() {
                 <BotaoWhatsapp onClick={() => enviarWhatsapp(montarTextoWhatsapp(detalhe))} />
               </div>
               <div className="flex flex-wrap gap-2 mt-4">
-                {podeAtualizar && <button className="btn-primary" onClick={handleEditOpen}>Editar</button>}
+                {podeEditar && <button className="btn-primary" onClick={handleEditOpen}>Editar</button>}
                 {podeGerenciar && <button className="btn-danger" onClick={handleDelete}>Excluir</button>}
                 {podeAtualizar && (podeGerenciar || (!podeGerenciar && !isConcluida(detalhe.status))) && !isConcluida(detalhe.status) && (
                   <button className="btn-success" onClick={() => marcarComoFeita(detalhe)}>Marcar como Feita</button>
@@ -1272,6 +1283,9 @@ function Manutencoes() {
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
               <h3 className="text-xl font-bold mb-4">Editar Manutenção</h3>
+              {erroEdicao && (
+                <div className="bg-red-100 text-red-700 rounded p-2 mb-3 text-sm">{erroEdicao}</div>
+              )}
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium">Loja</label>
