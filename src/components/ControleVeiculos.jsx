@@ -469,8 +469,59 @@ export default function ControleVeiculos({
 
   return (
     <div className="flex flex-wrap gap-6 p-6">
-      {veiculos.map((veiculo) => {
+      {veiculos
+        .filter((veiculo) => veiculo.ativo !== false || isAdmin())
+        .map((veiculo) => {
         const mov = ultimasMovs[veiculo.id];
+        if (veiculo.ativo === false) {
+          return (
+            <div
+              key={veiculo.id}
+              className="rounded-lg shadow-md p-4 w-64 relative bg-gray-100 border-2 border-dashed border-gray-400 opacity-80"
+            >
+              <div className="absolute top-2 right-2 bg-gray-600 text-white text-xs px-2 py-1 rounded">Desativado</div>
+              <div className="flex items-center gap-2 text-2xl mb-2 grayscale">
+                <span>{emojiVeiculo(veiculo.tipo, veiculo.emoji)}</span>
+                <span className="font-bold text-lg text-gray-600">{veiculo.nome}</span>
+              </div>
+              <div className="text-gray-500 text-sm mb-3">Modelo: {veiculo.modelo}</div>
+              <div className="flex flex-col gap-2">
+                <button
+                  className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                  onClick={async () => {
+                    try {
+                      await api.put(`/veiculos/${veiculo.id}`, { ativo: true });
+                      onRefresh && onRefresh();
+                    } catch (err) {
+                      Swal.fire("Erro", err?.response?.data?.error || "Não foi possível reativar.", "error");
+                    }
+                  }}
+                >Reativar</button>
+                <button
+                  className="px-2 py-1 bg-red-700 text-white rounded hover:bg-red-800"
+                  onClick={async () => {
+                    const { isConfirmed } = await Swal.fire({
+                      title: `Excluir ${veiculo.nome} de vez?`,
+                      text: "O veículo e TODO o histórico de movimentações dele serão apagados. Isso não pode ser desfeito.",
+                      icon: "warning",
+                      showCancelButton: true,
+                      confirmButtonText: "Sim, excluir tudo",
+                      cancelButtonText: "Cancelar",
+                      confirmButtonColor: "#b91c1c",
+                    });
+                    if (!isConfirmed) return;
+                    try {
+                      await api.delete(`/veiculos/${veiculo.id}`);
+                      onRefresh && onRefresh();
+                    } catch (err) {
+                      Swal.fire("Erro", err?.response?.data?.error || "Não foi possível excluir.", "error");
+                    }
+                  }}
+                >Excluir de vez</button>
+              </div>
+            </div>
+          );
+        }
         const isRuim = mov?.estado?.toLowerCase() === "ruim";
         const precisaLimpar = mov?.nivel_limpeza?.toLowerCase().includes("precisa");
         let cardClass = veiculo.emUso ? "filter grayscale opacity-70" : "bg-white";
@@ -568,16 +619,20 @@ export default function ControleVeiculos({
                         <button
                           className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
                           onClick={async () => {
-                            if (window.confirm("Tem certeza que deseja excluir este veículo?")) {
+                            if (window.confirm("Desativar este veículo? O histórico é mantido. Para apagar de vez, clique em \"Excluir de vez\" depois.")) {
                               try {
                                 await api.delete(`/veiculos/${veiculo.id}`);
                                 onRefresh && onRefresh();
-                              } catch {
-                                Swal.fire("Erro", "Não foi possível excluir.", "error");
+                              } catch (err) {
+                                Swal.fire(
+                                  "Erro",
+                                  err?.response?.data?.error || "Não foi possível desativar.",
+                                  "error"
+                                );
                               }
                             }
                           }}
-                        >Excluir</button>
+                        >Desativar</button>
                       </>
                     )}
                   </>
