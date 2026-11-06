@@ -484,7 +484,10 @@ export default function ControleVeiculos({
                 <span>{emojiVeiculo(veiculo.tipo, veiculo.emoji)}</span>
                 <span className="font-bold text-lg text-gray-600">{veiculo.nome}</span>
               </div>
-              <div className="text-gray-500 text-sm mb-3">Modelo: {veiculo.modelo}</div>
+              <div className="text-gray-500 text-sm mb-2">Modelo: {veiculo.modelo}</div>
+              <div className="text-xs text-gray-700 bg-white/70 border border-gray-300 rounded p-2 mb-3">
+                Fora de uso, histórico mantido. <b>Excluir de vez</b> apaga o veículo e todo o histórico.
+              </div>
               <div className="flex flex-col gap-2">
                 <button
                   className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700"
@@ -492,6 +495,7 @@ export default function ControleVeiculos({
                     try {
                       await api.put(`/veiculos/${veiculo.id}`, { ativo: true });
                       onRefresh && onRefresh();
+                      Swal.fire("Veículo reativado", `${veiculo.nome} voltou para a lista de uso.`, "success");
                     } catch (err) {
                       Swal.fire("Erro", err?.response?.data?.error || "Não foi possível reativar.", "error");
                     }
@@ -513,6 +517,7 @@ export default function ControleVeiculos({
                     try {
                       await api.delete(`/veiculos/${veiculo.id}`);
                       onRefresh && onRefresh();
+                      Swal.fire("Excluído", `${veiculo.nome} e todo o histórico dele foram apagados.`, "success");
                     } catch (err) {
                       Swal.fire("Erro", err?.response?.data?.error || "Não foi possível excluir.", "error");
                     }
@@ -619,10 +624,24 @@ export default function ControleVeiculos({
                         <button
                           className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
                           onClick={async () => {
-                            if (window.confirm("Desativar este veículo? O histórico é mantido. Para apagar de vez, clique em \"Excluir de vez\" depois.")) {
+                            const { isConfirmed } = await Swal.fire({
+                              title: `Desativar ${veiculo.nome}?`,
+                              html: "O veículo sai da lista de uso, mas o <b>histórico é mantido</b>.<br/><br/>Depois você poderá <b>Reativar</b> ou <b>Excluir de vez</b> (apaga o histórico).",
+                              icon: "question",
+                              showCancelButton: true,
+                              confirmButtonText: "Desativar",
+                              cancelButtonText: "Cancelar",
+                              confirmButtonColor: "#dc2626",
+                            });
+                            if (isConfirmed) {
                               try {
                                 await api.delete(`/veiculos/${veiculo.id}`);
                                 onRefresh && onRefresh();
+                                Swal.fire({
+                                  title: "Veículo desativado",
+                                  html: `<b>${veiculo.nome}</b> foi desativado e o histórico foi mantido.<br/><br/>O card agora aparece cinza com a etiqueta <b>Desativado</b>. Se quiser apagar tudo, clique em <b>Excluir de vez</b> nele.`,
+                                  icon: "success",
+                                });
                               } catch (err) {
                                 Swal.fire(
                                   "Erro",
