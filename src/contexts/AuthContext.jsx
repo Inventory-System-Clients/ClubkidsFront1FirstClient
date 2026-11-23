@@ -67,7 +67,13 @@ export function AuthProvider({ children }) {
 
   const login = async (email, senha) => {
     try {
-      const response = await api.post("/auth/login", { email, senha });
+      // skipAuthRedirect: senha errada (401) não pode recarregar a tela de login,
+      // senão a mensagem de erro some antes de a pessoa ler
+      const response = await api.post(
+        "/auth/login",
+        { email, senha },
+        { skipAuthRedirect: true },
+      );
       const { token, usuario: usuarioData } = response.data;
 
       localStorage.setItem("token", token);

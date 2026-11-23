@@ -14,6 +14,7 @@ import {
   YAxis,
 } from "recharts";
 import api from "../services/api";
+import { comRecarga } from "../utils/carregarTela";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { AlertBox, Modal, PageHeader } from "../components/UIComponents";
@@ -21,7 +22,9 @@ import { LoadingSpinner } from "../components/Loading";
 import { HorarioFuncionamentoEditor } from "../components/HorarioFuncionamento";
 // Mapa (leaflet) é pesado: só baixa quando a aba Mapa é aberta
 const MapaMachinePay = lazy(() =>
-  import("../components/MapaMachinePay").then((m) => ({ default: m.MapaMachinePay })),
+  comRecarga(() => import("../components/MapaMachinePay")).then((m) => ({
+    default: m.MapaMachinePay,
+  })),
 );
 import { HorariosPicoConteudo } from "./HorariosPico";
 import { RankingMaquinasConteudo } from "./RankingMaquinas";
