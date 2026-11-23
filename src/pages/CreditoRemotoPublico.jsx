@@ -28,8 +28,8 @@ const mensagensSituacao = {
   inativo: "não está mais ativo",
 };
 
-// O servidor pode estar "dormindo" (plano gratuito): a primeira resposta pode
-// levar até um minuto. Consulta tem tempo maior; o envio, mais ainda.
+// Tempos limite: a consulta é rápida; o envio fala com a máquina pelo painel
+// Machine Pay, que às vezes demora, então tem bem mais tempo.
 const TEMPO_CONSULTA_MS = 60000;
 const TEMPO_ENVIO_MS = 120000;
 const AVISO_DEMORA_MS = 4000;
@@ -70,7 +70,7 @@ export function CreditoRemotoPublico() {
     };
   }, []);
 
-  // Avisa quando a consulta ou o envio estão demorando (servidor acordando)
+  // Avisa quando a consulta ou o envio estão demorando (internet lenta, painel lento)
   useEffect(() => {
     if (etapa !== "carregando" && !enviando) {
       setDemorando(false);
@@ -241,7 +241,7 @@ export function CreditoRemotoPublico() {
             <p className="font-semibold">Abrindo seu voucher...</p>
             {demorando && (
               <p className="mt-2 text-sm text-gray-500">
-                Estamos conectando ao servidor. Na primeira vez pode levar até um minuto.
+                Está demorando um pouco mais que o normal. Aguarde mais alguns segundos.
               </p>
             )}
           </div>

@@ -47,7 +47,7 @@ export function AuthProvider({ children }) {
         localStorage.setItem("usuario", JSON.stringify(atualizado));
         setUsuario(atualizado);
       } catch {
-        // Servidor acordando ou sem internet: tenta mais uma vez daqui a pouco
+        // Servidor lento ou sem internet: tenta mais uma vez daqui a pouco
         clearTimeout(tentarDeNovo);
         tentarDeNovo = setTimeout(() => atualizarPerfil(true), 15000);
       }

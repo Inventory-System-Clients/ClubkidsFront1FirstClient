@@ -252,7 +252,7 @@ const TEMPO_CONSULTA_MS = 45000;
 const mensagemErro = (error, padrao) => {
   if (error?.response?.data?.error) return error.response.data.error;
   if (error?.code === "ECONNABORTED" || /timeout/i.test(error?.message || "")) {
-    return "O servidor demorou demais para responder (pode estar acordando). Tente de novo.";
+    return "O servidor demorou demais para responder. Tente de novo.";
   }
   if (error && !error.response) {
     return "Sem conexão com o servidor. Confira a internet e tente de novo.";
