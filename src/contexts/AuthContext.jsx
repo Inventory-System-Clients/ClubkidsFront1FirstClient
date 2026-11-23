@@ -14,27 +14,55 @@ export function AuthProvider({ children }) {
     if (token && usuarioSalvo) {
       setUsuario(JSON.parse(usuarioSalvo));
       api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-
-      // Atualiza role/permissões em segundo plano (o ADMIN pode ter alterado)
-      api
-        .get("/auth/perfil")
-        .then((res) => {
-          if (!res.data?.id) return;
-          const atualizado = {
-            id: res.data.id,
-            nome: res.data.nome,
-            email: res.data.email,
-            role: res.data.role,
-            telefone: res.data.telefone,
-            permissoes: res.data.permissoes ?? null,
-          };
-          localStorage.setItem("usuario", JSON.stringify(atualizado));
-          setUsuario(atualizado);
-        })
-        .catch(() => {});
     }
 
     setLoading(false);
+  }, []);
+
+  // Relê role/permissões do servidor (o ADMIN pode ter liberado ou tirado abas).
+  // Antes só acontecia ao recarregar a página: com o sistema aberto, uma aba
+  // liberada (ex: Machine Pay) só aparecia depois de um F5, e se essa leitura
+  // falhasse o menu ficava com as permissões antigas.
+  // Agora: ao abrir, ao voltar para a aba do navegador (no máximo 1x por minuto)
+  // e com uma nova tentativa em caso de falha.
+  useEffect(() => {
+    let ultimaLeitura = 0;
+    let tentarDeNovo = null;
+
+    const atualizarPerfil = async (forcar = false) => {
+      if (!localStorage.getItem("token")) return;
+      if (!forcar && Date.now() - ultimaLeitura < 60000) return;
+      ultimaLeitura = Date.now();
+      try {
+        const res = await api.get("/auth/perfil", { timeout: 60000 });
+        if (!res.data?.id) return;
+        const atualizado = {
+          id: res.data.id,
+          nome: res.data.nome,
+          email: res.data.email,
+          role: res.data.role,
+          telefone: res.data.telefone,
+          permissoes: res.data.permissoes ?? null,
+        };
+        localStorage.setItem("usuario", JSON.stringify(atualizado));
+        setUsuario(atualizado);
+      } catch {
+        // Servidor acordando ou sem internet: tenta mais uma vez daqui a pouco
+        clearTimeout(tentarDeNovo);
+        tentarDeNovo = setTimeout(() => atualizarPerfil(true), 15000);
+      }
+    };
+
+    const aoVoltar = () => {
+      if (!document.hidden) atualizarPerfil();
+    };
+
+    atualizarPerfil(true);
+    document.addEventListener("visibilitychange", aoVoltar);
+    return () => {
+      clearTimeout(tentarDeNovo);
+      document.removeEventListener("visibilitychange", aoVoltar);
+    };
   }, []);
 
   const login = async (email, senha) => {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Bar,
@@ -19,7 +19,10 @@ import { Footer } from "../components/Footer";
 import { AlertBox, Modal, PageHeader } from "../components/UIComponents";
 import { LoadingSpinner } from "../components/Loading";
 import { HorarioFuncionamentoEditor } from "../components/HorarioFuncionamento";
-import { MapaMachinePay } from "../components/MapaMachinePay";
+// Mapa (leaflet) é pesado: só baixa quando a aba Mapa é aberta
+const MapaMachinePay = lazy(() =>
+  import("../components/MapaMachinePay").then((m) => ({ default: m.MapaMachinePay })),
+);
 import { HorariosPicoConteudo } from "./HorariosPico";
 import { RankingMaquinasConteudo } from "./RankingMaquinas";
 import {
@@ -243,20 +246,50 @@ const montarHtmlImpressao = (maquinas, { status, regiao, verValores }) => {
 </body></html>`;
 };
 
-const mensagemErro = (error, padrao) =>
-  error?.response?.data?.error || error?.message || padrao;
+// Tempo máximo de cada consulta da página (antes ficava "carregando" para sempre)
+const TEMPO_CONSULTA_MS = 45000;
+
+const mensagemErro = (error, padrao) => {
+  if (error?.response?.data?.error) return error.response.data.error;
+  if (error?.code === "ECONNABORTED" || /timeout/i.test(error?.message || "")) {
+    return "O servidor demorou demais para responder (pode estar acordando). Tente de novo.";
+  }
+  if (error && !error.response) {
+    return "Sem conexão com o servidor. Confira a internet e tente de novo.";
+  }
+  return padrao;
+};
+
+function ErroCarregamento({ erro, onTentarDeNovo }) {
+  if (!erro) return null;
+  return (
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+      <span>⚠️ {erro}</span>
+      {onTentarDeNovo && (
+        <button
+          type="button"
+          onClick={onTentarDeNovo}
+          className="rounded-lg border border-red-300 bg-white px-3 py-1 font-semibold text-red-700 hover:bg-red-100"
+        >
+          Tentar de novo
+        </button>
+      )}
+    </div>
+  );
+}
 
 // GET com cancelamento: refaz a consulta quando url/params mudam. "loading" é
 // derivado (última resposta não corresponde à consulta atual), sem setState no efeito.
-function useConsulta(url, params) {
-  const chave = url ? `${url}?${JSON.stringify(params)}` : null;
+function useConsulta(url, params, { timeout = TEMPO_CONSULTA_MS } = {}) {
+  const [tentativa, setTentativa] = useState(0);
+  const chave = url ? `${url}?${JSON.stringify(params)}#${tentativa}` : null;
   const [estado, setEstado] = useState({ chave: null, dados: null, erro: "" });
 
   useEffect(() => {
     if (!chave) return undefined;
     let cancelado = false;
     api
-      .get(url, { params })
+      .get(url, { params, timeout })
       .then((res) => !cancelado && setEstado({ chave, dados: res.data, erro: "" }))
       .catch(
         (error) =>
@@ -277,6 +310,7 @@ function useConsulta(url, params) {
     dados: estado.dados,
     erro: estado.erro,
     loading: Boolean(chave) && estado.chave !== chave,
+    recarregar: () => setTentativa((t) => t + 1),
   };
 }
 
@@ -458,7 +492,7 @@ function AbaMaquinas({
 }) {
   const [ordenar, setOrdenar] = useState("");
   const [page, setPage] = usePagina(JSON.stringify([filtrosQuery, status, comQueda, ordenar, regiao]));
-  const { dados, loading, erro } = useConsulta("/machine-pay/monitor/maquinas", {
+  const { dados, loading, erro, recarregar } = useConsulta("/machine-pay/monitor/maquinas", {
     ...filtrosQuery,
     regiao: regiao || undefined,
     status,
@@ -617,7 +651,7 @@ function AbaMaquinas({
       }
     >
       {erroWhatsapp && <AlertBox type="error" message={erroWhatsapp} onClose={() => setErroWhatsapp("")} />}
-      {erro && <AlertBox type="error" message={erro} />}
+      <ErroCarregamento erro={erro} onTentarDeNovo={recarregar} />
       {loading && !dados ? (
         <LoadingSpinner message="Carregando máquinas..." />
       ) : maquinas.length === 0 ? (
@@ -738,7 +772,7 @@ function AbaRanking({ filtrosQuery, periodo, onAbrirMaquina }) {
   const [ordem, setOrdem] = useState("pior");
   const [paginasVisiveis, setPaginasVisiveis] = usePagina(JSON.stringify([filtrosQuery, periodo]));
   const mostrar = paginasVisiveis * TAMANHO_PAGINA;
-  const { dados, loading, erro } = useConsulta("/machine-pay/monitor/ranking-quedas", {
+  const { dados, loading, erro, recarregar } = useConsulta("/machine-pay/monitor/ranking-quedas", {
     ...filtrosQuery,
     dataInicio: periodo.inicio,
     dataFim: periodo.fim,
@@ -776,7 +810,7 @@ function AbaRanking({ filtrosQuery, periodo, onAbrirMaquina }) {
         </div>
       }
     >
-      {erro && <AlertBox type="error" message={erro} />}
+      <ErroCarregamento erro={erro} onTentarDeNovo={recarregar} />
       {loading && !dados ? (
         <LoadingSpinner message="Montando ranking..." />
       ) : !ranking.length ? (
@@ -881,7 +915,7 @@ function AbaGraficos({ filtrosQuery, periodo, resumo }) {
       ? { inicio: somarDias(periodo.fim, -13), fim: periodo.fim, expandido: true }
       : periodo;
 
-  const { dados, loading, erro } = useConsulta("/machine-pay/monitor/serie-diaria", {
+  const { dados, loading, erro, recarregar } = useConsulta("/machine-pay/monitor/serie-diaria", {
     ...filtrosQuery,
     dataInicio: periodoGrafico.inicio,
     dataFim: periodoGrafico.fim,
@@ -902,7 +936,7 @@ function AbaGraficos({ filtrosQuery, periodo, resumo }) {
 
   return (
     <>
-      {erro && <AlertBox type="error" message={erro} />}
+      <ErroCarregamento erro={erro} onTentarDeNovo={recarregar} />
       {resumo?.monitor?.inicioHistorico && (
         <AlertBox
           type="info"
@@ -1023,7 +1057,7 @@ function AbaGraficos({ filtrosQuery, periodo, resumo }) {
 function AbaEventos({ filtrosQuery, periodo, onAbrirMaquina }) {
   const [tipo, setTipo] = useState("");
   const [page, setPage] = usePagina(JSON.stringify([filtrosQuery, periodo, tipo]));
-  const { dados, loading, erro } = useConsulta("/machine-pay/monitor/eventos", {
+  const { dados, loading, erro, recarregar } = useConsulta("/machine-pay/monitor/eventos", {
     ...filtrosQuery,
     dataInicio: periodo.inicio,
     dataFim: periodo.fim,
@@ -1045,7 +1079,7 @@ function AbaEventos({ filtrosQuery, periodo, onAbrirMaquina }) {
         </select>
       }
     >
-      {erro && <AlertBox type="error" message={erro} />}
+      <ErroCarregamento erro={erro} onTentarDeNovo={recarregar} />
       {loading && !dados ? (
         <LoadingSpinner />
       ) : !dados?.eventos?.length ? (
@@ -1219,7 +1253,7 @@ function ExtratoVendas({ maquina, verValores, podeDevolver, isAdmin }) {
   const [devolvendo, setDevolvendo] = useState(null);
   const [aviso, setAviso] = useState(null);
 
-  const { dados, loading, erro } = useConsulta(`/machine-pay/monitor/maquinas/${maquina.posId}/vendas`, {
+  const { dados, loading, erro, recarregar } = useConsulta(`/machine-pay/monitor/maquinas/${maquina.posId}/vendas`, {
     dataInicio: consulta.inicio,
     dataFim: consulta.fim,
     _v: consulta.versao || undefined,
@@ -1301,7 +1335,7 @@ function ExtratoVendas({ maquina, verValores, podeDevolver, isAdmin }) {
       </form>
 
       {aviso && <AlertBox type={aviso.type} message={aviso.message} onClose={() => setAviso(null)} />}
-      {erro && <AlertBox type="error" message={erro} />}
+      <ErroCarregamento erro={erro} onTentarDeNovo={recarregar} />
       {loading ? (
         <LoadingSpinner message="Consultando o painel..." />
       ) : vendas.length === 0 ? (
@@ -1681,7 +1715,7 @@ function DetalheMaquina({ posId, onClose }) {
     }
   };
   const fim = dataBrasil();
-  const { dados, loading, erro } = useConsulta(
+  const { dados, loading, erro, recarregar } = useConsulta(
     posId ? `/machine-pay/monitor/maquinas/${posId}` : null,
     { dataInicio: somarDias(fim, -(dias - 1)), dataFim: fim, _v: versaoHorario || undefined },
   );
@@ -1771,7 +1805,7 @@ function DetalheMaquina({ posId, onClose }) {
 
   return (
     <Modal isOpen={Boolean(posId)} onClose={onClose} title={titulo} size="xl">
-      {erro && <AlertBox type="error" message={erro} />}
+      <ErroCarregamento erro={erro} onTentarDeNovo={recarregar} />
       {erroRegiao && <AlertBox type="error" message={erroRegiao} onClose={() => setErroRegiao("")} />}
       {loading && !dados ? (
         <LoadingSpinner />
@@ -2013,16 +2047,25 @@ export function MachinePay() {
     [busca, lojaId, sinal, tipoVersao, incluirDesativadas, versaoDados],
   );
 
+  // Um pedido de resumo por vez: com o servidor lento, a atualização automática
+  // não empilha pedidos (o que deixava a página travada).
+  const resumoEmAndamento = useRef(false);
   const carregarResumo = useCallback(
     async (silencioso = false) => {
+      if (silencioso && resumoEmAndamento.current) return;
+      resumoEmAndamento.current = true;
       if (!silencioso) setLoadingResumo(true);
       try {
-        const res = await api.get("/machine-pay/monitor/resumo", { params: filtrosQuery });
+        const res = await api.get("/machine-pay/monitor/resumo", {
+          params: filtrosQuery,
+          timeout: TEMPO_CONSULTA_MS,
+        });
         setResumo(res.data);
         setErroResumo("");
       } catch (error) {
         setErroResumo(mensagemErro(error, "Erro ao carregar resumo da Machine Pay"));
       } finally {
+        resumoEmAndamento.current = false;
         setLoadingResumo(false);
       }
     },
@@ -2031,8 +2074,18 @@ export function MachinePay() {
 
   useEffect(() => {
     carregarResumo();
-    const timer = setInterval(() => carregarResumo(true), ATUALIZAR_A_CADA_MS);
-    return () => clearInterval(timer);
+    // Atualiza só com a aba do navegador visível; ao voltar, atualiza na hora
+    const timer = setInterval(() => {
+      if (!document.hidden) carregarResumo(true);
+    }, ATUALIZAR_A_CADA_MS);
+    const aoVoltar = () => {
+      if (!document.hidden) carregarResumo(true);
+    };
+    document.addEventListener("visibilitychange", aoVoltar);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", aoVoltar);
+    };
   }, [carregarResumo]);
 
   const coletarAgora = async () => {
@@ -2104,7 +2157,7 @@ export function MachinePay() {
           }
         />
 
-        {erroResumo && <AlertBox type="error" title="Problema" message={erroResumo} onClose={() => setErroResumo("")} />}
+        <ErroCarregamento erro={erroResumo} onTentarDeNovo={() => carregarResumo()} />
         {monitor && !monitor.configurado && (
           <AlertBox
             type="warning"
@@ -2414,12 +2467,14 @@ export function MachinePay() {
           <AbaEventos filtrosQuery={filtrosQuery} periodo={periodo} onAbrirMaquina={setMaquinaAberta} />
         )}
         {aba === "mapa" && (
-          <MapaMachinePay
-            filtrosQuery={filtrosQuery}
-            onAbrirMaquina={setMaquinaAberta}
-            verValores={verValores}
-            podeEditar={podeHorario}
-          />
+          <Suspense fallback={<LoadingSpinner message="Abrindo o mapa..." />}>
+            <MapaMachinePay
+              filtrosQuery={filtrosQuery}
+              onAbrirMaquina={setMaquinaAberta}
+              verValores={verValores}
+              podeEditar={podeHorario}
+            />
+          </Suspense>
         )}
         {aba === "pico" && <HorariosPicoConteudo />}
         {aba === "rankingMaquinas" && <RankingMaquinasConteudo />}

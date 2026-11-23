@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import apiPublica from "../services/apiPublica";
 
 // Página aberta pelo link temporário de crédito remoto. O token vem no
-// fragmento da URL (/creditos#TOKEN), que o navegador nunca manda para
+// fragmento da URL (/creditos/<id>#TOKEN), que o navegador nunca manda para
 // nenhum servidor nem em logs de acesso. Não tem Navbar nem nada do sistema:
 // quem tem o link só enxerga esta tela.
 // O voucher é usado de uma vez: escolhida a máquina, vai todo o saldo.
@@ -15,24 +15,44 @@ const formatarMoeda = (valor) =>
 
 const obterToken = () => window.location.hash.replace(/^#/, "");
 
+const normalizar = (texto) =>
+  String(texto || "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+
 const mensagensSituacao = {
   revogado: "foi bloqueado",
-  esgotado: "já usou todo o saldo",
+  esgotado: "já foi usado",
   expirado: "passou da data de validade",
   inativo: "não está mais ativo",
 };
+
+// O servidor pode estar "dormindo" (plano gratuito): a primeira resposta pode
+// levar até um minuto. Consulta tem tempo maior; o envio, mais ainda.
+const TEMPO_CONSULTA_MS = 60000;
+const TEMPO_ENVIO_MS = 120000;
+const AVISO_DEMORA_MS = 4000;
+const MOSTRAR_BUSCA_A_PARTIR_DE = 8;
+
+// Sem resposta do servidor (rede, tempo esgotado ou servidor fora do ar)
+const semResposta = (err) => !err.response || err.response.status >= 500;
 
 export function CreditoRemotoPublico() {
   // O token fica no estado e acompanha a URL: colar outro link na mesma aba
   // só troca o "#...", o que não recarrega a página — sem isso a tela
   // continuava mostrando o resultado do link anterior.
   const [token, setToken] = useState(obterToken);
+  // "carregando" | "erroConexao" | "indisponivel" | "pronto" | "resultado"
+  const [etapa, setEtapa] = useState("carregando");
   const [dados, setDados] = useState(null);
-  const [carregando, setCarregando] = useState(true);
-  const [expirado, setExpirado] = useState("");
+  const [indisponivel, setIndisponivel] = useState("");
+  const [demorando, setDemorando] = useState(false);
+  const [busca, setBusca] = useState("");
   const [maquinaAberta, setMaquinaAberta] = useState(null);
   const [enviando, setEnviando] = useState(false);
-  const [mensagem, setMensagem] = useState(null);
+  const [erroEnvio, setErroEnvio] = useState("");
+  const [resultado, setResultado] = useState(null);
   // Só a resposta da consulta mais recente vale (evita mostrar o voucher anterior)
   const consultaAtual = useRef(0);
 
@@ -50,75 +70,156 @@ export function CreditoRemotoPublico() {
     };
   }, []);
 
+  // Avisa quando a consulta ou o envio estão demorando (servidor acordando)
+  useEffect(() => {
+    if (etapa !== "carregando" && !enviando) {
+      setDemorando(false);
+      return undefined;
+    }
+    const timer = setTimeout(() => setDemorando(true), AVISO_DEMORA_MS);
+    return () => clearTimeout(timer);
+  }, [etapa, enviando]);
+
+  const consultar = useCallback(
+    () =>
+      apiPublica.get("/credito-remoto/publico", {
+        headers: { "X-Link-Token": token },
+        timeout: TEMPO_CONSULTA_MS,
+      }),
+    [token],
+  );
+
   const carregar = useCallback(async () => {
     const consulta = ++consultaAtual.current;
-    try {
-      const response = await apiPublica.get("/credito-remoto/publico", {
-        headers: { "X-Link-Token": token },
-      });
-      if (consulta !== consultaAtual.current) return;
-      setDados(response.data);
-      setExpirado("");
-    } catch (err) {
-      if (consulta !== consultaAtual.current) return;
-      const { situacao, descricao, error } = err.response?.data || {};
-      setDados(null);
-      setExpirado(
-        situacao && descricao
-          ? `O voucher "${descricao}" ${mensagensSituacao[situacao] || "expirou"}.`
-          : error || "Não foi possível abrir o voucher. Tente novamente.",
-      );
-    } finally {
-      if (consulta === consultaAtual.current) setCarregando(false);
+    setEtapa("carregando");
+    // Uma nova tentativa automática se o servidor não respondeu
+    for (let tentativa = 1; tentativa <= 2; tentativa += 1) {
+      try {
+        const response = await consultar();
+        if (consulta !== consultaAtual.current) return;
+        setDados(response.data);
+        setEtapa("pronto");
+        return;
+      } catch (err) {
+        if (consulta !== consultaAtual.current) return;
+        if (semResposta(err) && tentativa === 1) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          continue;
+        }
+        if (semResposta(err)) {
+          setEtapa("erroConexao");
+          return;
+        }
+        const { situacao, descricao, error } = err.response?.data || {};
+        setIndisponivel(
+          situacao && descricao
+            ? `O voucher "${descricao}" ${mensagensSituacao[situacao] || "expirou"}.`
+            : error || "Este voucher não é válido.",
+        );
+        setEtapa("indisponivel");
+        return;
+      }
     }
-  }, [token]);
+  }, [consultar]);
 
   useEffect(() => {
-    setCarregando(true);
     setDados(null);
-    setExpirado("");
     setMaquinaAberta(null);
-    setMensagem(null);
+    setResultado(null);
+    setErroEnvio("");
+    setBusca("");
     carregar();
   }, [carregar]);
 
+  const maquinasFiltradas = useMemo(() => {
+    const lista = dados?.maquinas || [];
+    const termo = normalizar(busca.trim());
+    if (!termo) return lista;
+    return lista.filter((maquina) =>
+      normalizar(`${maquina.loja || ""} ${maquina.nome}`).includes(termo),
+    );
+  }, [dados, busca]);
+
   const abrirMaquina = (maquina) => {
     setMaquinaAberta(maquina);
-    setMensagem(null);
+    setErroEnvio("");
   };
 
-  // Envia todo o saldo do voucher para a máquina escolhida
+  // Envia todo o saldo do voucher para a máquina escolhida.
+  // Nunca repete o envio sozinho: crédito em dobro é pior que um erro.
   const enviar = async () => {
     if (!maquinaAberta || enviando) return;
+    const maquina = maquinaAberta;
+    const valorEsperado = dados.restante;
 
     try {
       setEnviando(true);
-      setMensagem(null);
+      setErroEnvio("");
       const response = await apiPublica.post(
         "/credito-remoto/publico/enviar",
-        { maquinaId: maquinaAberta.id },
-        { headers: { "X-Link-Token": token } },
+        { maquinaId: maquina.id },
+        { headers: { "X-Link-Token": token }, timeout: TEMPO_ENVIO_MS },
       );
-      setMensagem({
+      setResultado({
         tipo: response.data.sucesso ? "sucesso" : "aviso",
-        texto: response.data.mensagem,
+        valor: response.data.valor ?? valorEsperado,
+        maquina: response.data.maquina || maquina.nome,
+        loja: maquina.loja,
+        texto: response.data.sucesso
+          ? "O crédito já está na máquina. É só jogar!"
+          : "O crédito foi enviado, mas a máquina não confirmou. Confira na máquina antes de qualquer coisa.",
       });
       setMaquinaAberta(null);
+      setEtapa("resultado");
     } catch (err) {
-      setMensagem({
-        tipo: "erro",
-        texto: err.response?.data?.error || "Não foi possível enviar o crédito.",
+      const dadosErro = err.response?.data || {};
+
+      if (err.response && !dadosErro.incerto && err.response.status < 500) {
+        // Recusado antes de enviar (voucher já usado, máquina não permitida...)
+        setErroEnvio(dadosErro.error || "Não foi possível usar o voucher.");
+        if (err.response.status === 410) {
+          setMaquinaAberta(null);
+          carregar();
+        }
+        return;
+      }
+
+      // Sem resposta ou falha: confere o voucher. Se o valor continua intacto,
+      // o envio nem começou e dá para tentar de novo com segurança (o servidor
+      // nunca usa o mesmo saldo duas vezes).
+      if (!dadosErro.incerto) {
+        try {
+          const confere = await consultar();
+          if (confere.data?.restante >= valorEsperado) {
+            setDados(confere.data);
+            setErroEnvio("Não foi possível enviar agora. Nenhum valor foi usado: tente de novo.");
+            return;
+          }
+        } catch {
+          // Sem como conferir: mostra o aviso abaixo
+        }
+      }
+
+      // O voucher foi usado, mas não dá para saber se o crédito entrou na máquina
+      setResultado({
+        tipo: "incerto",
+        valor: dadosErro.valor ?? valorEsperado,
+        maquina: dadosErro.maquina || maquina.nome,
+        loja: maquina.loja,
+        texto:
+          "Não conseguimos confirmar o envio. Confira se o crédito entrou na máquina e NÃO tente usar o voucher de novo. Se não entrou, fale com a equipe Clube Kids.",
       });
+      setMaquinaAberta(null);
+      setEtapa("resultado");
     } finally {
       setEnviando(false);
-      carregar();
     }
   };
 
-  const classesMensagem = {
-    sucesso: "bg-emerald-50 text-emerald-800 border-emerald-200",
-    aviso: "bg-amber-50 text-amber-800 border-amber-200",
-    erro: "bg-red-50 text-red-800 border-red-200",
+  const estiloResultado = {
+    sucesso: { icone: "✅", titulo: "Crédito enviado!", cor: "text-emerald-700", fundo: "bg-emerald-50 border-emerald-200" },
+    aviso: { icone: "⚠️", titulo: "Crédito enviado", cor: "text-amber-700", fundo: "bg-amber-50 border-amber-200" },
+    incerto: { icone: "⏳", titulo: "Não deu para confirmar", cor: "text-amber-700", fundo: "bg-amber-50 border-amber-200" },
   };
 
   return (
@@ -134,73 +235,105 @@ export function CreditoRemotoPublico() {
       </header>
 
       <main className="max-w-xl mx-auto px-4 py-6">
-        {carregando ? (
-          <div className="card text-center py-12 text-gray-600">Carregando...</div>
-        ) : expirado ? (
+        {etapa === "carregando" && (
+          <div className="card text-center py-12 text-gray-600" role="status">
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-primary" />
+            <p className="font-semibold">Abrindo seu voucher...</p>
+            {demorando && (
+              <p className="mt-2 text-sm text-gray-500">
+                Estamos conectando ao servidor. Na primeira vez pode levar até um minuto.
+              </p>
+            )}
+          </div>
+        )}
+
+        {etapa === "erroConexao" && (
+          <div className="card text-center py-12">
+            <p className="text-5xl mb-3">📶</p>
+            <h1 className="text-xl font-bold text-gray-900">
+              Não conseguimos abrir o voucher agora
+            </h1>
+            <p className="text-gray-600 mt-2">
+              Confira a internet do celular e tente de novo. Seu voucher continua válido.
+            </p>
+            <button type="button" className="btn-primary mt-5" onClick={carregar}>
+              Tentar de novo
+            </button>
+          </div>
+        )}
+
+        {etapa === "indisponivel" && (
           <div className="card text-center py-12">
             <p className="text-5xl mb-3">⏱️</p>
-            <h1 className="text-xl font-bold text-gray-900">{expirado}</h1>
+            <h1 className="text-xl font-bold text-gray-900">{indisponivel}</h1>
             <p className="text-gray-600 mt-2">
               Este voucher não está mais disponível.
             </p>
           </div>
-        ) : (
+        )}
+
+        {etapa === "resultado" && resultado && (
+          <div className={`card text-center py-10 border ${estiloResultado[resultado.tipo].fundo}`} role="status">
+            <p className="text-6xl mb-3">{estiloResultado[resultado.tipo].icone}</p>
+            <h1 className={`text-2xl font-black ${estiloResultado[resultado.tipo].cor}`}>
+              {estiloResultado[resultado.tipo].titulo}
+            </h1>
+            <p className="text-4xl font-black text-gray-900 mt-3">
+              {formatarMoeda(resultado.valor)}
+            </p>
+            <p className="text-gray-700 mt-1">
+              para {resultado.loja ? <b>{resultado.loja} · </b> : null}
+              <b>{resultado.maquina}</b>
+            </p>
+            <p className="text-gray-600 mt-4 text-sm">{resultado.texto}</p>
+          </div>
+        )}
+
+        {etapa === "pronto" && dados && (
           <>
             <section className="card-gradient mb-5">
               <p className="text-sm text-gray-600">{dados.descricao}</p>
               <h1 className="text-2xl font-black text-gray-900 mt-1">
                 Seu voucher Clube Kids
               </h1>
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <div className="rounded-lg border border-gray-200 bg-white p-3">
-                  <p className="text-xs font-bold uppercase text-gray-500">
-                    Saldo disponível
-                  </p>
-                  <p className="text-2xl font-black text-emerald-700">
-                    {formatarMoeda(dados.restante)}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-gray-200 bg-white p-3">
-                  <p className="text-xs font-bold uppercase text-gray-500">
-                    Já usado
-                  </p>
-                  <p className="text-2xl font-black text-gray-900">
-                    {formatarMoeda(dados.usado)}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    de {formatarMoeda(dados.limite)}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-3 h-2 rounded-full bg-gray-200 overflow-hidden">
-                <div
-                  className="h-full bg-primary"
-                  style={{
-                    width: `${Math.min(100, (dados.usado / dados.limite) * 100)}%`,
-                  }}
-                />
+              <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4 text-center">
+                <p className="text-xs font-bold uppercase text-gray-500">
+                  Valor do voucher
+                </p>
+                <p className="text-4xl font-black text-emerald-700">
+                  {formatarMoeda(dados.restante)}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Escolha a máquina: todo o valor vai para ela de uma vez.
+                </p>
               </div>
             </section>
-
-            {mensagem && !maquinaAberta && (
-              <div
-                className={`mb-4 rounded-lg border p-3 text-sm font-medium ${classesMensagem[mensagem.tipo]}`}
-              >
-                {mensagem.texto}
-              </div>
-            )}
 
             <h2 className="text-lg font-bold text-gray-900 mb-3">
               Escolha a máquina
             </h2>
 
+            {dados.maquinas.length >= MOSTRAR_BUSCA_A_PARTIR_DE && (
+              <input
+                type="search"
+                className="input-field w-full mb-3"
+                placeholder="🔎 Buscar loja ou máquina"
+                value={busca}
+                onChange={(event) => setBusca(event.target.value)}
+              />
+            )}
+
             {dados.maquinas.length === 0 ? (
               <div className="card text-center py-8 text-gray-600">
                 Nenhuma máquina disponível no momento.
               </div>
+            ) : maquinasFiltradas.length === 0 ? (
+              <div className="card text-center py-8 text-gray-600">
+                Nenhuma máquina encontrada para "{busca}".
+              </div>
             ) : (
               <ul className="space-y-3">
-                {dados.maquinas.map((maquina) => (
+                {maquinasFiltradas.map((maquina) => (
                   <li
                     key={maquina.id}
                     className="card flex items-center justify-between gap-3"
@@ -232,7 +365,7 @@ export function CreditoRemotoPublico() {
 
       {maquinaAberta && dados && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" role="dialog" aria-modal="true">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-bold uppercase text-gray-500">
@@ -259,20 +392,18 @@ export function CreditoRemotoPublico() {
             </div>
 
             <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-center">
-              <p className="text-sm text-gray-700">Vai ser enviado todo o saldo do voucher:</p>
+              <p className="text-sm text-gray-700">Vai ser enviado todo o valor do voucher:</p>
               <p className="text-3xl font-black text-emerald-700 mt-1">
                 {formatarMoeda(dados.restante)}
               </p>
               <p className="text-xs text-gray-500 mt-2">
-                Confira se é a máquina certa: depois de enviar, o voucher fica sem saldo.
+                Confira se é a máquina certa: depois de enviar, o voucher acaba.
               </p>
             </div>
 
-            {mensagem && (
-              <div
-                className={`mt-4 rounded-lg border p-3 text-sm font-medium ${classesMensagem[mensagem.tipo]}`}
-              >
-                {mensagem.texto}
+            {erroEnvio && (
+              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800" role="alert">
+                {erroEnvio}
               </div>
             )}
 
@@ -284,6 +415,13 @@ export function CreditoRemotoPublico() {
             >
               {enviando ? "Enviando..." : `Enviar ${formatarMoeda(dados.restante)}`}
             </button>
+            {enviando && (
+              <p className="mt-2 text-center text-xs text-gray-500">
+                {demorando
+                  ? "Ainda enviando... não feche esta tela."
+                  : "Falando com a máquina..."}
+              </p>
+            )}
           </div>
         </div>
       )}
