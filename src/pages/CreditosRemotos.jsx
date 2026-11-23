@@ -182,7 +182,6 @@ export function CreditosRemotos() {
   const [lojaIds, setLojaIds] = useState([]);
   const [buscaLoja, setBuscaLoja] = useState("");
   const [buscaVoucher, setBuscaVoucher] = useState("");
-  const [expiraEm, setExpiraEm] = useState("");
   const [modoLoja, setModoLoja] = useState("todas");
   const [maquinaIds, setMaquinaIds] = useState([]);
   const [criando, setCriando] = useState(false);
@@ -303,7 +302,6 @@ export function CreditosRemotos() {
       descricao,
       limite: limite.replace(",", "."),
       quantidade: Number(quantidade),
-      expiraEm: expiraEm ? new Date(expiraEm).toISOString() : null,
       maquinaIds: maquinaEspecifica ? maquinaIds : [],
       lojaIds: escopo === "lojas" && !maquinaEspecifica ? lojaIds : [],
     });
@@ -311,7 +309,6 @@ export function CreditosRemotos() {
       setDescricao("");
       setLimite("150");
       setQuantidade("1");
-      setExpiraEm("");
     }
   };
 
@@ -625,20 +622,9 @@ export function CreditosRemotos() {
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Expira em (opcional)
-                </label>
-                <input
-                  type="datetime-local"
-                  className="input-field w-full"
-                  value={expiraEm}
-                  onChange={(event) => setExpiraEm(event.target.value)}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Cada voucher também expira sozinho quando o valor dele acaba.
-                </p>
-              </div>
+              <p className="text-xs text-gray-500">
+                O voucher não tem prazo: vale até o valor dele ser usado.
+              </p>
               <button type="submit" className="btn-primary w-full" disabled={criando}>
                 {criando
                   ? "Gerando..."
@@ -721,9 +707,6 @@ export function CreditosRemotos() {
                         <p className="text-xs text-gray-500 mt-1">
                           Criado em {formatarDataHora(link.createdAt)}
                           {link.criadoPor ? ` por ${link.criadoPor}` : ""}
-                          {link.expiraEm
-                            ? ` · expira em ${formatarDataHora(link.expiraEm)}`
-                            : ""}
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2 shrink-0 sm:max-w-xs sm:justify-end">
