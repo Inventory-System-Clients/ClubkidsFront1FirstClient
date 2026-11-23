@@ -181,6 +181,7 @@ export function CreditosRemotos() {
   const [escopo, setEscopo] = useState("todas");
   const [lojaIds, setLojaIds] = useState([]);
   const [buscaLoja, setBuscaLoja] = useState("");
+  const [buscaVoucher, setBuscaVoucher] = useState("");
   const [expiraEm, setExpiraEm] = useState("");
   const [modoLoja, setModoLoja] = useState("todas");
   const [maquinaIds, setMaquinaIds] = useState([]);
@@ -206,6 +207,12 @@ export function CreditosRemotos() {
   const lojasFiltradas = termoBusca
     ? lojasMachinePay.filter((loja) => normalizar(loja.nome).includes(termoBusca))
     : lojasMachinePay;
+
+  // Busca de vouchers pelo nome (descrição)
+  const termoVoucher = normalizar(buscaVoucher.trim());
+  const linksFiltrados = termoVoucher
+    ? links.filter((link) => normalizar(link.descricao).includes(termoVoucher))
+    : links;
 
   const carregar = async () => {
     try {
@@ -664,12 +671,33 @@ export function CreditosRemotos() {
           )}
 
           <section className={`${podeGerenciar ? "lg:col-span-2" : "lg:col-span-3"} space-y-3`}>
+            {links.length > 0 && (
+              <div className="card py-3">
+                <input
+                  type="search"
+                  className="input-field w-full"
+                  placeholder="🔎 Buscar voucher pelo nome"
+                  value={buscaVoucher}
+                  onChange={(e) => setBuscaVoucher(e.target.value)}
+                />
+                {termoVoucher && (
+                  <p className="mt-2 text-xs text-gray-500">
+                    {linksFiltrados.length} de {links.length} voucher
+                    {links.length === 1 ? "" : "s"}
+                  </p>
+                )}
+              </div>
+            )}
             {links.length === 0 ? (
               <div className="card text-center py-12 text-gray-600">
                 Nenhum voucher criado ainda.
               </div>
+            ) : linksFiltrados.length === 0 ? (
+              <div className="card text-center py-12 text-gray-600">
+                Nenhum voucher encontrado para "{buscaVoucher.trim()}".
+              </div>
             ) : (
-              links.map((link) => {
+              linksFiltrados.map((link) => {
                 const situacao = situacoes[link.situacao] || situacoes.inativo;
                 const ehLote = link.loteId && tamanhoLote[link.loteId] > 1;
                 return (
